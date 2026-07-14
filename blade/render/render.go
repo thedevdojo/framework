@@ -6,9 +6,10 @@
 // the brief's hypothesis (see .superpowers/sdd/task-6-report.md).
 //
 // Task 6 scope: Text, Echo (escaped + raw), and If are rendered; comments carry
-// no node (the parser drops them); Foreach/LoopJump/Component/Props/Vite/Unknown
+// no node (the parser drops them); Foreach/LoopJump/Component/Props/Unknown
 // are error-tolerant stubs that render nothing without a diagnostic — later
-// tasks give them semantics. Compile never panics on arbitrary input.
+// tasks give them semantics (Foreach/LoopJump: task 7; Component/Props: task
+// 8/9; Vite: task 10 — see vite.go). Compile never panics on arbitrary input.
 package render
 
 import (
@@ -184,10 +185,18 @@ func (r *renderer) renderNode(n ast.Node, eat bool) bool {
 		r.renderProps(node)
 		return directiveEatsNewline // the @props line eats one following newline
 
+	case *ast.Vite:
+		r.renderVite(node)
+		// @vite compiles to the same `<?php echo ...; ?>` close-tag shape as any
+		// other directive (CompilesHelpers::compileVite), so it eats one following
+		// newline unconditionally -- settled empirically against the oracle
+		// (task-10-report.md), even when nothing renders (no resolved CSS entries).
+		return directiveEatsNewline
+
 	default:
-		// Vite, Unknown: stubs for now — no output, no diagnostic. Transparent to
-		// the newline state so a stub never changes surrounding whitespace before
-		// its real implementation.
+		// Unknown: a stub for now — no output, no diagnostic. Transparent to the
+		// newline state so a stub never changes surrounding whitespace before its
+		// real implementation (Task 11).
 		return eat
 	}
 }

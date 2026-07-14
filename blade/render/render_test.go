@@ -118,17 +118,17 @@ func TestIfConditionError(t *testing.T) {
 	}
 }
 
-// TestStubNodesRenderNothing: Vite and an Unknown directive still produce no
-// output and no diagnostic in this task (Tasks 10/11 implement them).
-// Surrounding literal text is preserved. (Foreach is rendered — see
-// control_test.go; Component is rendered — see component_test.go.)
+// TestStubNodesRenderNothing: an Unknown directive still produces no output
+// and no diagnostic in this task (Task 11 implements it). Surrounding literal
+// text is preserved. (Foreach is rendered — see control_test.go; Component is
+// rendered — see component_test.go; Vite is rendered — see vite_test.go.)
 func TestStubNodesRenderNothing(t *testing.T) {
 	entry := "resources/views/pages/index.blade.html"
-	src := "C@vite(['a.js'])D@csrf.done"
+	src := "C@csrf.done"
 	fs := vfs.Mem{entry: src}
 	res := Compile(fs, []string{entry}, Options{})
-	if got := res.Files["index.html"]; got != "CD.done" {
-		t.Fatalf("output = %q; want %q", got, "CD.done")
+	if got := res.Files["index.html"]; got != "C.done" {
+		t.Fatalf("output = %q; want %q", got, "C.done")
 	}
 	if len(res.Diagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", res.Diagnostics)

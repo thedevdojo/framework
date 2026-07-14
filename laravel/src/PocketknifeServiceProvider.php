@@ -2,6 +2,7 @@
 
 namespace Devdojo\Pocketknife;
 
+use Illuminate\Foundation\Vite;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -11,6 +12,13 @@ class PocketknifeServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/pocketknife.php', 'pocketknife');
+
+        // Replace the real Vite container entry with the static projection —
+        // Blade's compiled `@vite(...)` always resolves `app(Vite::class)(...)`,
+        // so binding over that class name is the whole seam (see StaticVite).
+        if (config('pocketknife.static_projection')) {
+            $this->app->singleton(Vite::class, fn () => new StaticVite);
+        }
     }
 
     public function boot(): void
