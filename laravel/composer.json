@@ -1,0 +1,15 @@
+{
+    "name": "devdojo/pocketknife",
+    "description": "Run Pocketknife (portable Blade) sites in a real Laravel application",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "illuminate/view": "^11.0|^12.0|^13.0"
+    },
+    "autoload": { "psr-4": { "Devdojo\\Pocketknife\\": "src/" } },
+    "extra": { "laravel": { "providers": ["Devdojo\\Pocketknife\\PocketknifeServiceProvider"] } },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
