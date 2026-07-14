@@ -50,9 +50,11 @@ subset.
 - **Duplication is plumbing, not engine.** The platform consumes engines only through
   the JSON compile protocol; it never uses dev servers or CSS builds (user sites ride
   the Tailwind Play CDN). Pocketknife therefore needs only: engine + vfs + protocol.
-- **Two binaries in production eventually** (`site` for classic, `pocketknife` for
-  Blade). The platform's `EngineManager::compilerFor()` seam routes per project dialect
-  — in a later phase, not v1.
+- **The `site` binary is not deployed in production anywhere** (confirmed 2026-07-14),
+  so there is no dual-binary routing or classic-dialect conversion burden: the
+  platform-integration phase points the engine seam (`EngineManager::compilerFor()`)
+  directly at `pocketknife`. Classic remains a local/dev concern for div and the
+  static CLI only.
 
 ---
 
@@ -371,8 +373,8 @@ v1 substitute for a dev-server CLI.
 
 ## 9. Future phases (direction, non-binding)
 
-1. **Platform integration** — `EngineManager` routes Blade-dialect projects to the
-   `pocketknife` binary; wrapper class beside `static-engine-php`; builder Monaco +
+1. **Platform integration** — the engine seam points at the `pocketknife` binary
+   (no dual-binary routing; sitebuilder was never deployed); builder Monaco +
    lint surfaces `app-tier` as upgrade prompts.
 2. **Library migration** — classic→Blade transpiler; 289 sections + templates monorepo;
    SitePrompt and the visual tooling (BlockParser addressing moves to `<x-*>` tags);
