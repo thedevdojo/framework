@@ -41,19 +41,38 @@ func parseStringArray(raw string) ([]string, bool) {
 	return out, true
 }
 
+// parseViteEntries parses @vite's full argument grammar — wider than @props's
+// (which stays array-only): the `['a', 'b']` array literal, the idiomatic
+// bare-string form `@vite('a.css')` (real Blade accepts it, and the PHP side's
+// StaticVite normalizes a bare string the same way — Go must match for engine
+// parity), and the empty form (`@vite()` / bare `@vite` → no entries, valid;
+// StaticVite's null→[] normalization renders nothing there too). Anything
+// else returns ok=false.
+func parseViteEntries(raw string) ([]string, bool) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return nil, true // @vite / @vite(): no entries, nothing to project
+	}
+	if lit, ok := parseStringLiteral(s); ok {
+		return []string{lit}, true // bare-string form: @vite('x.css')
+	}
+	return parseStringArray(s)
+}
+
 // renderVite handles a @vite([...]) directive as the static projection: the
 // Tailwind Play CDN script once, plus one inlined
 // <style type="text/tailwindcss"> block per resolved CSS entry, in argument
 // order, joined by "\n" — the same emission StaticVite produces on the PHP
-// side (see laravel/src/StaticVite.php and fixtures/vite-css).
+// side (see laravel/src/StaticVite.php and fixtures/vite-css, vite-bare).
 //
 // A .js entry is app-tier (real bundling, not the static projection) and is
 // skipped; a missing CSS file is an error and its block is omitted; a
-// malformed (non-literal-string-array) argument is an error and nothing
-// renders. Zero resolved CSS entries means zero output — including the CDN
-// script, since there is then nothing for it to serve.
+// malformed argument (neither a literal string array nor a bare string
+// literal) is an error and nothing renders. Zero resolved CSS entries means
+// zero output — including the CDN script, since there is then nothing for it
+// to serve — matching StaticVite's empty-styles HtmlString(”).
 func (r *renderer) renderVite(node *ast.Vite) {
-	entries, ok := parseStringArray(node.Raw)
+	entries, ok := parseViteEntries(node.Raw)
 	if !ok {
 		r.diag(node.P, KindError, "@vite", "invalid @vite([...]) literal")
 		return

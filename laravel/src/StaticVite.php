@@ -36,11 +36,14 @@ class StaticVite extends Vite
      */
     public const CDN = 'https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4';
 
-    public function __invoke($entrypoints, $buildDirectory = null): HtmlString
+    public function __invoke($entrypoints = null, $buildDirectory = null): HtmlString
     {
-        // Blade usage allows a bare `@vite` (no args → null) and a single
-        // string entrypoint (`@vite('resources/css/app.css')`); real Vite
-        // normalizes both through a Collection. Mirror that here.
+        // Blade usage allows a bare `@vite` / `@vite()` (compiled as a
+        // zero-arg call — hence the null default the parent lacks) and a
+        // single string entrypoint (`@vite('resources/css/app.css')`); real
+        // Vite normalizes strings through a Collection. Mirror both here so
+        // every form degrades to "no entries → no output", matching the Go
+        // engine's parseViteEntries (blade/render/vite.go).
         if ($entrypoints === null) {
             $entrypoints = [];
         } elseif (is_string($entrypoints)) {

@@ -119,17 +119,98 @@ func TestViteMissingCssFile(t *testing.T) {
 	}
 }
 
-// TestViteMalformedArgs: an argument that isn't a literal string array raises
-// an error diagnostic and nothing renders.
+// TestViteMalformedArgs: an argument that isn't a literal string array (or a
+// bare string literal) raises an error diagnostic and nothing renders.
 func TestViteMalformedArgs(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry: `A@vite('resources/css/site.css')B`,
+		pageEntry: `A@vite($css)B`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "AB" {
 		t.Fatalf("output = %q; want %q", got, "AB")
 	}
 	if !hasConstruct(res.Diagnostics, "@vite") {
 		t.Fatalf("diagnostics = %v; want a @vite error", res.Diagnostics)
+	}
+}
+
+// TestParseViteEntries drives @vite's full argument grammar: the array form
+// (delegated to parseStringArray), the idiomatic bare-string form
+// (@vite('x.css') — real Blade accepts it, and StaticVite normalizes it on
+// the PHP side, so Go must too for engine parity), and the empty form
+// (@vite() / bare @vite → no entries, valid, renders nothing).
+func TestParseViteEntries(t *testing.T) {
+	cases := []struct {
+		raw  string
+		ok   bool
+		want []string
+	}{
+		{`'resources/css/site.css'`, true, []string{"resources/css/site.css"}},
+		{`"resources/css/site.css"`, true, []string{"resources/css/site.css"}},
+		{`  'a.css'  `, true, []string{"a.css"}}, // whitespace-padded bare string
+		{``, true, nil},                          // @vite / @vite(): no entries
+		{`   `, true, nil},
+		{`['a.css', 'b.css']`, true, []string{"a.css", "b.css"}}, // array form still works
+
+		// malformed rows → ok=false
+		{`$css`, false, nil},
+		{`['a' => 'b']`, false, nil},
+		{`'unterminated`, false, nil},
+		{`42`, false, nil},
+	}
+	for _, c := range cases {
+		got, ok := parseViteEntries(c.raw)
+		if ok != c.ok {
+			t.Errorf("parseViteEntries(%q) ok = %v; want %v", c.raw, ok, c.ok)
+			continue
+		}
+		if !c.ok {
+			continue
+		}
+		if len(got) != len(c.want) {
+			t.Errorf("parseViteEntries(%q) = %v; want %v", c.raw, got, c.want)
+			continue
+		}
+		for i := range c.want {
+			if got[i] != c.want[i] {
+				t.Errorf("parseViteEntries(%q) = %v; want %v", c.raw, got, c.want)
+			}
+		}
+	}
+}
+
+// TestViteBareStringEntry: @vite('x.css') — no brackets — renders exactly like
+// @vite(['x.css']). Idiomatic Blade; StaticVite normalizes the same way.
+func TestViteBareStringEntry(t *testing.T) {
+	res := compileMem(t, map[string]string{
+		pageEntry:             `A@vite('resources/css/a.css')B`,
+		"resources/css/a.css": "A{}",
+	}, nil)
+	want := `A<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>` +
+		"\n" + `<style type="text/tailwindcss">A{}</style>B`
+	if got := res.Files["index.html"]; got != want {
+		t.Fatalf("output = %q; want %q", got, want)
+	}
+	if len(res.Diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", res.Diagnostics)
+	}
+}
+
+// TestViteEmptyArgsRendersNothing: @vite() and bare @vite have no entries —
+// nothing renders (no CDN script either) and no diagnostic is raised,
+// matching StaticVite's null→[] normalization (zero entries → HtmlString(”)).
+func TestViteEmptyArgsRendersNothing(t *testing.T) {
+	for _, src := range []string{"A@vite()B", "A@vite B"} {
+		res := compileMem(t, map[string]string{pageEntry: src}, nil)
+		want := "AB"
+		if src == "A@vite B" {
+			want = "A B" // no parens: the trailing space stays literal text
+		}
+		if got := res.Files["index.html"]; got != want {
+			t.Fatalf("src %q: output = %q; want %q", src, got, want)
+		}
+		if len(res.Diagnostics) != 0 {
+			t.Fatalf("src %q: unexpected diagnostics: %v", src, res.Diagnostics)
+		}
 	}
 }
 

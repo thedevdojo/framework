@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+.card {
+    border-radius: 0.5rem;
+}
