@@ -118,11 +118,14 @@ func TestIfConditionError(t *testing.T) {
 	}
 }
 
-// TestStubNodesRenderNothing: an Unknown directive still produces no output
-// and no diagnostic in this task (Task 11 implements it). Surrounding literal
+// TestUnknownDirectiveRendersNothing: an Unknown directive (any directive
+// outside the closed Blade subset, e.g. @csrf) still produces no output —
+// but, as of Task 11, raises exactly one app-tier diagnostic naming the
+// construct ("@csrf"). See diagnostics_test.go for the fuller Unknown/
+// $attributes/parse-diag/entry-missing/dedupe coverage. Surrounding literal
 // text is preserved. (Foreach is rendered — see control_test.go; Component is
 // rendered — see component_test.go; Vite is rendered — see vite_test.go.)
-func TestStubNodesRenderNothing(t *testing.T) {
+func TestUnknownDirectiveRendersNothing(t *testing.T) {
 	entry := "resources/views/pages/index.blade.html"
 	src := "C@csrf.done"
 	fs := vfs.Mem{entry: src}
@@ -130,8 +133,15 @@ func TestStubNodesRenderNothing(t *testing.T) {
 	if got := res.Files["index.html"]; got != "C.done" {
 		t.Fatalf("output = %q; want %q", got, "C.done")
 	}
-	if len(res.Diagnostics) != 0 {
-		t.Fatalf("unexpected diagnostics: %v", res.Diagnostics)
+	if len(res.Diagnostics) != 1 {
+		t.Fatalf("diagnostics = %v; want exactly 1", res.Diagnostics)
+	}
+	d := res.Diagnostics[0]
+	if d.Kind != KindAppTier || d.Construct != "@csrf" {
+		t.Fatalf("diag = %+v; want app-tier/@csrf", d)
+	}
+	if d.File != entry || d.Line != 1 || d.Col != 2 {
+		t.Fatalf("diag pos = %s:%d:%d; want %s:1:2", d.File, d.Line, d.Col, entry)
 	}
 }
 

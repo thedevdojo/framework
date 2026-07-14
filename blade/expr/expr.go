@@ -47,6 +47,23 @@ type Scope interface {
 // reaches a variable the scope does not define and it is not protected by `??`.
 var ErrUndefinedVar = errors.New("undefined variable")
 
+// UndefinedVarError is the concrete error Eval returns for an undefined
+// variable. It wraps ErrUndefinedVar (Unwrap returns the sentinel, so
+// errors.Is(err, ErrUndefinedVar) keeps working for every existing caller)
+// while also exposing the variable's Name in structured form — a caller that
+// needs to special-case a particular name (the renderer's `$attributes`
+// app-tier carve-out) can errors.As into this type instead of parsing Error()'s
+// text.
+type UndefinedVarError struct {
+	Name string
+}
+
+func (e *UndefinedVarError) Error() string {
+	return fmt.Sprintf("undefined variable $%s", e.Name)
+}
+
+func (e *UndefinedVarError) Unwrap() error { return ErrUndefinedVar }
+
 // errArrayOrder is returned when an ordered comparison (< > <= >=) involves an
 // array or map — PHP's ordered array comparison is out of scope for v1. It is a
 // plain error: not ErrUndefinedVar and not a *SyntaxError, so @if treats it as
@@ -730,7 +747,7 @@ func evalNode(node exprNode, scope Scope) (Value, error) {
 				return v, nil
 			}
 		}
-		return nil, fmt.Errorf("undefined variable $%s: %w", n.name, ErrUndefinedVar)
+		return nil, &UndefinedVarError{Name: n.name}
 	case *propNode:
 		recv, err := evalNode(n.recv, scope)
 		if err != nil {

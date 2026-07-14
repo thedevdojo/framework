@@ -6,10 +6,10 @@
 // the brief's hypothesis (see .superpowers/sdd/task-6-report.md).
 //
 // Task 6 scope: Text, Echo (escaped + raw), and If are rendered; comments carry
-// no node (the parser drops them); Foreach/LoopJump/Component/Props/Unknown
-// are error-tolerant stubs that render nothing without a diagnostic — later
-// tasks give them semantics (Foreach/LoopJump: task 7; Component/Props: task
-// 8/9; Vite: task 10 — see vite.go). Compile never panics on arbitrary input.
+// no node (the parser drops them). Foreach/LoopJump: task 7. Component/Props:
+// task 8/9. Vite: task 10 (see vite.go). Diagnostics — app-tier classification
+// for Unknown/$attributes, parse-diag folding, entry-missing, and dedupe —
+// are task 11 (see diagnostics.go). Compile never panics on arbitrary input.
 package render
 
 import (
@@ -91,11 +91,13 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 	for _, entry := range entries {
 		src, ok := fs.Read(entry)
 		if !ok {
+			res.Diagnostics = append(res.Diagnostics, entryMissingDiagnostic(entry))
 			continue
 		}
 		out := outputName(entry)
 		tokens := scanner.Scan(entry, src)
-		nodes, _ := parser.Parse(entry, tokens) // parse diagnostics are surfaced in a later task
+		nodes, pdiags := parser.Parse(entry, tokens)
+		res.Diagnostics = append(res.Diagnostics, foldParseDiags(pdiags)...)
 		// deps is per-output: it starts with the entry and gains every component
 		// file the render resolves (deduped, in encounter order, entry first).
 		deps := newOrderedSet()
@@ -107,6 +109,10 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 		res.Deps[out] = deps.list()
 		res.Diagnostics = append(res.Diagnostics, r.diags...)
 	}
+	// Applied once, over every diagnostic source (data, parse, render): see
+	// dedupeDiagnostics' doc comment in diagnostics.go for why this needs to be
+	// global rather than per-source.
+	res.Diagnostics = dedupeDiagnostics(res.Diagnostics)
 	return res
 }
 
@@ -193,10 +199,29 @@ func (r *renderer) renderNode(n ast.Node, eat bool) bool {
 		// (task-10-report.md), even when nothing renders (no resolved CSS entries).
 		return directiveEatsNewline
 
+	case *ast.Unknown:
+		// Any directive outside the closed subset this engine structurally
+		// understands (@auth, @php, @include, @extends, @section, @csrf, …).
+		// The parser never pairs it with a body (see ast.Unknown's doc comment),
+		// so it renders NOTHING and the surrounding text — including whatever a
+		// real @auth/@endauth pair would have gated — flows through untouched.
+		r.diags = append(r.diags, unknownDiagnostic(node))
+		// Deliberate divergence from every other directive here: this does NOT
+		// eat the following newline. Every other directive's eat-one-newline
+		// rule exists because it compiles to a `<?php … ?>` close tag with a
+		// real effect on the following byte; Unknown renders nothing, so there
+		// is no such close tag to model, and once a page carries an app-tier
+		// diagnostic, byte-for-byte parity with what real Blade/PHP would have
+		// emitted for @auth et al. is already out of scope (see the package
+		// doc). Returning `eat` unchanged keeps Unknown transparent to
+		// whitespace either way, which is the simplest rule that cannot corrupt
+		// output on its own.
+		return eat
+
 	default:
-		// Unknown: a stub for now — no output, no diagnostic. Transparent to the
-		// newline state so a stub never changes surrounding whitespace before its
-		// real implementation (Task 11).
+		// Defensive: every ast.Node variant is matched above. Do nothing and
+		// stay transparent to eat so an unrecognized future node type cannot
+		// panic or perturb surrounding whitespace.
 		return eat
 	}
 }
@@ -250,9 +275,23 @@ func (r *renderer) renderIf(node *ast.If) {
 // an undefined variable is an error/undefined-variable; a valid-but-unsupported
 // PHP expression (SyntaxError with AppTier) is app-tier/expression; anything else
 // (garbage syntax, ordered-array comparison, non-numeric unary) is
-// error/expression.
+// error/expression. One carve-out (Task 11): `$attributes` is syntactically a
+// plain variable — it evaluates as undefined, exactly like any other unbound
+// var — but semantically it names Blade's dynamic attribute-bag feature, which
+// this engine does not model at all (buildComponentScope never binds it; see
+// component.go). So an undefined `$attributes` specifically is reclassified
+// app-tier/$attributes rather than error/undefined-variable, matching how a
+// real unsupported construct (a function call, `?->`, …) is reported. This
+// covers every call site that routes through diagExprError: echoes, @if/
+// @elseif conditions, @foreach items/@break/@continue conditions, and a bound
+// component attribute (:attr="$attributes").
 func (r *renderer) diagExprError(err error, p scanner.Pos) {
 	if errors.Is(err, expr.ErrUndefinedVar) {
+		var uv *expr.UndefinedVarError
+		if errors.As(err, &uv) && uv.Name == "attributes" {
+			r.diag(p, KindAppTier, "$attributes", err.Error())
+			return
+		}
 		r.diag(p, KindError, "undefined-variable", err.Error())
 		return
 	}

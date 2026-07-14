@@ -165,6 +165,24 @@ func TestEvalErrors(t *testing.T) {
 		if !errors.Is(err, ErrUndefinedVar) {
 			t.Fatalf("expected ErrUndefinedVar, got %v", err)
 		}
+		var uv *UndefinedVarError
+		if !errors.As(err, &uv) {
+			t.Fatalf("expected *UndefinedVarError, got %T: %v", err, err)
+		}
+		if uv.Name != "missing" {
+			t.Fatalf("UndefinedVarError.Name = %q; want %q", uv.Name, "missing")
+		}
+	})
+
+	// The renderer's `$attributes` app-tier carve-out (Task 11) relies on
+	// pulling the variable name out of an undefined-variable error via
+	// errors.As, not on parsing Error()'s text.
+	t.Run("undefined variable name for attributes", func(t *testing.T) {
+		_, err := Eval(`$attributes`, scope)
+		var uv *UndefinedVarError
+		if !errors.As(err, &uv) || uv.Name != "attributes" {
+			t.Fatalf("expected UndefinedVarError{Name: %q}, got %#v (%v)", "attributes", err, err)
+		}
 	})
 
 	// AppTier=true: valid Blade/PHP the fast path does not model.

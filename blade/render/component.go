@@ -88,7 +88,8 @@ func (r *renderer) renderComponent(node *ast.Component) {
 	}
 	r.ctx.deps.add(path)
 
-	nodes := r.parseFile(path, src)
+	nodes, pdiags := r.parseFile(path, src)
+	r.diags = append(r.diags, foldParseDiags(pdiags)...)
 
 	// The leading @props (if any) declares this file's props and is the one
 	// Props node that renders silently.
@@ -135,21 +136,25 @@ func (r *renderer) renderChild(nodes []ast.Node, scope expr.Scope, depth int) st
 }
 
 // parseFile scans+parses a component file, caching the node tree per path for
-// this Compile. Parse diagnostics from component files are dropped for now
-// (Task 11 folds them in), mirroring how render.go currently drops page parse
-// diagnostics.
-func (r *renderer) parseFile(path string, src []byte) []ast.Node {
+// this Compile. Parse diagnostics are returned only on a cache MISS — a cache
+// hit means this path was already scanned+parsed (and its diags already
+// folded in by the caller) earlier in this same Compile, so returning nil
+// avoids re-diagnosing a file rendered from several call sites. (Even without
+// this, dedupeDiagnostics would collapse the repeats at Result assembly — see
+// diagnostics.go — but skipping the redundant work here is simpler and
+// cheaper.)
+func (r *renderer) parseFile(path string, src []byte) ([]ast.Node, []parser.Diag) {
 	if r.ctx.cache != nil {
 		if nodes, ok := r.ctx.cache[path]; ok {
-			return nodes
+			return nodes, nil
 		}
 	}
 	tokens := scanner.Scan(path, src)
-	nodes, _ := parser.Parse(path, tokens)
+	nodes, diags := parser.Parse(path, tokens)
 	if r.ctx.cache != nil {
 		r.ctx.cache[path] = nodes
 	}
-	return nodes
+	return nodes, diags
 }
 
 // buildComponentScope produces the FLAT, isolated scope a component body sees:
