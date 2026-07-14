@@ -101,13 +101,23 @@ type renderer struct {
 	sb    strings.Builder
 	diags []Diagnostic
 	scope expr.Scope
+	// loopDepth counts the enclosing @foreach loops so a @break/@continue with
+	// no active loop can be diagnosed rather than mishandled.
+	loopDepth int
+	// signal carries a pending @break/@continue up to the innermost loop.
+	signal loopSignal
 }
 
 // renderNodes renders a body left to right, threading the newline-eat state, and
-// returns the state left after the last node.
+// returns the state left after the last node. A raised loop signal (from a
+// @break/@continue) stops the walk immediately so it can bubble up to the
+// innermost @foreach, which consumes it.
 func (r *renderer) renderNodes(nodes []ast.Node, eat bool) bool {
 	for _, n := range nodes {
 		eat = r.renderNode(n, eat)
+		if r.signal != sigNone {
+			return eat
+		}
 	}
 	return eat
 }
@@ -132,10 +142,17 @@ func (r *renderer) renderNode(n ast.Node, eat bool) bool {
 		r.renderIf(node)
 		return directiveEatsNewline
 
+	case *ast.Foreach:
+		r.renderForeach(node)
+		return directiveEatsNewline
+
+	case *ast.LoopJump:
+		return r.renderLoopJump(node)
+
 	default:
-		// Foreach, LoopJump, Component, Props, Vite, Unknown: stubs for now —
-		// no output, no diagnostic. Transparent to the newline state so a stub
-		// never changes surrounding whitespace before its real implementation.
+		// Component, Props, Vite, Unknown: stubs for now — no output, no
+		// diagnostic. Transparent to the newline state so a stub never changes
+		// surrounding whitespace before its real implementation.
 		return eat
 	}
 }
