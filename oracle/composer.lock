@@ -141,11 +141,12 @@
             "dist": {
                 "type": "path",
                 "url": "../laravel",
-                "reference": "dbf40e5cca9a964d832736458a1d32207c491742"
+                "reference": "d65f52507d9a97721306c047aea0d9462cee49ae"
             },
             "require": {
                 "illuminate/support": "^11.0|^12.0|^13.0",
                 "illuminate/view": "^11.0|^12.0|^13.0",
+                "league/commonmark": "^2.4",
                 "php": "^8.2"
             },
             "type": "library",

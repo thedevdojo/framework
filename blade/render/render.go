@@ -43,8 +43,9 @@ type Diagnostic struct {
 	Message   string   `json:"message"`
 }
 
-// Options carries render inputs. Data is the protocol's "data" map (later merged
-// over $site); its keys become top-level $variables.
+// Options carries render inputs. Data is the protocol's "data" map, merged over
+// the site's data sources ($site, collections, content); its keys become
+// top-level $variables and win on collision (a `site` key replaces $site).
 type Options struct {
 	Data map[string]any
 }
@@ -76,7 +77,12 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 		Files: map[string]string{},
 		Deps:  map[string][]string{},
 	}
-	scope := buildScope(opts.Data)
+	// Assemble the site's data context once: $site, collections, and content
+	// collections, with Options.Data merged over the top. Its diagnostics are
+	// about the data files, not any one entry, so they attach once here.
+	data := buildSiteData(fs, opts.Data)
+	res.Diagnostics = append(res.Diagnostics, data.diags...)
+	scope := dataScope(data.bindings)
 	// parseCache is shared across every entry AND every component render in this
 	// Compile: a component file resolved more than once (siblings, recursion) is
 	// scanned+parsed only once.
@@ -93,7 +99,7 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 		// file the render resolves (deduped, in encounter order, entry first).
 		deps := newOrderedSet()
 		deps.add(entry)
-		ctx := &renderCtx{fs: fs, deps: deps, cache: parseCache}
+		ctx := &renderCtx{fs: fs, deps: deps, cache: parseCache, site: data.site}
 		r := &renderer{scope: scope, ctx: ctx}
 		r.renderNodes(nodes, false)
 		res.Files[out] = r.sb.String()
@@ -287,16 +293,6 @@ func outputName(entry string) string {
 	}
 	name = strings.TrimSuffix(name, ".blade.html")
 	return name + ".html"
-}
-
-// buildScope converts the protocol's decoded JSON data into an expr.Scope whose
-// keys are top-level variables.
-func buildScope(data map[string]any) expr.Scope {
-	m := make(map[string]expr.Value, len(data))
-	for k, v := range data {
-		m[k] = toValue(v)
-	}
-	return dataScope(m)
 }
 
 // toValue converts a decoded JSON value into the expr.Value closed type set.

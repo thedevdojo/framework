@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use Devdojo\Pocketknife\SiteData;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
@@ -51,6 +52,11 @@ class PocketknifeRender extends Command
         config(['pocketknife.site_root' => $input]);
         View::addLocation("$input/resources/views");
         Blade::anonymousComponentPath("$input/resources/views/components");
+
+        // site_root is set at render time, AFTER the service provider booted, so
+        // the provider's boot-time binding never fired. Bind the data contract
+        // here so $site / collections / content resolve for this render.
+        SiteData::share($this->laravel->make('view'), $input);
 
         $rendered = View::make($entry, $data)->render();
 

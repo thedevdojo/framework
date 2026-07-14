@@ -21,6 +21,7 @@ class PocketknifeServiceProvider extends ServiceProvider
         if ($root = config('pocketknife.site_root')) {
             View::addLocation($root.'/resources/views');
             Blade::anonymousComponentPath($root.'/resources/views/components');
+            SiteData::share($this->app->make('view'), $root);
         }
     }
 }

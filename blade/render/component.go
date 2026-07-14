@@ -30,6 +30,10 @@ type renderCtx struct {
 	fs    vfsReader
 	deps  *orderedSet
 	cache map[string][]ast.Node
+	// site is the global $site object. It is shared into every component scope
+	// (real Blade's View::share leaks $site into anonymous components), unlike
+	// collections/content/Options.Data, which pages see but components do not.
+	site expr.Value
 }
 
 // vfsReader is the slice of vfs.FS the renderer needs (only Read). Declared here
@@ -173,6 +177,13 @@ func buildComponentScope(caller *renderer, declared propSet, attrs []scanner.Att
 	}
 
 	cs := componentScope{}
+	// $site is global: a component sees it (parity with View::share leaking into
+	// anonymous components). Declared props of the same name still win — set site
+	// first so a passed/defaulted `site` prop overrides it, matching PHP where a
+	// component's own data overrides shared data.
+	if caller.ctx != nil && caller.ctx.site != nil {
+		cs["site"] = caller.ctx.site
+	}
 	for name, decl := range declared {
 		if v, ok := passed[name]; ok {
 			cs[name] = v
