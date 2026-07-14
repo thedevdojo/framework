@@ -37,13 +37,15 @@ func TestNestedForeach(t *testing.T) {
 }
 
 func TestIfElseifElse(t *testing.T) {
-	src := `@if ($a)A@elseif ($b)B@else C@endif`
+	// Each else/elseif/endif needs a word boundary before its '@' (real Blade's
+	// \B@ rule); the spaces land as trailing branch/else text.
+	src := `@if ($a)A @elseif ($b)B @else C @endif`
 	nodes, _ := parseSrc(t, src)
 	n := nodes[0].(*ast.If)
 	if len(n.Branches) != 2 || n.Branches[0].Cond != "$a" || n.Branches[1].Cond != "$b" {
 		t.Fatalf("branches = %+v", n.Branches)
 	}
-	if n.Else[0].(*ast.Text).Bytes != " C" {
+	if n.Else[0].(*ast.Text).Bytes != " C " {
 		t.Fatalf("else = %+v", n.Else)
 	}
 }
@@ -80,14 +82,14 @@ func TestDiagCounts(t *testing.T) {
 		{"stray slot close", "</x-slot>", 1},
 		{"break outside loop", "@break", 1},
 		{"continue outside loop", "@continue", 1},
-		{"break inside loop ok", "@foreach ($a as $b)@break@endforeach", 0},
-		{"continue inside loop ok", "@foreach ($a as $b)@continue@endforeach", 0},
-		{"foreach missing as", "@foreach ($rows)x@endforeach", 1},
-		{"foreach empty items", "@foreach ( as $r)x@endforeach", 1},
-		{"foreach bad var", "@foreach ($rows as row)x@endforeach", 1},
-		{"foreach arrow missing val", "@foreach ($rows as $k => )x@endforeach", 1},
-		{"foreach arrow bad key", "@foreach ($rows as k => $v)x@endforeach", 1},
-		{"foreach ok key val", "@foreach ($rows as $k => $v)x@endforeach", 0},
+		{"break inside loop ok", "@foreach ($a as $b)@break @endforeach", 0},
+		{"continue inside loop ok", "@foreach ($a as $b)@continue @endforeach", 0},
+		{"foreach missing as", "@foreach ($rows)x @endforeach", 1},
+		{"foreach empty items", "@foreach ( as $r)x @endforeach", 1},
+		{"foreach bad var", "@foreach ($rows as row)x @endforeach", 1},
+		{"foreach arrow missing val", "@foreach ($rows as $k => )x @endforeach", 1},
+		{"foreach arrow bad key", "@foreach ($rows as k => $v)x @endforeach", 1},
+		{"foreach ok key val", "@foreach ($rows as $k => $v)x @endforeach", 0},
 		{"unknown directive no diag", "@auth x @endauth", 0},
 		{"props no diag", "@props(['title' => ''])", 0},
 		{"vite no diag", "@vite(['resources/js/app.js'])", 0},
@@ -109,7 +111,9 @@ func TestDiagCounts(t *testing.T) {
 // --- three-level same-kind nesting (the regex-killer) ---
 
 func TestThreeLevelForeach(t *testing.T) {
-	src := `@foreach ($a as $x)@foreach ($b as $y)@foreach ($c as $z){{ $z }}@endforeach@endforeach@endforeach`
+	// Consecutive @endforeach closes need a word boundary before each '@' (real
+	// Blade's \B@ rule); the separating spaces land as trailing body text.
+	src := `@foreach ($a as $x)@foreach ($b as $y)@foreach ($c as $z){{ $z }}@endforeach @endforeach @endforeach`
 	nodes, diags := parseSrc(t, src)
 	requireNoDiags(t, diags)
 	l1 := nodes[0].(*ast.Foreach)
@@ -136,13 +140,15 @@ func TestThreeLevelComponent(t *testing.T) {
 }
 
 func TestThreeLevelIf(t *testing.T) {
-	src := `@if ($a)@if ($b)@if ($c)X@endif@endif@endif`
+	// Each @endif needs a word boundary before its '@' (real Blade's \B@ rule);
+	// the spaces land as trailing body text, so the innermost branch holds "X ".
+	src := `@if ($a)@if ($b)@if ($c)X @endif @endif @endif`
 	nodes, diags := parseSrc(t, src)
 	requireNoDiags(t, diags)
 	i1 := nodes[0].(*ast.If)
 	i2 := i1.Branches[0].Body[0].(*ast.If)
 	i3 := i2.Branches[0].Body[0].(*ast.If)
-	if i3.Branches[0].Body[0].(*ast.Text).Bytes != "X" {
+	if i3.Branches[0].Body[0].(*ast.Text).Bytes != "X " {
 		t.Fatalf("deepest branch = %+v", i3.Branches[0].Body)
 	}
 }
@@ -150,7 +156,7 @@ func TestThreeLevelIf(t *testing.T) {
 // --- foreach arg shapes ---
 
 func TestForeachKeyValue(t *testing.T) {
-	nodes, diags := parseSrc(t, `@foreach ($users as $id => $user)x@endforeach`)
+	nodes, diags := parseSrc(t, `@foreach ($users as $id => $user)x @endforeach`)
 	requireNoDiags(t, diags)
 	f := nodes[0].(*ast.Foreach)
 	if f.ItemsExpr != "$users" || f.KeyVar != "$id" || f.ValVar != "$user" {
@@ -160,7 +166,7 @@ func TestForeachKeyValue(t *testing.T) {
 
 func TestForeachAsInsideExprNotSplit(t *testing.T) {
 	// "as" inside a string literal must not be treated as the separator.
-	nodes, diags := parseSrc(t, `@foreach ($q->where('x as y', 1)->get() as $row)z@endforeach`)
+	nodes, diags := parseSrc(t, `@foreach ($q->where('x as y', 1)->get() as $row)z @endforeach`)
 	requireNoDiags(t, diags)
 	f := nodes[0].(*ast.Foreach)
 	if f.ItemsExpr != `$q->where('x as y', 1)->get()` || f.ValVar != "$row" {
@@ -171,7 +177,9 @@ func TestForeachAsInsideExprNotSplit(t *testing.T) {
 // Malformed foreach: node dropped, but the body still surfaces where the loop
 // would have been.
 func TestMalformedForeachKeepsBody(t *testing.T) {
-	nodes, diags := parseSrc(t, `@foreach ($rows)KEPT@endforeach`)
+	// @endforeach needs a word boundary before its '@' (real Blade's \B@ rule);
+	// the space lands in the surfaced body text ("KEPT ").
+	nodes, diags := parseSrc(t, `@foreach ($rows)KEPT @endforeach`)
 	if len(diags) != 1 {
 		t.Fatalf("want 1 diag, got %+v", diags)
 	}
@@ -181,7 +189,7 @@ func TestMalformedForeachKeepsBody(t *testing.T) {
 	if _, isForeach := nodes[0].(*ast.Foreach); isForeach {
 		t.Fatalf("loop node should be dropped, got %+v", nodes[0])
 	}
-	if nodes[0].(*ast.Text).Bytes != "KEPT" {
+	if nodes[0].(*ast.Text).Bytes != "KEPT " {
 		t.Fatalf("body text = %+v", nodes[0])
 	}
 }

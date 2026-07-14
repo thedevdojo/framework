@@ -108,10 +108,10 @@ func TestEchoDiagnostics(t *testing.T) {
 // branch is treated false.
 func TestIfConditionError(t *testing.T) {
 	entry := "resources/views/pages/index.blade.html"
-	fs := vfs.Mem{entry: "@if ($missing)yes@else no@endif"}
+	fs := vfs.Mem{entry: "@if ($missing)yes @else no @endif"}
 	res := Compile(fs, []string{entry}, Options{})
-	if got := res.Files["index.html"]; got != " no" {
-		t.Fatalf("output = %q; want %q", got, " no")
+	if got := res.Files["index.html"]; got != " no " {
+		t.Fatalf("output = %q; want %q", got, " no ")
 	}
 	if len(res.Diagnostics) != 1 || res.Diagnostics[0].Construct != "undefined-variable" {
 		t.Fatalf("diagnostics = %v", res.Diagnostics)
@@ -127,11 +127,13 @@ func TestIfConditionError(t *testing.T) {
 // rendered — see component_test.go; Vite is rendered — see vite_test.go.)
 func TestUnknownDirectiveRendersNothing(t *testing.T) {
 	entry := "resources/views/pages/index.blade.html"
-	src := "C@csrf.done"
+	// '>' (non-word) before @csrf gives it the word boundary real Blade's \B@
+	// rule requires, keeping the directive at column 2.
+	src := ">@csrf.done"
 	fs := vfs.Mem{entry: src}
 	res := Compile(fs, []string{entry}, Options{})
-	if got := res.Files["index.html"]; got != "C.done" {
-		t.Fatalf("output = %q; want %q", got, "C.done")
+	if got := res.Files["index.html"]; got != ">.done" {
+		t.Fatalf("output = %q; want %q", got, ">.done")
 	}
 	if len(res.Diagnostics) != 1 {
 		t.Fatalf("diagnostics = %v; want exactly 1", res.Diagnostics)

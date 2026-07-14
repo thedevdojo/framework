@@ -317,10 +317,12 @@ func TestBarePropUndefinedVsPassed(t *testing.T) {
 func TestPropsNotFirst(t *testing.T) {
 	res := compileMem(t, map[string]string{
 		pageEntry: `<x-c/>`,
-		"resources/views/components/c.blade.html": `PRE@props(['a' => 'AA'])[{{ $a ?? 'z' }}]`,
+		// '>' (non-word) before @props gives it a word boundary while keeping it
+		// off the first node, so the not-first props error still fires.
+		"resources/views/components/c.blade.html": `>@props(['a' => 'AA'])[{{ $a ?? 'z' }}]`,
 	}, nil)
-	if got := res.Files["index.html"]; got != "PRE[z]" {
-		t.Fatalf("output = %q; want %q", got, "PRE[z]")
+	if got := res.Files["index.html"]; got != ">[z]" {
+		t.Fatalf("output = %q; want %q", got, ">[z]")
 	}
 	if !hasConstruct(res.Diagnostics, "props") {
 		t.Fatalf("diagnostics = %v; want a props error", res.Diagnostics)

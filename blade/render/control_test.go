@@ -32,10 +32,15 @@ func TestControlFlow(t *testing.T) {
 		want string
 	}{
 		// --- brief rows (verbatim) ---
-		{`@if ($n == 1)one@elseif ($n == 2)two@else many@endif`, data{"n": 2}, "two"},
+		// Each else/elseif/endif needs a word boundary before its '@' (real
+		// Blade's \B@ rule); the space lands in the taken branch's output.
+		{`@if ($n == 1)one @elseif ($n == 2)two @else many @endif`, data{"n": 2}, "two "},
 		{`@foreach ($xs as $x){{ $loop->iteration }}:{{ $x }};@endforeach`, data{"xs": []any{"a", "b"}}, "1:a;2:b;"},
 		{`@foreach ($xs as $k => $x){{ $k }}={{ $x }};@endforeach`, data{"xs": []any{"a"}}, "0=a;"},
-		{`@foreach ($xs as $x)@if ($loop->first)[@endif{{ $x }}@if ($loop->last)]@endif@endforeach`,
+		// The final @endforeach needs a word boundary before it; the newline
+		// after @endif is eaten, so the loop body still renders clean [123]
+		// (verified byte-identical against real Blade).
+		{"@foreach ($xs as $x)@if ($loop->first)[@endif{{ $x }}@if ($loop->last)]@endif\n@endforeach",
 			data{"xs": []any{1, 2, 3}}, "[123]"},
 		{`@foreach ($xs as $x){{ $x }}@break($loop->iteration == 2)@endforeach`, data{"xs": []any{1, 2, 3}}, "12"},
 		{`@foreach ($xs as $x)@continue($x == 2){{ $x }}@endforeach`, data{"xs": []any{1, 2, 3}}, "13"},
@@ -70,11 +75,12 @@ func TestControlFlow(t *testing.T) {
 // text preserved).
 func TestForeachNonIterable(t *testing.T) {
 	for _, d := range []data{{"xs": 7}, {"xs": "nope"}, {"xs": nil}, {"xs": true}} {
-		// A separator after @endforeach avoids merging into the directive name
-		// (@endforeachB would scan as one word — matching Blade).
-		got, diags := renderSrc(t, "A@foreach ($xs as $x){{ $x }}@endforeach B", d)
-		if got != "A B" {
-			t.Errorf("data %v: output = %q; want %q", d, got, "A B")
+		// A '>' (non-word) before @foreach gives it a word boundary, and a
+		// separator after @endforeach avoids merging into the directive name
+		// (@endforeachB would scan as one word — both matching Blade).
+		got, diags := renderSrc(t, ">@foreach ($xs as $x){{ $x }}@endforeach B", d)
+		if got != "> B" {
+			t.Errorf("data %v: output = %q; want %q", d, got, "> B")
 		}
 		if len(diags) != 1 || diags[0].Kind != KindError || diags[0].Construct != "foreach" {
 			t.Errorf("data %v: diagnostics = %v; want one error/foreach", d, diags)
@@ -134,7 +140,9 @@ func TestLoopJumpOutsideLoop(t *testing.T) {
 // TestBreakBreaksInnermostOnly: an unconditional @break inside a nested loop
 // stops only the inner loop; the outer loop keeps iterating.
 func TestBreakBreaksInnermostOnly(t *testing.T) {
-	src := `@foreach ($xs as $x)[{{ $x }}@foreach ($ys as $y){{ $y }}@break@endforeach]@endforeach`
+	// @break needs a word boundary before the inner @endforeach; the space is
+	// unreachable body content (the break exits first), so output is unchanged.
+	src := `@foreach ($xs as $x)[{{ $x }}@foreach ($ys as $y){{ $y }}@break @endforeach]@endforeach`
 	got, diags := renderSrc(t, src, data{"xs": []any{"a", "b"}, "ys": []any{1, 2, 3}})
 	if got != "[a1][b1]" {
 		t.Fatalf("output = %q; want %q", got, "[a1][b1]")

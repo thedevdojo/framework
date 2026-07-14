@@ -52,10 +52,12 @@ func TestParseStringArray(t *testing.T) {
 // settled empirically against the oracle: neither side trims).
 func TestViteSingleCssEntry(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:                `A@vite(['resources/css/site.css'])B`,
+		// '>' (non-word) before @vite gives it the word boundary real Blade's \B@
+		// rule requires; the A/B-style sentinels flank the directive as before.
+		pageEntry:                `>@vite(['resources/css/site.css'])B`,
 		"resources/css/site.css": "@import \"tailwindcss\";\n.btn{color:red}\n",
 	}, nil)
-	want := `A<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>` +
+	want := `><script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>` +
 		"\n" + `<style type="text/tailwindcss">@import "tailwindcss";` + "\n" + `.btn{color:red}` + "\n" + `</style>B`
 	if got := res.Files["index.html"]; got != want {
 		t.Fatalf("output = %q; want %q", got, want)
@@ -87,10 +89,10 @@ func TestViteMultipleCssEntriesCdnOnce(t *testing.T) {
 // there is nothing to serve it for).
 func TestViteJsEntrySkipped(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry: `A@vite(['resources/js/app.js'])B`,
+		pageEntry: `>@vite(['resources/js/app.js'])B`,
 	}, nil)
-	if got := res.Files["index.html"]; got != "AB" {
-		t.Fatalf("output = %q; want %q", got, "AB")
+	if got := res.Files["index.html"]; got != ">B" {
+		t.Fatalf("output = %q; want %q", got, ">B")
 	}
 	if len(res.Diagnostics) != 1 {
 		t.Fatalf("diagnostics = %v; want one", res.Diagnostics)
@@ -105,10 +107,10 @@ func TestViteJsEntrySkipped(t *testing.T) {
 // its style block is omitted; with no other entries, nothing renders.
 func TestViteMissingCssFile(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry: `A@vite(['resources/css/gone.css'])B`,
+		pageEntry: `>@vite(['resources/css/gone.css'])B`,
 	}, nil)
-	if got := res.Files["index.html"]; got != "AB" {
-		t.Fatalf("output = %q; want %q", got, "AB")
+	if got := res.Files["index.html"]; got != ">B" {
+		t.Fatalf("output = %q; want %q", got, ">B")
 	}
 	if len(res.Diagnostics) != 1 {
 		t.Fatalf("diagnostics = %v; want one", res.Diagnostics)
@@ -123,10 +125,10 @@ func TestViteMissingCssFile(t *testing.T) {
 // bare string literal) raises an error diagnostic and nothing renders.
 func TestViteMalformedArgs(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry: `A@vite($css)B`,
+		pageEntry: `>@vite($css)B`,
 	}, nil)
-	if got := res.Files["index.html"]; got != "AB" {
-		t.Fatalf("output = %q; want %q", got, "AB")
+	if got := res.Files["index.html"]; got != ">B" {
+		t.Fatalf("output = %q; want %q", got, ">B")
 	}
 	if !hasConstruct(res.Diagnostics, "@vite") {
 		t.Fatalf("diagnostics = %v; want a @vite error", res.Diagnostics)
@@ -182,10 +184,10 @@ func TestParseViteEntries(t *testing.T) {
 // @vite(['x.css']). Idiomatic Blade; StaticVite normalizes the same way.
 func TestViteBareStringEntry(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:             `A@vite('resources/css/a.css')B`,
+		pageEntry:             `>@vite('resources/css/a.css')B`,
 		"resources/css/a.css": "A{}",
 	}, nil)
-	want := `A<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>` +
+	want := `><script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>` +
 		"\n" + `<style type="text/tailwindcss">A{}</style>B`
 	if got := res.Files["index.html"]; got != want {
 		t.Fatalf("output = %q; want %q", got, want)
@@ -199,11 +201,11 @@ func TestViteBareStringEntry(t *testing.T) {
 // nothing renders (no CDN script either) and no diagnostic is raised,
 // matching StaticVite's null→[] normalization (zero entries → HtmlString(”)).
 func TestViteEmptyArgsRendersNothing(t *testing.T) {
-	for _, src := range []string{"A@vite()B", "A@vite B"} {
+	for _, src := range []string{">@vite()B", ">@vite B"} {
 		res := compileMem(t, map[string]string{pageEntry: src}, nil)
-		want := "AB"
-		if src == "A@vite B" {
-			want = "A B" // no parens: the trailing space stays literal text
+		want := ">B"
+		if src == ">@vite B" {
+			want = "> B" // no parens: the trailing space stays literal text
 		}
 		if got := res.Files["index.html"]; got != want {
 			t.Fatalf("src %q: output = %q; want %q", src, got, want)

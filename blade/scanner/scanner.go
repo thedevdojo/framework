@@ -67,7 +67,7 @@ func Scan(file string, src []byte) []Token {
 	s := &scanState{file: file, src: src, line: 1, col: 1}
 	for !s.eof() {
 		switch {
-		case s.has("@@"):
+		case s.has("@@") && s.atBoundary():
 			s.escapeAt()
 		case s.has("@{{"):
 			s.escapeBraces()
@@ -460,7 +460,20 @@ func (s *scanState) lexAttrs() (attrs []Attr, selfClose, ok bool) {
 }
 
 func (s *scanState) atDirective() bool {
-	return s.src[s.pos] == '@' && s.pos+1 < len(s.src) && isIdentStart(s.src[s.pos+1])
+	return s.atBoundary() && s.src[s.pos] == '@' && s.pos+1 < len(s.src) && isIdentStart(s.src[s.pos+1])
+}
+
+// atBoundary reports whether the cursor sits at a word boundary for '@'
+// recognition. Real Blade compiles directives (and the @@ escape) with a \B@
+// pattern: an '@' only starts a directive when the preceding SOURCE byte is not
+// a word char ([A-Za-z0-9_]); start-of-input counts as a boundary. This keeps
+// mailto addresses (hello@example.com) and text like foo@endif verbatim. The
+// @{{ echo escape is deliberately exempt — real Blade's echo regex has no \B —
+// so escapeBraces is dispatched without this guard. The previous byte is read
+// from the source (s.pos-1), so text coalescing and save/restore rewinds cannot
+// skew it.
+func (s *scanState) atBoundary() bool {
+	return s.pos == 0 || !isIdentPart(s.src[s.pos-1])
 }
 
 func isSpace(b byte) bool {

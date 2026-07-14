@@ -234,3 +234,61 @@ func TestScanClarifications(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) { assertTokens(t, Scan("t.blade.html", []byte(c.src)), c.want) })
 	}
 }
+
+// TestScanWordBoundary pins the real-Blade \B@ rule: an '@' begins a directive
+// or the @@ escape ONLY when the previous source byte is not a word char
+// ([A-Za-z0-9_]); start-of-input counts as a boundary. The @{{ echo escape is
+// exempt (real Blade's echo regex has no \B). Every expectation below was probed
+// against real Blade via `pocketknife:render` (see task-14b report probe log).
+func TestScanWordBoundary(t *testing.T) {
+	cases := []struct {
+		name string
+		src  string
+		want []Token
+	}{
+		// A '@' after a word char is not a directive: mailto addresses survive
+		// verbatim (real Blade: `mailto:hello@example.com` unchanged).
+		{"mailto", `mailto:hello@example.com`, []Token{
+			{Kind: Text, Text: `mailto:hello@example.com`, Pos: at(1, 1)},
+		}},
+		{"email_directive_name", `user@if.test`, []Token{
+			{Kind: Text, Text: `user@if.test`, Pos: at(1, 1)},
+		}},
+		// '@' after an underscore or digit (both word chars) stays literal.
+		{"underscore_before_at", `_@if`, []Token{
+			{Kind: Text, Text: `_@if`, Pos: at(1, 1)},
+		}},
+		{"digit_before_at", `1@if`, []Token{
+			{Kind: Text, Text: `1@if`, Pos: at(1, 1)},
+		}},
+		// @@ after a word char is NOT the escape: the first '@' is literal text,
+		// and the second '@' (now at a boundary) opens directive `b`. Real Blade
+		// renders `a@@b` verbatim only because it leaves the unknown `@b`
+		// directive literal — our app-tier Unknown handling is the separate,
+		// documented Task 11 divergence and is out of scope here.
+		{"at_at_after_word", `a@@b`, []Token{
+			{Kind: Text, Text: `a@`, Pos: at(1, 1)},
+			{Kind: Directive, Name: "b", Pos: at(1, 3)},
+		}},
+		// The @{{ echo escape ignores the boundary rule (real Blade drops the '@'
+		// and prints the braces literally even after a word char).
+		{"braces_escape_after_word", `hi@{{ x }}`, []Token{
+			{Kind: Text, Text: `hi{{ x }}`, Pos: at(1, 1)},
+		}},
+		// A boundary '@' (after a space or punctuation) still opens a directive,
+		// while the trailing @endif — pinned to the word char `y` — stays literal.
+		{"directive_after_space", `x @if(true)y@endif`, []Token{
+			{Kind: Text, Text: `x `, Pos: at(1, 1)},
+			{Kind: Directive, Name: "if", Text: "true", Pos: at(1, 3)},
+			{Kind: Text, Text: `y@endif`, Pos: at(1, 12)},
+		}},
+		{"directive_after_punct", `(@if(true)y@endif)`, []Token{
+			{Kind: Text, Text: `(`, Pos: at(1, 1)},
+			{Kind: Directive, Name: "if", Text: "true", Pos: at(1, 2)},
+			{Kind: Text, Text: `y@endif)`, Pos: at(1, 11)},
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) { assertTokens(t, Scan("t.blade.html", []byte(c.src)), c.want) })
+	}
+}

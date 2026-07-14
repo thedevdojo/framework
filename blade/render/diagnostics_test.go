@@ -12,13 +12,14 @@ import (
 // is "@"+Name, at the directive's own position.
 func TestUnknownDirectiveAppTier(t *testing.T) {
 	entry := "resources/views/pages/index.blade.html"
-	// A space (not "XauthY") after the directive name: the scanner's directive
-	// reader is alnum-greedy, so a letter glued directly onto the name would
-	// become part of it ("authy") rather than following text.
-	fs := vfs.Mem{entry: "X@auth Y"}
+	// A '>' (non-word) before @auth gives it the word boundary real Blade's \B@
+	// rule requires, and keeps the directive at column 2. A space (not "XauthY")
+	// after the name: the scanner's directive reader is alnum-greedy, so a letter
+	// glued directly onto the name would become part of it ("authy").
+	fs := vfs.Mem{entry: ">@auth Y"}
 	res := Compile(fs, []string{entry}, Options{})
-	if got := res.Files["index.html"]; got != "X Y" {
-		t.Fatalf("output = %q; want %q", got, "X Y")
+	if got := res.Files["index.html"]; got != "> Y" {
+		t.Fatalf("output = %q; want %q", got, "> Y")
 	}
 	if len(res.Diagnostics) != 1 {
 		t.Fatalf("diagnostics = %v; want exactly 1", res.Diagnostics)
@@ -87,10 +88,10 @@ func TestAttributesEchoAppTier(t *testing.T) {
 
 func TestAttributesIfCondAppTier(t *testing.T) {
 	entry := "resources/views/pages/index.blade.html"
-	fs := vfs.Mem{entry: "@if ($attributes)yes@else no@endif"}
+	fs := vfs.Mem{entry: "@if ($attributes)yes @else no @endif"}
 	res := Compile(fs, []string{entry}, Options{})
-	if got := res.Files["index.html"]; got != " no" {
-		t.Fatalf("output = %q; want %q", got, " no")
+	if got := res.Files["index.html"]; got != " no " {
+		t.Fatalf("output = %q; want %q", got, " no ")
 	}
 	if len(res.Diagnostics) != 1 {
 		t.Fatalf("diagnostics = %v; want exactly 1", res.Diagnostics)
@@ -141,13 +142,14 @@ func TestAttributesDefinedNotSpecialCased(t *testing.T) {
 // best-effort around it.
 func TestParseDiagsFoldedPage(t *testing.T) {
 	entry := "resources/views/pages/index.blade.html"
-	// Space after @endif, not "endifB": glued directly on, the trailing letter
-	// would join the directive name (making it an unmatched Unknown "endifb"
-	// rather than a recognized stray @endif).
-	fs := vfs.Mem{entry: "A@endif B"}
+	// A '>' (non-word) before @endif gives it the word boundary real Blade's \B@
+	// rule requires; a space after @endif (not "endifB") keeps the trailing
+	// letter from joining the name (an unmatched Unknown "endifb" vs a stray
+	// @endif).
+	fs := vfs.Mem{entry: ">@endif B"}
 	res := Compile(fs, []string{entry}, Options{})
-	if got := res.Files["index.html"]; got != "A B" {
-		t.Fatalf("output = %q; want %q", got, "A B")
+	if got := res.Files["index.html"]; got != "> B" {
+		t.Fatalf("output = %q; want %q", got, "> B")
 	}
 	if len(res.Diagnostics) != 1 {
 		t.Fatalf("diagnostics = %v; want exactly 1", res.Diagnostics)
@@ -167,10 +169,10 @@ func TestParseDiagsFoldedPage(t *testing.T) {
 func TestParseDiagsFoldedComponentDeduped(t *testing.T) {
 	res := compileMem(t, map[string]string{
 		pageEntry: `<x-c/><x-c/>`,
-		"resources/views/components/c.blade.html": `X@endif Y`,
+		"resources/views/components/c.blade.html": `>@endif Y`,
 	}, nil)
-	if got := res.Files["index.html"]; got != "X YX Y" {
-		t.Fatalf("output = %q; want %q", got, "X YX Y")
+	if got := res.Files["index.html"]; got != "> Y> Y" {
+		t.Fatalf("output = %q; want %q", got, "> Y> Y")
 	}
 	count := 0
 	componentFile := "resources/views/components/c.blade.html"
