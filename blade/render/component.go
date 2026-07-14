@@ -177,6 +177,15 @@ func buildComponentScope(caller *renderer, declared propSet, attrs []scanner.Att
 			}
 			passed[key] = v
 		} else {
+			// Real Blade interpolates {{ }} / {!! !!} inside a STATIC attribute
+			// value (heading="Hi {{ $name }}"); this engine passes the braces
+			// through literally — a silent byte divergence on an otherwise clean
+			// page. Flag it app-tier (the value still passes as written) so the
+			// divergence is visible rather than hidden.
+			if strings.Contains(a.Value, "{{") || strings.Contains(a.Value, "{!!") {
+				caller.diag(a.Pos, KindAppTier, "attribute-interpolation",
+					"attribute \""+a.Name+"\" interpolates {{ }} into a static value; requires the PHP app tier")
+			}
 			passed[key] = a.Value // static attr: the verbatim string
 		}
 	}

@@ -22,11 +22,14 @@ use Illuminate\Support\HtmlString;
  * that file for the parity contract; a shared oracle fixture
  * (fixtures/vite-css) keeps the two byte-identical.
  *
- * Non-CSS entries (.js, or anything else) and missing CSS files are silently
- * skipped: real bundling needs a real bundler, and this class has no
- * diagnostics channel (the Go engine's app-tier/error Diagnostics are
- * engine-only — see the task report). Zero resolved CSS entries means zero
- * output, including the CDN script — there is nothing for it to serve.
+ * Only a .js entry (which needs a real bundler) and a missing file are
+ * skipped; there is no extension allow-list, so EVERY other entry — whatever
+ * its extension — is inlined verbatim as a <style> block. This matches the Go
+ * engine's vite.go, which likewise filters just .js and reads every remaining
+ * entry (parity holds). This class has no diagnostics channel (the Go engine's
+ * app-tier/error Diagnostics are engine-only — see the task report). Zero
+ * resolved entries means zero output, including the CDN script — there is
+ * nothing for it to serve.
  */
 class StaticVite extends Vite
 {

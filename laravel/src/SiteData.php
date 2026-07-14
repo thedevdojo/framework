@@ -118,8 +118,16 @@ class SiteData
             if (! self::isValidVarName($name)) {
                 continue;
             }
+            $files = self::sortedFiles($dir, 'md');
+            if ($files === []) {
+                // No direct .md files → leave $name unbound, matching the Go
+                // engine (groupContentFiles only registers a directory that has
+                // at least one markdown file). A directory whose files all fail
+                // frontmatter parsing still binds an empty array on both sides.
+                continue;
+            }
             $items = [];
-            foreach (self::sortedFiles($dir, 'md') as $path) {
+            foreach ($files as $path) {
                 $parsed = self::parseFrontmatter((string) file_get_contents($path));
                 if ($parsed === null) {
                     continue; // non-scalar frontmatter → item skipped

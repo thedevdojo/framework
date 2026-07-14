@@ -65,6 +65,23 @@ func entryMissingDiagnostic(entry string) Diagnostic {
 	}
 }
 
+// entryInvalidDiagnostic reports an entries[] path that escapes the site root —
+// its cleaned form is absolute or walks above the root with "..", or the output
+// name it would derive does. Such an entry is refused before any read or write
+// so a crafted path cannot read a file outside the tree or write output above
+// the destination directory. Like entry-missing, the File IS the problem, so
+// Line/Col are 1/1 by convention and no output file is produced.
+func entryInvalidDiagnostic(entry string) Diagnostic {
+	return Diagnostic{
+		File:      entry,
+		Line:      1,
+		Col:       1,
+		Kind:      KindError,
+		Construct: "entry-invalid",
+		Message:   "entry path escapes the site root: " + entry,
+	}
+}
+
 // diagKey identifies a diagnostic for dedupe purposes.
 type diagKey struct {
 	file, construct string

@@ -6,6 +6,7 @@
     {"kind": "app-tier", "construct": "@endauth", "file": "resources/views/pages/index.blade.html", "line": 4},
     {"kind": "app-tier", "construct": "expression", "file": "resources/views/pages/index.blade.html", "line": 5},
     {"kind": "error", "construct": "undefined-variable", "file": "resources/views/pages/index.blade.html", "line": 6},
-    {"kind": "app-tier", "construct": "$attributes", "file": "resources/views/pages/index.blade.html", "line": 7}
+    {"kind": "app-tier", "construct": "$attributes", "file": "resources/views/pages/index.blade.html", "line": 7},
+    {"kind": "app-tier", "construct": "attribute-interpolation", "file": "resources/views/pages/index.blade.html", "line": 8}
   ]
 }

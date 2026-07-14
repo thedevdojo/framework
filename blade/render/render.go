@@ -14,6 +14,7 @@ package render
 
 import (
 	"errors"
+	"path"
 	"strings"
 
 	"github.com/thedevdojo/pocketknife/blade/ast"
@@ -89,6 +90,15 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 	// scanned+parsed only once.
 	parseCache := map[string][]ast.Node{}
 	for _, entry := range entries {
+		// Refuse an entry that escapes the site root — either the entry path
+		// itself or the output name it would derive (the pages/views prefix
+		// strip can turn an in-root "../"-laden entry into an escaping output
+		// name). Checked before any read/write so a crafted entry can neither
+		// read outside the tree nor write above the destination directory.
+		if escapesRoot(entry) || escapesRoot(outputName(entry)) {
+			res.Diagnostics = append(res.Diagnostics, entryInvalidDiagnostic(entry))
+			continue
+		}
 		src, ok := fs.Read(entry)
 		if !ok {
 			res.Diagnostics = append(res.Diagnostics, entryMissingDiagnostic(entry))
@@ -324,6 +334,15 @@ func stripLeadingNewline(s string) string {
 		return s[1:]
 	}
 	return s
+}
+
+// escapesRoot reports whether a forward-slash path, once cleaned, points
+// outside the site root: an absolute path, or one that walks above the root
+// with a leading "..". Entry paths and derived output names are both checked
+// through this so neither a read nor a write can leave the site tree.
+func escapesRoot(p string) bool {
+	clean := path.Clean(p)
+	return path.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, "../")
 }
 
 // outputName maps an entry path to its output file name. Pages lose the

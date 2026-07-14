@@ -154,8 +154,8 @@ func TestLintErrorExitsOne(t *testing.T) {
 	}
 	lineRe := regexp.MustCompile(`^resources/views/pages/index\.blade\.html:\d+:\d+ \[(error|app-tier)\] .+$`)
 	lines := strings.Split(strings.TrimRight(stdout, "\n"), "\n")
-	if len(lines) != 5 {
-		t.Fatalf("expected 5 diagnostic lines, got %d:\n%s", len(lines), stdout)
+	if len(lines) != 6 {
+		t.Fatalf("expected 6 diagnostic lines, got %d:\n%s", len(lines), stdout)
 	}
 	for _, l := range lines {
 		if !lineRe.MatchString(l) {
@@ -166,8 +166,9 @@ func TestLintErrorExitsOne(t *testing.T) {
 		t.Errorf("expected at least one [error] line, got:\n%s", stdout)
 	}
 	// Diagnostic lines are sorted by file:line:col — line 2 before line 4
-	// before line 5 before line 6 before line 7.
-	sorted := []string{":2:", ":4:", ":5:", ":6:", ":7:"}
+	// before line 5 before line 6 before line 7 before line 8 (the static-attr
+	// interpolation on the <x-hero> tag).
+	sorted := []string{":2:", ":4:", ":5:", ":6:", ":7:", ":8:"}
 	last := -1
 	for _, want := range sorted {
 		idx := strings.Index(stdout, want)
@@ -234,5 +235,41 @@ func TestLintUsageMissingDir(t *testing.T) {
 	}
 	if stderr == "" {
 		t.Errorf("expected a usage message on stderr")
+	}
+}
+
+// TestLintNonexistentDirExitsTwo: `lint <dir>` on a path that does not exist
+// must fail loudly (clear stderr, exit 2), not silently exit 0 with no output
+// as if the tree were clean.
+func TestLintNonexistentDirExitsTwo(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "does-not-exist")
+	stdout, stderr, code := runCLI(t, "", "lint", missing)
+	if code != 2 {
+		t.Errorf("exit code = %d, want 2 (stderr: %s)", code, stderr)
+	}
+	if stdout != "" {
+		t.Errorf("stdout should be empty, got %q", stdout)
+	}
+	if stderr == "" {
+		t.Errorf("expected an error message on stderr for a missing directory")
+	}
+}
+
+// TestLintNotADirectoryExitsTwo: `lint <file>` where the path exists but is a
+// regular file is also a usage error (exit 2, clear stderr).
+func TestLintNotADirectoryExitsTwo(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "afile")
+	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stdout, stderr, code := runCLI(t, "", "lint", file)
+	if code != 2 {
+		t.Errorf("exit code = %d, want 2 (stderr: %s)", code, stderr)
+	}
+	if stdout != "" {
+		t.Errorf("stdout should be empty, got %q", stdout)
+	}
+	if stderr == "" {
+		t.Errorf("expected an error message on stderr for a non-directory path")
 	}
 }

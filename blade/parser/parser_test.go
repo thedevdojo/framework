@@ -97,6 +97,7 @@ func TestDiagCounts(t *testing.T) {
 		{"unclosed component", "<x-card>body", 1},
 		{"unclosed foreach", "@foreach ($a as $b)body", 1},
 		{"nested clean", "<x-a><x-a><x-a>x</x-a></x-a></x-a>", 0},
+		{"self-closing named slot", "<x-c><x-slot:x/></x-c>", 0},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -211,6 +212,21 @@ func TestSlotInIfIsStray(t *testing.T) {
 	branch := c.Body[0].(*ast.If).Branches[0]
 	if branch.Body[0].(*ast.Text).Bytes != "H" {
 		t.Fatalf("slot contents must surface as normal body text: %+v", branch.Body)
+	}
+}
+
+// TestSelfClosingNamedSlot: a self-closing named slot <x-slot:x/> is captured on
+// the component with an empty (nil) body and produces no diagnostic.
+func TestSelfClosingNamedSlot(t *testing.T) {
+	nodes, diags := parseSrc(t, `<x-c><x-slot:x/></x-c>`)
+	requireNoDiags(t, diags)
+	c := nodes[0].(*ast.Component)
+	body, ok := c.Slots["x"]
+	if !ok {
+		t.Fatalf("named slot \"x\" not captured on the component: %+v", c.Slots)
+	}
+	if len(body) != 0 {
+		t.Fatalf("self-closing slot must have an empty body, got %+v", body)
 	}
 }
 

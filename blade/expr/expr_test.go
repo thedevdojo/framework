@@ -130,6 +130,10 @@ func TestEvalValues(t *testing.T) {
 		{`$missing ?? $site->name`, "X"},
 		{`null ?? null ?? 'last'`, "last"},
 		{`$nada ?? 'fallback'`, "fallback"}, // present-but-nil triggers ??
+
+		// Short-circuit: a false left operand of && must NOT evaluate the right,
+		// so an undefined $undef raises no error — the value is plain false.
+		{`false && $undef`, false},
 	}
 
 	for _, c := range cases {
@@ -330,6 +334,7 @@ func TestLooseEq(t *testing.T) {
 		{true, "abc", true},
 		{true, "0", false},
 		{"0", false, true},
+		{false, []Value{}, true}, // bool coercion: Truthy(false) == Truthy([]) == false
 		// arrays
 		{[]Value{int64(1)}, []Value{int64(1)}, true},
 		{[]Value{int64(1)}, []Value{int64(2)}, false},

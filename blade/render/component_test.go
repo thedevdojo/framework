@@ -176,6 +176,68 @@ func TestComponentBoundAttrEvalError(t *testing.T) {
 	}
 }
 
+// TestComponentStaticAttrInterpolation: a STATIC attribute whose value carries a
+// {{ }} interpolation is real Blade this engine does not model — the value passes
+// through literally and an app-tier attribute-interpolation diagnostic fires at
+// the ATTRIBUTE's position.
+func TestComponentStaticAttrInterpolation(t *testing.T) {
+	res := compileMem(t, map[string]string{
+		pageEntry: `<x-hero heading="Hi {{ $name }}"/>`,
+		"resources/views/components/hero.blade.html": `@props(['heading'])[{{ $heading }}]`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "[Hi {{ $name }}]" {
+		t.Fatalf("output = %q; want %q (braces pass through literally)", got, "[Hi {{ $name }}]")
+	}
+	if len(res.Diagnostics) != 1 {
+		t.Fatalf("diagnostics = %v; want exactly one", res.Diagnostics)
+	}
+	d := res.Diagnostics[0]
+	if d.Kind != KindAppTier || d.Construct != "attribute-interpolation" {
+		t.Fatalf("diag = %+v; want app-tier/attribute-interpolation", d)
+	}
+	// `heading` begins at column 9 (`<x-hero ` is 8 bytes).
+	if d.File != pageEntry || d.Line != 1 || d.Col != 9 {
+		t.Fatalf("diag pos = %s:%d:%d; want %s:1:9", d.File, d.Line, d.Col, pageEntry)
+	}
+}
+
+// TestComponentRawAttrInterpolationNoFalsePositive: a static value with no
+// interpolation braces passes through with no diagnostic.
+func TestComponentStaticAttrNoInterpolation(t *testing.T) {
+	res := compileMem(t, map[string]string{
+		pageEntry: `<x-hero heading="Plain"/>`,
+		"resources/views/components/hero.blade.html": `@props(['heading'])[{{ $heading }}]`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "[Plain]" {
+		t.Fatalf("output = %q; want %q", got, "[Plain]")
+	}
+	if len(res.Diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", res.Diagnostics)
+	}
+}
+
+// TestBoundAttrDiagnosticCarriesAttrPos pins that a bound-attribute eval error is
+// reported at the ATTRIBUTE's position (scanner.Attr.Pos), not the tag's — so
+// Attr.Pos is load-bearing, not decorative.
+func TestBoundAttrDiagnosticCarriesAttrPos(t *testing.T) {
+	res := compileMem(t, map[string]string{
+		pageEntry: `<x-c :label="$missing"/>`,
+		"resources/views/components/c.blade.html": `@props(['label' => 'd'])[{{ $label ?? 'F' }}]`,
+	}, nil)
+	if len(res.Diagnostics) != 1 {
+		t.Fatalf("diagnostics = %v; want exactly one", res.Diagnostics)
+	}
+	d := res.Diagnostics[0]
+	if d.Construct != "undefined-variable" {
+		t.Fatalf("diag = %+v; want undefined-variable", d)
+	}
+	// `:label` begins at column 6 (`<x-c ` is 5 bytes); the diagnostic must ride
+	// the attribute position, not the tag's column 1.
+	if d.File != pageEntry || d.Line != 1 || d.Col != 6 {
+		t.Fatalf("diag pos = %s:%d:%d; want %s:1:6", d.File, d.Line, d.Col, pageEntry)
+	}
+}
+
 // TestComponentMissingMarker: a missing component emits the byte-exact marker
 // and a component-missing diagnostic at the tag position.
 func TestComponentMissingMarker(t *testing.T) {

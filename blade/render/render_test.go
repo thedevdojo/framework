@@ -1,6 +1,9 @@
 package render
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/thedevdojo/pocketknife/blade/expr"
@@ -66,6 +69,66 @@ func TestOutputNaming(t *testing.T) {
 		if got := outputName(entry); got != want {
 			t.Errorf("outputName(%q) = %q; want %q", entry, got, want)
 		}
+	}
+}
+
+// TestCompileEntryEscapesRejected: an entry whose cleaned path escapes the site
+// root — via a "../" walk that surfaces through the output name, or an absolute
+// path — is refused with an error/entry-invalid diagnostic and produces NO
+// output file. The render/protocol path must not let a crafted entry read
+// outside the tree or write above the destination directory.
+func TestCompileEntryEscapesRejected(t *testing.T) {
+	cases := []string{
+		"resources/views/pages/../../../x.blade.html", // output name would be ../../../x.html
+		"/etc/passwd", // absolute entry
+	}
+	for _, entry := range cases {
+		fs := vfs.Mem{"resources/views/pages/index.blade.html": "hi"}
+		res := Compile(fs, []string{entry}, Options{})
+		if len(res.Files) != 0 {
+			t.Errorf("%q: produced output files %v; want none", entry, res.Files)
+		}
+		if len(res.Diagnostics) != 1 {
+			t.Fatalf("%q: diagnostics = %v; want exactly one", entry, res.Diagnostics)
+		}
+		d := res.Diagnostics[0]
+		if d.Kind != KindError || d.Construct != "entry-invalid" {
+			t.Errorf("%q: diag = %+v; want error/entry-invalid", entry, d)
+		}
+		if d.File != entry || d.Line != 1 || d.Col != 1 {
+			t.Errorf("%q: diag pos = %s:%d:%d; want %s:1:1", entry, d.File, d.Line, d.Col, entry)
+		}
+	}
+}
+
+// TestCompileViteCannotEscapeRoot: @vite(['../../secret.css']) resolved against
+// a vfs.Dir must not read a file outside the site root — the guarded Dir.Read
+// returns not-found, so the secret never lands in the output and a @vite
+// not-found diagnostic fires instead. This exercises the guard through the real
+// render path (a component/@vite fs read), not just vfs in isolation.
+func TestCompileViteCannotEscapeRoot(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "a", "b") // root two levels under base
+	pages := filepath.Join(root, "resources", "views", "pages")
+	if err := os.MkdirAll(pages, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pages, "index.blade.html"),
+		[]byte(`@vite(['../../secret.css'])`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// A secret exactly where "../../secret.css" would resolve from root.
+	if err := os.WriteFile(filepath.Join(base, "secret.css"),
+		[]byte("SECRETCSS"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res := Compile(vfs.Dir(root), []string{"resources/views/pages/index.blade.html"}, Options{})
+	if out := res.Files["index.html"]; strings.Contains(out, "SECRETCSS") {
+		t.Fatalf("output leaked a file outside the root: %q", out)
+	}
+	if !hasConstruct(res.Diagnostics, "@vite") {
+		t.Fatalf("diagnostics = %v; want a @vite not-found", res.Diagnostics)
 	}
 }
 

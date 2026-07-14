@@ -78,6 +78,18 @@ func cmdLint(args []string) int {
 		return 2
 	}
 	dir := args[0]
+	// A nonexistent or non-directory argument is a usage error, not a clean
+	// tree: without this guard vfs.Dir(dir) would list nothing, Compile would
+	// find no pages, and lint would silently exit 0 — hiding a typo'd path.
+	info, err := os.Stat(dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "pocketknife lint: cannot access %q: %v\n", dir, err)
+		return 2
+	}
+	if !info.IsDir() {
+		fmt.Fprintf(os.Stderr, "pocketknife lint: %q is not a directory\n", dir)
+		return 2
+	}
 	fs := vfs.Dir(dir)
 	entries := protocol.DiscoverPages(fs)
 	result := render.Compile(fs, entries, render.Options{})
