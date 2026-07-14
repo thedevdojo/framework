@@ -77,6 +77,10 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 		Deps:  map[string][]string{},
 	}
 	scope := buildScope(opts.Data)
+	// parseCache is shared across every entry AND every component render in this
+	// Compile: a component file resolved more than once (siblings, recursion) is
+	// scanned+parsed only once.
+	parseCache := map[string][]ast.Node{}
 	for _, entry := range entries {
 		src, ok := fs.Read(entry)
 		if !ok {
@@ -85,10 +89,15 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 		out := outputName(entry)
 		tokens := scanner.Scan(entry, src)
 		nodes, _ := parser.Parse(entry, tokens) // parse diagnostics are surfaced in a later task
-		r := &renderer{scope: scope}
+		// deps is per-output: it starts with the entry and gains every component
+		// file the render resolves (deduped, in encounter order, entry first).
+		deps := newOrderedSet()
+		deps.add(entry)
+		ctx := &renderCtx{fs: fs, deps: deps, cache: parseCache}
+		r := &renderer{scope: scope, ctx: ctx}
 		r.renderNodes(nodes, false)
 		res.Files[out] = r.sb.String()
-		res.Deps[out] = []string{entry}
+		res.Deps[out] = deps.list()
 		res.Diagnostics = append(res.Diagnostics, r.diags...)
 	}
 	return res
@@ -106,6 +115,18 @@ type renderer struct {
 	loopDepth int
 	// signal carries a pending @break/@continue up to the innermost loop.
 	signal loopSignal
+	// ctx holds the render state shared across the whole Compile — the vfs,
+	// the per-output deps set, and the parse cache — so component renders reach
+	// the filesystem and record their files. Nil is fine for renderers that
+	// never resolve a component (some unit tests construct one directly).
+	ctx *renderCtx
+	// depth is this renderer's component-nesting depth (a page is 0, a component
+	// it renders is 1, …), tracked per render-stack to enforce the recursion cap.
+	depth int
+	// legalProps is the single @props node that is a valid declaration for the
+	// file this renderer is rendering (nil for pages and for component files with
+	// no leading @props). Any other Props node renders as a props error.
+	legalProps *ast.Props
 }
 
 // renderNodes renders a body left to right, threading the newline-eat state, and
@@ -149,10 +170,18 @@ func (r *renderer) renderNode(n ast.Node, eat bool) bool {
 	case *ast.LoopJump:
 		return r.renderLoopJump(node)
 
+	case *ast.Component:
+		r.renderComponent(node)
+		return directiveEatsNewline // a component tag eats one following newline
+
+	case *ast.Props:
+		r.renderProps(node)
+		return directiveEatsNewline // the @props line eats one following newline
+
 	default:
-		// Component, Props, Vite, Unknown: stubs for now — no output, no
-		// diagnostic. Transparent to the newline state so a stub never changes
-		// surrounding whitespace before its real implementation.
+		// Vite, Unknown: stubs for now — no output, no diagnostic. Transparent to
+		// the newline state so a stub never changes surrounding whitespace before
+		// its real implementation.
 		return eat
 	}
 }
@@ -163,6 +192,12 @@ func (r *renderer) renderEcho(node *ast.Echo) {
 	val, err := expr.Eval(node.Expr, r.scope)
 	if err != nil {
 		r.diagExprError(err, node.P)
+		return
+	}
+	// A slot value is pre-rendered raw HTML (real Blade's HtmlString): both
+	// {{ }} and {!! !!} emit it verbatim, never escaped.
+	if rh, ok := val.(rawHTML); ok {
+		r.sb.WriteString(string(rh))
 		return
 	}
 	s, serr := Stringify(val)

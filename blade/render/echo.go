@@ -76,6 +76,10 @@ func Stringify(v expr.Value) (string, error) {
 		return strconv.FormatFloat(x, 'G', -1, 64), nil
 	case string:
 		return x, nil
+	case rawHTML:
+		// Pre-rendered slot HTML. The echo path intercepts this before Stringify;
+		// handled here too so any other path stringifies it without error.
+		return string(x), nil
 	case []expr.Value, map[string]expr.Value:
 		return "", errNotStringable
 	default:
