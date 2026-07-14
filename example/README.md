@@ -1,0 +1,69 @@
+# Pocketknife example
+
+The smallest useful Blade-dialect site: a page, a layout component with
+`@props` + `{{ $slot }}`, a section receiving collection data through a bound
+attribute, `$site` data, a `@foreach` with `$loop`, and `@vite` rendering its
+static projection (Tailwind Play CDN + inlined CSS).
+
+```
+example/
+├── render.sh                      # pack → compile → unpack helper (needs jq)
+└── resources/
+    ├── css/site.css               # inlined by @vite('resources/css/site.css')
+    ├── data/
+    │   ├── site.json              # → $site
+    │   └── collections/features.json  # → $features
+    └── views/
+        ├── pages/index.blade.html
+        └── components/
+            ├── layouts/main.blade.html
+            └── sections/feature-list.blade.html
+```
+
+## 1. Build the binary
+
+```bash
+go build -o /usr/local/bin/pocketknife ./cmd/pocketknife   # from the repo root
+```
+
+## 2. Lint — the tier gate
+
+```bash
+pocketknife lint example
+```
+
+Silence + exit 0 means every construct is inside the static subset. Add
+`@auth` or `{{ route('home') }}` to a page and lint reports it as `[app-tier]`
+— valid Blade that needs the site running as a real app — instead of an error.
+
+## 3. Render
+
+```bash
+example/render.sh
+open example/_out/index.html      # fully styled — Tailwind rides the Play CDN
+```
+
+`render.sh` is a thin wrapper around the real interface: one JSON document on
+stdin (`{"files": {path: content}}`), one on stdout (`files`, `deps`,
+`diagnostics`). That protocol is exactly how the DevDojo platform embeds the
+engine — no disk, no eval, just bytes in and bytes out:
+
+```bash
+jq -n --rawfile page example/resources/views/pages/index.blade.html \
+  '{files: {"resources/views/pages/index.blade.html": $page}}' \
+  | pocketknife compile | jq -r '.files["index.html"]'
+```
+
+(That one-liner omits the layout/component files, so the output also carries a
+`component-missing` diagnostic — useful to see what error markers look like.)
+
+## 4. The same files in real Laravel
+
+The conformance oracle doubles as proof of the whole thesis — render the same
+folder through genuine Blade:
+
+```bash
+cd oracle && php artisan pocketknife:render ../example pages.index
+```
+
+Byte-for-byte identical to the Go engine's output.
