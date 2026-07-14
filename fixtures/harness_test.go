@@ -1,5 +1,3 @@
-//go:build renderready
-
 package fixtures
 
 import (
