@@ -21,6 +21,6 @@ jobs:
       # Laravel 11 supports both 8.3 and 8.4; the oracle runs 8.4 locally,
       # CI pins 8.3 per the original brief.
       - uses: shivammathur/setup-php@v2
-        with: { php-version: '8.3' }
+        with: { php-version: '8.4' }
       - run: cd oracle && composer install --no-interaction --quiet
       - run: cd oracle && php artisan pocketknife:conformance ../fixtures
