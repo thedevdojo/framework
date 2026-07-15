@@ -118,7 +118,12 @@ func (r *renderer) renderComponent(node *ast.Component) {
 	// leading @props marked legal so it stays silent.
 	child := &renderer{scope: cs, ctx: r.ctx, depth: r.depth + 1, legalProps: propsNode}
 	child.renderNodes(nodes, false)
-	r.sb.WriteString(child.sb.String())
+	// Real Blade returns ltrim(ob_get_clean()) for every rendered view
+	// (PhpEngine::evaluatePath), so a component's rendered output has its LEADING
+	// whitespace stripped (default ltrim charset; trailing bytes untouched). A
+	// component authored with a blank line after @props, or leading indentation,
+	// therefore contributes no leading whitespace — matched here byte-for-byte.
+	r.sb.WriteString(phpLtrim(child.sb.String()))
 	r.diags = append(r.diags, child.diags...)
 }
 
@@ -311,26 +316,43 @@ func isSpaceByte(b byte) bool {
 	return false
 }
 
-// phpTrim strips leading and trailing bytes the way PHP's trim() does: the set
-// " \t\n\r\0\x0B" (note: NOT form feed). Real Blade trims slot contents with
-// trim(), so slot whitespace matches byte-for-byte.
-func phpTrim(s string) string {
-	isTrim := func(b byte) bool {
-		switch b {
-		case ' ', '\t', '\n', '\r', 0, '\v':
-			return true
-		}
-		return false
+// isPhpTrim reports whether b is in PHP's default trim/ltrim character mask:
+// " \t\n\r\0\x0B" (space, tab, newline, carriage return, null, vertical tab).
+// Note: form feed (0x0C) is NOT in the set — a leading form feed survives, as
+// verified against the oracle.
+func isPhpTrim(b byte) bool {
+	switch b {
+	case ' ', '\t', '\n', '\r', 0, '\v':
+		return true
 	}
+	return false
+}
+
+// phpTrim strips leading and trailing bytes the way PHP's trim() does (the
+// isPhpTrim mask). Real Blade trims slot contents with trim(), so slot
+// whitespace matches byte-for-byte.
+func phpTrim(s string) string {
 	i := 0
-	for i < len(s) && isTrim(s[i]) {
+	for i < len(s) && isPhpTrim(s[i]) {
 		i++
 	}
 	j := len(s)
-	for j > i && isTrim(s[j-1]) {
+	for j > i && isPhpTrim(s[j-1]) {
 		j--
 	}
 	return s[i:j]
+}
+
+// phpLtrim strips only LEADING bytes the way PHP's ltrim() does with its default
+// mask (isPhpTrim). Real Blade's PhpEngine::evaluatePath returns
+// ltrim(ob_get_clean()) for EVERY rendered view, so both page and component
+// output shed their leading whitespace while trailing bytes are preserved.
+func phpLtrim(s string) string {
+	i := 0
+	for i < len(s) && isPhpTrim(s[i]) {
+		i++
+	}
+	return s[i:]
 }
 
 // orderedSet is an insertion-ordered, deduplicated string set — used for deps so

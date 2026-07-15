@@ -128,8 +128,10 @@ func TestAttributesIfCondAppTier(t *testing.T) {
 	entry := "resources/views/pages/index.blade.html"
 	fs := vfs.Mem{entry: "@if ($attributes)yes @else no @endif"}
 	res := Compile(fs, []string{entry}, Options{})
-	if got := res.Files["index.html"]; got != " no " {
-		t.Fatalf("output = %q; want %q", got, " no ")
+	// Leading space stripped by the entry-level ltrim (see TestIfConditionError);
+	// trailing space preserved.
+	if got := res.Files["index.html"]; got != "no " {
+		t.Fatalf("output = %q; want %q", got, "no ")
 	}
 	if len(res.Diagnostics) != 1 {
 		t.Fatalf("diagnostics = %v; want exactly 1", res.Diagnostics)

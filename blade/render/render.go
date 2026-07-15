@@ -115,7 +115,12 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 		ctx := &renderCtx{fs: fs, deps: deps, cache: parseCache, site: data.site}
 		r := &renderer{scope: scope, ctx: ctx}
 		r.renderNodes(nodes, false)
-		res.Files[out] = r.sb.String()
+		// Real Blade returns ltrim(ob_get_clean()) for every rendered view
+		// (PhpEngine::evaluatePath), so an entry page's leading whitespace is
+		// stripped exactly as a component's is (see phpLtrim). Templates author
+		// pages starting non-whitespace, so this is a no-op for them, but it keeps
+		// byte-parity for any page that opens on a blank line or indentation.
+		res.Files[out] = phpLtrim(r.sb.String())
 		res.Deps[out] = deps.list()
 		res.Diagnostics = append(res.Diagnostics, r.diags...)
 	}

@@ -93,13 +93,22 @@ whitespace equivalence is NOT a guarantee (only Go-vs-real-Blade parity is).
 
 ## Found during Phase 2 (2026-07-14, aria conversion)
 
-- **Component leading-whitespace parity gap:** real Blade trims the *leading*
-  whitespace of an anonymous component's rendered output; the Go engine does
-  not. Oracle byte-diffs caught it on components whose files start with a
-  blank line after `@props(...)`. Fix in `blade/render/component.go` (probe
-  real Blade's exact trim behavior first), add a fixture, then un-workaround
-  the affected templates (aria's posts-loop / about-experience were authored
-  to start with non-whitespace).
+- ~~**Component leading-whitespace parity gap**~~ — RESOLVED (2026-07-15, S4).
+  Oracle probe pinned the exact mechanism: real Blade's `PhpEngine::evaluatePath`
+  returns `ltrim(ob_get_clean())` for **every** rendered view, so a view's output
+  has its LEADING whitespace stripped and trailing bytes preserved. Charset is
+  PHP's default `ltrim` mask `" \t\n\r\0\x0B"` — space, tab, LF, CR, NUL, vertical
+  tab; **form feed (0x0C) is NOT trimmed** (probed: a leading `\f` survives).
+  **Surprise:** this applies to PAGE entries too, not only components — a page
+  opening on a blank line or indentation was silently diverging. Fixed both:
+  `phpLtrim` (shared `isPhpTrim` mask) is applied to component output in
+  `blade/render/component.go` and to entry-page output in `blade/render/render.go`.
+  Oracle-checked fixture `component-leading-whitespace/` locks all of it (blank
+  line after `@props`, leading indentation, form-feed preservation at both the
+  component and page boundary). Two unit tests that asserted a pre-parity leading
+  space on page output (`TestIfConditionError`, `TestAttributesIfCondAppTier`)
+  were corrected. Templates authored to start with non-whitespace are unaffected;
+  the aria workaround can now be dropped.
 - **`@props` rejects array defaults** (`@props(['menu' => []])`) — array-holding
   props must be declared bare. Either teach the restricted literal parser
   empty-array defaults or document the bare-declaration idiom in the spec.

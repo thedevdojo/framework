@@ -173,8 +173,11 @@ func TestIfConditionError(t *testing.T) {
 	entry := "resources/views/pages/index.blade.html"
 	fs := vfs.Mem{entry: "@if ($missing)yes @else no @endif"}
 	res := Compile(fs, []string{entry}, Options{})
-	if got := res.Files["index.html"]; got != " no " {
-		t.Fatalf("output = %q; want %q", got, " no ")
+	// The page output's leading space is stripped by the entry-level ltrim (real
+	// Blade's PhpEngine::evaluatePath returns ltrim(ob_get_clean())); the trailing
+	// space is preserved.
+	if got := res.Files["index.html"]; got != "no " {
+		t.Fatalf("output = %q; want %q", got, "no ")
 	}
 	if len(res.Diagnostics) != 1 || res.Diagnostics[0].Construct != "undefined-variable" {
 		t.Fatalf("diagnostics = %v", res.Diagnostics)
