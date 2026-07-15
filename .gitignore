@@ -1,3 +1,4 @@
 oracle/vendor/
 .DS_Store
 .superpowers/
+bin/
