@@ -85,3 +85,16 @@ Loop vars don't leak; map iteration sorted; `@props` page-level restriction;
 components see `$site` only; undefined vars are compile errors; unknown directives
 diagnosed (pending decision #1 on strip-vs-literal); classic-engine whitespace
 equivalence is NOT a guarantee (only Go-vs-real-Blade parity is).
+
+## Found during Phase 2 (2026-07-14, aria conversion)
+
+- **Component leading-whitespace parity gap:** real Blade trims the *leading*
+  whitespace of an anonymous component's rendered output; the Go engine does
+  not. Oracle byte-diffs caught it on components whose files start with a
+  blank line after `@props(...)`. Fix in `blade/render/component.go` (probe
+  real Blade's exact trim behavior first), add a fixture, then un-workaround
+  the affected templates (aria's posts-loop / about-experience were authored
+  to start with non-whitespace).
+- **`@props` rejects array defaults** (`@props(['menu' => []])`) — array-holding
+  props must be declared bare. Either teach the restricted literal parser
+  empty-array defaults or document the bare-declaration idiom in the spec.
