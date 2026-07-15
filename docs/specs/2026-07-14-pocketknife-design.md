@@ -123,6 +123,18 @@ render shortest-round-trip (PHP `serialize_precision=-1`: `1.0` → `"1"`, `2.5`
 `"2.5"`). Echoing an array or object is a diagnostic **error** (real Blade throws a
 `TypeError` in `e()`; we catch it at compile time).
 
+**Invalid-UTF-8 substitution (oracle-verified 2026-07-15):** the `ENT_SUBSTITUTE`
+replacement is done PHP's way, not Go's default. At an ill-formed offset,
+`htmlspecialchars` consumes the lead byte plus its continuation bytes (`0x80–0xBF`)
+up to the length the lead declares (`0xC2–0xDF` → 2, `0xE0–0xEF` → 3, `0xF0–0xF4` →
+4; any other lead — a stray continuation, an overlong `0xC0`/`0xC1`, or an
+out-of-range `0xF5–0xFF` — is length 1) and emits a **single** U+FFFD for the whole
+run. Overlong and surrogate sequences that reach full length still collapse to one
+U+FFFD (they are invalid, not preserved). So `E2 82` → one U+FFFD (not two, which is
+what a naive per-byte `utf8.DecodeRune` loop yields); `FF FF` → two. `Escape` in
+`blade/render/echo.go` implements this via `phpSubpartLen`; pinned by the
+`escape-invalid-utf8` fixture and `TestEscapeInvalidUTF8`.
+
 ### 3.2 Control flow
 
 - `@if (expr)` / `@elseif (expr)` / `@else` / `@endif`

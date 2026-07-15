@@ -19,6 +19,38 @@ func TestEscape(t *testing.T) {
 	}
 }
 
+// TestEscapeInvalidUTF8 pins Escape's U+FFFD substitution to PHP's
+// htmlspecialchars(…, ENT_SUBSTITUTE, 'UTF-8') exactly (oracle-verified — see
+// the escape-invalid-utf8 fixture). The load-bearing rule: an ill-formed multi-
+// byte subsequence collapses to a SINGLE U+FFFD (the lead plus its continuation
+// bytes), not one per byte.
+func TestEscapeInvalidUTF8(t *testing.T) {
+	const fffd = "�"
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"lone-ff", "a\xffb", "a" + fffd + "b"},
+		{"lead-then-non-continuation", "a\xc3\x28b", "a" + fffd + "(b"},
+		{"truncated-3byte-collapses-to-one", "a\xe2\x82b", "a" + fffd + "b"},
+		{"lone-continuation", "a\x80b", "a" + fffd + "b"},
+		{"overlong-e0-still-one", "a\xe0\x80\x80b", "a" + fffd + "b"},
+		{"surrogate-ed-still-one", "a\xed\xbf\xbfb", "a" + fffd + "b"},
+		{"four-byte-lead-consumes-three", "a\xf0\x90\x80" + "Ab", "a" + fffd + "Ab"},
+		{"two-lone-ff-are-two", "a\xff\xffb", "a" + fffd + fffd + "b"},
+		{"c0-is-invalid-lead-not-two-byte", "a\xc0\x80b", "a" + fffd + fffd + "b"},
+		{"f5-is-invalid-lead", "a\xf5\x80\x80\x80b", "a" + fffd + fffd + fffd + fffd + "b"},
+		{"valid-utf8-preserved", "a\xc3\xa9b", "a\xc3\xa9b"},
+		{"valid-euro-preserved", "a\xe2\x82\xacb", "a\xe2\x82\xacb"},
+	}
+	for _, c := range cases {
+		if got := Escape(c.in); got != c.want {
+			t.Errorf("%s: Escape(% x) = % x; want % x", c.name, c.in, got, c.want)
+		}
+	}
+}
+
 func TestStringify(t *testing.T) {
 	cases := []struct {
 		in   expr.Value

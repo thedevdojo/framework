@@ -103,10 +103,19 @@ spec §8 exit criteria.
   `$foo-bar`. Oracle-probe real Blade first, then camelCase or diagnose.
 - **Fixture harness matches diagnostics by presence, not exact set** — stray diags
   could accumulate unseen in oracle-exempt fixtures.
-- **Invalid-UTF-8 escaping unverified vs real `e()`** — one oracle probe fixture
-  settles whether U+FFFD substitution matches Laravel.
-- **No fixture echoes bool/int frontmatter values** — a frontmatter-types fixture
-  would pin the PHP scalar parser (which has no unit tests).
+- ~~**Invalid-UTF-8 escaping unverified vs real `e()`**~~ — RESOLVED (2026-07-15,
+  S4). Oracle probes found a real divergence: Go's per-byte `utf8.DecodeRune` loop
+  emitted one U+FFFD **per byte**, but PHP's `htmlspecialchars(ENT_SUBSTITUTE)`
+  collapses an ill-formed subsequence (lead + its `0x80–0xBF` continuations, up to
+  the lead's declared length) into a **single** U+FFFD — so `E2 82` → one, `FF FF`
+  → two, and overlong/surrogate full-length runs still collapse to one. Fixed
+  `Escape` (`phpSubpartLen` in `blade/render/echo.go`), pinned by
+  `TestEscapeInvalidUTF8` + the oracle-checked `escape-invalid-utf8` fixture, and
+  documented in spec §3.1.
+- ~~**No fixture echoes bool/int frontmatter values**~~ — RESOLVED (2026-07-15,
+  S4). The oracle-checked `frontmatter-types` fixture echoes bool/int/float
+  frontmatter through `{{ }}` and confirms both tiers agree byte-for-byte:
+  `42`/`-7`/`0`, `3.14`/`2.5`, `3.0` → `3`, `true` → `1`, `false` → `` (empty).
 - **Missing components / missing `@vite` assets aren't added to deps** — a
   render-on-save host won't refresh when the user creates the missing file.
 - **No render budget** — nested `@foreach` over protocol data is unbounded; either
