@@ -8,8 +8,9 @@ import (
 
 // TestUnknownDirectiveAppTier: an ast.Unknown directive (any directive outside
 // the closed subset — @auth, @php, @include, @extends, @section, @csrf, …)
-// renders nothing and raises exactly one app-tier diagnostic whose Construct
-// is "@"+Name, at the directive's own position.
+// renders LITERALLY (its byte-faithful source, matching real Blade's handling
+// of unregistered directives) and raises exactly one app-tier diagnostic whose
+// Construct is "@"+Name, at the directive's own position.
 func TestUnknownDirectiveAppTier(t *testing.T) {
 	entry := "resources/views/pages/index.blade.html"
 	// A '>' (non-word) before @auth gives it the word boundary real Blade's \B@
@@ -18,8 +19,8 @@ func TestUnknownDirectiveAppTier(t *testing.T) {
 	// glued directly onto the name would become part of it ("authy").
 	fs := vfs.Mem{entry: ">@auth Y"}
 	res := Compile(fs, []string{entry}, Options{})
-	if got := res.Files["index.html"]; got != "> Y" {
-		t.Fatalf("output = %q; want %q", got, "> Y")
+	if got := res.Files["index.html"]; got != ">@auth Y" {
+		t.Fatalf("output = %q; want %q", got, ">@auth Y")
 	}
 	if len(res.Diagnostics) != 1 {
 		t.Fatalf("diagnostics = %v; want exactly 1", res.Diagnostics)
@@ -33,28 +34,65 @@ func TestUnknownDirectiveAppTier(t *testing.T) {
 	}
 }
 
-// TestUnknownDirectiveDoesNotEatNewline: unlike every other directive,
-// Unknown does not swallow the newline immediately following it — documented
-// (render.go) as a deliberate choice, since it renders nothing and so has no
-// compiled close-tag whose swallow rule would apply.
+// TestUnknownDirectiveRendersLiteralWithArgs: an unregistered directive with
+// parenthesized args renders byte-identically to its source (spacing and casing
+// preserved) and raises one app-tier diagnostic.
+func TestUnknownDirectiveRendersLiteralWithArgs(t *testing.T) {
+	entry := "resources/views/pages/index.blade.html"
+	fs := vfs.Mem{entry: "A @media (x) B"}
+	res := Compile(fs, []string{entry}, Options{})
+	if got := res.Files["index.html"]; got != "A @media (x) B" {
+		t.Fatalf("output = %q; want %q (byte-identical to input)", got, "A @media (x) B")
+	}
+	if len(res.Diagnostics) != 1 {
+		t.Fatalf("diagnostics = %v; want exactly 1", res.Diagnostics)
+	}
+	if d := res.Diagnostics[0]; d.Kind != KindAppTier || d.Construct != "@media" {
+		t.Fatalf("diag = %+v; want app-tier/@media", d)
+	}
+}
+
+// TestUnknownDirectiveDoesNotEatNewline: unlike every other directive, Unknown
+// does not swallow the newline immediately following it — documented (render.go)
+// as a deliberate choice. Now that the directive renders literally, the whole
+// input round-trips byte-for-byte.
 func TestUnknownDirectiveDoesNotEatNewline(t *testing.T) {
 	entry := "resources/views/pages/index.blade.html"
 	fs := vfs.Mem{entry: "A\n@auth\nB\n"}
 	res := Compile(fs, []string{entry}, Options{})
-	if got := res.Files["index.html"]; got != "A\n\nB\n" {
-		t.Fatalf("output = %q; want %q", got, "A\n\nB\n")
+	if got := res.Files["index.html"]; got != "A\n@auth\nB\n" {
+		t.Fatalf("output = %q; want %q", got, "A\n@auth\nB\n")
+	}
+}
+
+// TestUnknownDoubleAtRendersLiteral: real Blade renders `a@@b` verbatim — the
+// leading '@' is literal text and `@b` is an unregistered directive left
+// literal. Pocketknife now matches: Text "a@" + Unknown "@b" -> "a@@b".
+func TestUnknownDoubleAtRendersLiteral(t *testing.T) {
+	entry := "resources/views/pages/index.blade.html"
+	fs := vfs.Mem{entry: "a@@b"}
+	res := Compile(fs, []string{entry}, Options{})
+	if got := res.Files["index.html"]; got != "a@@b" {
+		t.Fatalf("output = %q; want %q", got, "a@@b")
+	}
+	if len(res.Diagnostics) != 1 {
+		t.Fatalf("diagnostics = %v; want exactly 1 (@b)", res.Diagnostics)
+	}
+	if d := res.Diagnostics[0]; d.Kind != KindAppTier || d.Construct != "@b" {
+		t.Fatalf("diag = %+v; want app-tier/@b", d)
 	}
 }
 
 // TestUnknownBetweenPairDoesNotSuppressBody: @auth/@endauth are each their own
-// Unknown node (the parser never pairs them structurally), so the text between
-// them is ordinary body content and renders unconditionally.
+// Unknown node (the parser never pairs them structurally), so both render
+// literally and the text between them is ordinary body content — the whole
+// input round-trips.
 func TestUnknownBetweenPairDoesNotSuppressBody(t *testing.T) {
 	entry := "resources/views/pages/index.blade.html"
 	fs := vfs.Mem{entry: "@auth secret @endauth"}
 	res := Compile(fs, []string{entry}, Options{})
-	if got := res.Files["index.html"]; got != " secret " {
-		t.Fatalf("output = %q; want %q", got, " secret ")
+	if got := res.Files["index.html"]; got != "@auth secret @endauth" {
+		t.Fatalf("output = %q; want %q", got, "@auth secret @endauth")
 	}
 	if len(res.Diagnostics) != 2 {
 		t.Fatalf("diagnostics = %v; want 2 (@auth, @endauth)", res.Diagnostics)

@@ -86,11 +86,15 @@ type Vite struct {
 }
 
 // Unknown is any directive the parser does not structurally handle (e.g.
-// @auth, @php, @csrf). Name is the lowercased directive name, Raw its args.
-// The renderer classifies these app-tier.
+// @auth, @php, @csrf). Name is the lowercased directive name, Raw its args, and
+// Src the byte-faithful original source slice ('@' through the last consumed
+// byte, verbatim casing/whitespace). The renderer writes Src verbatim (so an
+// unregistered directive survives byte-for-byte, matching real Blade) and
+// classifies the node app-tier.
 type Unknown struct {
 	Name string
 	Raw  string
+	Src  string
 	P    scanner.Pos
 }
 

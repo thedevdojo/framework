@@ -39,8 +39,10 @@ func TestRunRoundTrip(t *testing.T) {
 		t.Errorf("engine = %q, want %q", got.Engine, blade.Version)
 	}
 
+	// The @auth/@endauth directives are outside the subset, so they render
+	// LITERALLY (byte-faithful) while still raising app-tier diagnostics.
 	wantFiles := map[string]string{
-		"index.html": "<h1>Hello</h1>\n\nWelcome back\n\n<div class=\"alert\">Hi</div>\n",
+		"index.html": "<h1>Hello</h1>\n@auth\nWelcome back\n@endauth\n<div class=\"alert\">Hi</div>\n",
 	}
 	if len(got.Files) != len(wantFiles) || got.Files["index.html"] != wantFiles["index.html"] {
 		t.Errorf("files = %#v, want %#v", got.Files, wantFiles)

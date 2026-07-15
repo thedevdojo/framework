@@ -30,6 +30,15 @@ func FuzzScan(f *testing.F) {
 				t.Fatalf("positions not monotonic: %+v after %+v", tk.Pos, last)
 			}
 			last = tk.Pos
+			// Src is populated for Directive tokens only, always begins at the
+			// '@', and is empty for every other kind.
+			if tk.Kind == Directive {
+				if len(tk.Src) == 0 || tk.Src[0] != '@' {
+					t.Fatalf("directive Src = %q; want a non-empty slice starting with '@'", tk.Src)
+				}
+			} else if tk.Src != "" {
+				t.Fatalf("non-directive %v has Src %q; want empty", tk.Kind, tk.Src)
+			}
 		}
 	})
 }

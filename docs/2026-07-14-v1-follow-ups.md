@@ -5,16 +5,20 @@ This is the reviewable list of what remains. Items are ordered by weight.
 
 ## Decisions (need Tony)
 
-### 1. Unknown directives: strip vs leave-literal
-Today any directive outside the subset (`@auth`, `@media`, …) renders as **nothing**
-plus an app-tier diagnostic. Real Blade leaves unknown directives **literal**. The
-final review found this collides with Tailwind v4 idioms — `class="@container"`,
-`@min-md:*` variants, and `@media`/`@keyframes` in inline `<style>` blocks are all
-silently deleted from output today.
-**Recommendation:** leave unknown directives literal in output, keep the app-tier
-diagnostic. Restores real-Blade parity and unbreaks Tailwind. Touches
-`blade/render/render.go` (Unknown case), the `app-tier-directives` fixture, and
-spec §3.7.
+### 1. Unknown directives: strip vs leave-literal — RESOLVED (leave-literal, 2026-07-15)
+Previously any directive outside the subset (`@auth`, `@media`, …) rendered as
+**nothing** plus an app-tier diagnostic. Real Blade leaves unknown directives
+**literal**. The final review found this collided with Tailwind v4 idioms —
+`class="@container"`, `@min-md:*` variants, and `@media`/`@keyframes` in inline
+`<style>` blocks were all silently deleted from output.
+**Resolution (approved, leave-literal):** unknown directives now render **byte-for-byte
+literal** in output while keeping the app-tier diagnostic. This restores real-Blade
+parity for unregistered directives and unbreaks Tailwind. Implemented in
+`blade/scanner/scanner.go` (`Token.Src`), `blade/parser/parser.go` +
+`blade/ast/ast.go` (`Unknown.Src`), and `blade/render/render.go` (Unknown case);
+the `app-tier-directives` fixture output was regenerated (diagnostics unchanged), a
+new oracle-checked `css-at-rules` fixture pins the CSS-at-rule parity, and spec §3.7
+now documents leave-literal.
 
 ### 2. Go value model: JSON objects behave as PHP arrays, not objects
 JSON objects become `map[string]Value` on the Go side (PHP-*array* semantics) but
@@ -76,15 +80,16 @@ spec §8 exit criteria.
 - **Package hygiene:** no `publishes()` for config; `minimum-stability` noise in
   `laravel/composer.json`; `View::addLocation` precedence (app views shadow site
   views) needs a decision for toggle-to-app.
-- **`word@@word` renders divergently** (folds into the Unknown-directive family —
-  revisit together with decision #1).
+- ~~**`word@@word` renders divergently**~~ — RESOLVED with decision #1 (2026-07-15):
+  `a@@b` now renders `a@@b`, matching real Blade (the trailing `@b` is a literal
+  unknown directive).
 
 ## Known, endorsed divergences (documented, not defects)
 
 Loop vars don't leak; map iteration sorted; `@props` page-level restriction;
 components see `$site` only; undefined vars are compile errors; unknown directives
-diagnosed (pending decision #1 on strip-vs-literal); classic-engine whitespace
-equivalence is NOT a guarantee (only Go-vs-real-Blade parity is).
+render literally + diagnosed app-tier (decision #1, 2026-07-15); classic-engine
+whitespace equivalence is NOT a guarantee (only Go-vs-real-Blade parity is).
 
 ## Found during Phase 2 (2026-07-14, aria conversion)
 

@@ -202,9 +202,10 @@ func (p *parser) parseDirective(ctx bodyCtx) []ast.Node {
 		p.diag(tok.Pos, "stray @"+tok.Name+" with no matching open construct")
 		return nil
 	default:
-		// Unknown directive: the renderer classifies it app-tier.
+		// Unknown directive: the renderer writes Src verbatim and classifies it
+		// app-tier.
 		p.next()
-		return one(&ast.Unknown{Name: tok.Name, Raw: tok.Text, P: tok.Pos})
+		return one(&ast.Unknown{Name: tok.Name, Raw: tok.Text, Src: tok.Src, P: tok.Pos})
 	}
 }
 

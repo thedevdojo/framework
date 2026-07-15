@@ -218,6 +218,15 @@ Every diagnostic carries `file`, `line`, `col`, `message`, and a `kind`:
   site running as an app," and the AI lint loop treats them as tier signals, not
   failures.
 
+**Unknown directives render literally.** A directive outside the closed subset is
+written to output **byte-for-byte** (its exact source, casing and inner whitespace
+preserved) alongside its `app-tier` diagnostic — never dropped. This matches real Blade,
+which leaves *unregistered* directives literal, and keeps inline CSS at-rules
+(`@media`, `@keyframes`, `@container`) and boundary `@word`s in prose intact instead of
+corrupting them. (Registered-but-app-tier directives like `@auth`/`@php` render literally
+here but would *compile* in real Blade, so any page carrying an app-tier diagnostic is
+outside the byte-parity promise — the diagnostic is the signal to run it at the app tier.)
+
 Missing components additionally emit a byte-stable output marker —
 `<!-- pocketknife:missing component "sections.hero" -->` — the same marker-contract
 pattern hosts already rely on with the classic engine (distinct `pocketknife:` prefix).

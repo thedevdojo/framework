@@ -247,12 +247,27 @@ func TestDuplicateSlotLastWins(t *testing.T) {
 func TestUnknownDirective(t *testing.T) {
 	nodes, diags := parseSrc(t, `@auth secret @endauth`)
 	requireNoDiags(t, diags)
-	if nodes[0].(*ast.Unknown).Name != "auth" {
-		t.Fatalf("want @auth Unknown, got %+v", nodes[0])
+	if u := nodes[0].(*ast.Unknown); u.Name != "auth" || u.Src != "@auth" {
+		t.Fatalf("want @auth Unknown with Src %q, got %+v", "@auth", u)
 	}
 	// @endauth is also unknown (not a structural closer) — no diag.
-	if nodes[len(nodes)-1].(*ast.Unknown).Name != "endauth" {
-		t.Fatalf("want @endauth Unknown, got %+v", nodes[len(nodes)-1])
+	if u := nodes[len(nodes)-1].(*ast.Unknown); u.Name != "endauth" || u.Src != "@endauth" {
+		t.Fatalf("want @endauth Unknown with Src %q, got %+v", "@endauth", u)
+	}
+}
+
+// TestUnknownDirectiveSrcWithArgs: the Unknown node carries the directive's full
+// original source slice (name + args, verbatim spacing/casing) so the renderer
+// can emit it literally.
+func TestUnknownDirectiveSrcWithArgs(t *testing.T) {
+	nodes, diags := parseSrc(t, `A @Media (min-width: 600px) B`)
+	requireNoDiags(t, diags)
+	u := nodes[1].(*ast.Unknown)
+	if u.Name != "media" {
+		t.Fatalf("Name = %q; want %q", u.Name, "media")
+	}
+	if u.Src != "@Media (min-width: 600px)" {
+		t.Fatalf("Src = %q; want %q", u.Src, "@Media (min-width: 600px)")
 	}
 }
 

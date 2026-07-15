@@ -213,19 +213,24 @@ func (r *renderer) renderNode(n ast.Node, eat bool) bool {
 		// Any directive outside the closed subset this engine structurally
 		// understands (@auth, @php, @include, @extends, @section, @csrf, …).
 		// The parser never pairs it with a body (see ast.Unknown's doc comment),
-		// so it renders NOTHING and the surrounding text — including whatever a
-		// real @auth/@endauth pair would have gated — flows through untouched.
+		// so its byte-faithful source is written LITERALLY and the surrounding
+		// text — including whatever a real @auth/@endauth pair would have gated —
+		// flows through untouched. This matches real Blade for UNREGISTERED
+		// directives (the section library's inline `@media`/`@keyframes`/
+		// `@container` and Designer imports' boundary `@word`s survive
+		// byte-for-byte). Registered-but-app-tier directives (@auth, @php, …)
+		// render literally here but would COMPILE in real Blade — so any page
+		// that carries an app-tier diagnostic stays outside the byte-parity
+		// promise (see the package doc); the diagnostic is what tells the app
+		// tier to take over.
+		r.sb.WriteString(node.Src)
 		r.diags = append(r.diags, unknownDiagnostic(node))
-		// Deliberate divergence from every other directive here: this does NOT
-		// eat the following newline. Every other directive's eat-one-newline
-		// rule exists because it compiles to a `<?php … ?>` close tag with a
-		// real effect on the following byte; Unknown renders nothing, so there
-		// is no such close tag to model, and once a page carries an app-tier
-		// diagnostic, byte-for-byte parity with what real Blade/PHP would have
-		// emitted for @auth et al. is already out of scope (see the package
-		// doc). Returning `eat` unchanged keeps Unknown transparent to
-		// whitespace either way, which is the simplest rule that cannot corrupt
-		// output on its own.
+		// Deliberate divergence from every other directive: this does NOT eat the
+		// following newline. Every other directive's eat-one-newline rule exists
+		// because it compiles to a `<?php … ?>` close tag whose swallow affects
+		// the next byte; an unregistered directive left literal has no such close
+		// tag, and real Blade leaves the following newline in place. Returning
+		// `eat` unchanged keeps Unknown transparent to surrounding whitespace.
 		return eat
 
 	default:

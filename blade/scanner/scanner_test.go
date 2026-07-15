@@ -235,6 +235,78 @@ func TestScanClarifications(t *testing.T) {
 	}
 }
 
+// TestScanDirectiveSrc pins Token.Src for Directive tokens: the ORIGINAL source
+// slice from '@' through the last byte the token consumed — byte-faithful in
+// casing and inner whitespace, so an unregistered directive can be rendered
+// literally downstream. Src is populated for Directive tokens only.
+func TestScanDirectiveSrc(t *testing.T) {
+	cases := []struct {
+		name    string
+		src     string
+		wantIdx int    // index of the Directive token in the stream
+		wantSrc string // expected Token.Src for that token
+	}{
+		// A CSS-ish media query keeps the space between name and '(' and every
+		// inner byte verbatim.
+		{"media_query", `@media (min-width: 600px)`, 0, `@media (min-width: 600px)`},
+		// Casing is preserved in Src while Name is lowercased (asserted below).
+		{"mixed_case", `@Auth`, 0, `@Auth`},
+		// A no-arg directive's Src is just '@'+name (trailing whitespace is not
+		// part of the token).
+		{"no_args", "@auth\nX", 0, `@auth`},
+		// Multiline args preserve the inner newlines byte-for-byte.
+		{"multiline_args", "@include (\n  'x'\n)", 0, "@include (\n  'x'\n)"},
+		// A TAB between the name and '(' is preserved verbatim.
+		{"tab_before_paren", "@if\t($a)", 0, "@if\t($a)"},
+		// Nested/quoted parens inside the args are captured whole.
+		{"nested_quoted_parens", `@class(["a" => ")"])`, 0, `@class(["a" => ")"])`},
+		// A boundary '@' after the '@@'-that-wasn't: `a@@b` scans to Text "a@"
+		// then Directive "b" (Src "@b") — the render layer makes this "a@@b".
+		{"boundary_after_word", `a@@b`, 1, `@b`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			toks := Scan("t.blade.html", []byte(c.src))
+			if c.wantIdx >= len(toks) {
+				t.Fatalf("token[%d] out of range (%d tokens): %v", c.wantIdx, len(toks), toks)
+			}
+			tok := toks[c.wantIdx]
+			if tok.Kind != Directive {
+				t.Fatalf("token[%d] kind = %s; want Directive", c.wantIdx, kindName(tok.Kind))
+			}
+			if tok.Src != c.wantSrc {
+				t.Fatalf("token[%d].Src = %q; want %q", c.wantIdx, tok.Src, c.wantSrc)
+			}
+		})
+	}
+}
+
+// TestScanDirectiveSrcNameLowercasedSrcVerbatim: for `@Auth`, Name is the
+// lowercased "auth" while Src preserves the original "@Auth".
+func TestScanDirectiveSrcNameLowercasedSrcVerbatim(t *testing.T) {
+	toks := Scan("t.blade.html", []byte(`@Auth`))
+	if len(toks) != 1 || toks[0].Kind != Directive {
+		t.Fatalf("scan(@Auth) = %v; want a single Directive token", toks)
+	}
+	if toks[0].Name != "auth" {
+		t.Fatalf("Name = %q; want %q", toks[0].Name, "auth")
+	}
+	if toks[0].Src != "@Auth" {
+		t.Fatalf("Src = %q; want %q", toks[0].Src, "@Auth")
+	}
+}
+
+// TestScanNonDirectiveHasNoSrc: Src is populated for Directive tokens only —
+// Text/Echo/tag tokens leave it empty.
+func TestScanNonDirectiveHasNoSrc(t *testing.T) {
+	toks := Scan("t.blade.html", []byte(`a {{ $x }} <x-c/>`))
+	for i, tok := range toks {
+		if tok.Kind != Directive && tok.Src != "" {
+			t.Errorf("token[%d] (%s) Src = %q; want empty", i, kindName(tok.Kind), tok.Src)
+		}
+	}
+}
+
 // TestScanWordBoundary pins the real-Blade \B@ rule: an '@' begins a directive
 // or the @@ escape ONLY when the previous source byte is not a word char
 // ([A-Za-z0-9_]); start-of-input counts as a boundary. The @{{ echo escape is
@@ -263,9 +335,9 @@ func TestScanWordBoundary(t *testing.T) {
 		}},
 		// @@ after a word char is NOT the escape: the first '@' is literal text,
 		// and the second '@' (now at a boundary) opens directive `b`. Real Blade
-		// renders `a@@b` verbatim only because it leaves the unknown `@b`
-		// directive literal — our app-tier Unknown handling is the separate,
-		// documented Task 11 divergence and is out of scope here.
+		// renders `a@@b` verbatim because it leaves the unknown `@b` directive
+		// literal — and the renderer now does too (Unknown writes its Src), so
+		// `a@@b` round-trips (see render's TestUnknownDoubleAtRendersLiteral).
 		{"at_at_after_word", `a@@b`, []Token{
 			{Kind: Text, Text: `a@`, Pos: at(1, 1)},
 			{Kind: Directive, Name: "b", Pos: at(1, 3)},

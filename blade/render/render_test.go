@@ -181,22 +181,23 @@ func TestIfConditionError(t *testing.T) {
 	}
 }
 
-// TestUnknownDirectiveRendersNothing: an Unknown directive (any directive
-// outside the closed Blade subset, e.g. @csrf) still produces no output —
-// but, as of Task 11, raises exactly one app-tier diagnostic naming the
-// construct ("@csrf"). See diagnostics_test.go for the fuller Unknown/
-// $attributes/parse-diag/entry-missing/dedupe coverage. Surrounding literal
-// text is preserved. (Foreach is rendered — see control_test.go; Component is
-// rendered — see component_test.go; Vite is rendered — see vite_test.go.)
-func TestUnknownDirectiveRendersNothing(t *testing.T) {
+// TestUnknownDirectiveRendersLiteral: an Unknown directive (any directive
+// outside the closed Blade subset, e.g. @csrf) renders its byte-faithful source
+// LITERALLY — matching real Blade for unregistered directives — and raises
+// exactly one app-tier diagnostic naming the construct ("@csrf"). See
+// diagnostics_test.go for the fuller Unknown/$attributes/parse-diag/
+// entry-missing/dedupe coverage. Surrounding literal text is preserved.
+// (Foreach is rendered — see control_test.go; Component is rendered — see
+// component_test.go; Vite is rendered — see vite_test.go.)
+func TestUnknownDirectiveRendersLiteral(t *testing.T) {
 	entry := "resources/views/pages/index.blade.html"
 	// '>' (non-word) before @csrf gives it the word boundary real Blade's \B@
 	// rule requires, keeping the directive at column 2.
 	src := ">@csrf.done"
 	fs := vfs.Mem{entry: src}
 	res := Compile(fs, []string{entry}, Options{})
-	if got := res.Files["index.html"]; got != ">.done" {
-		t.Fatalf("output = %q; want %q", got, ">.done")
+	if got := res.Files["index.html"]; got != ">@csrf.done" {
+		t.Fatalf("output = %q; want %q", got, ">@csrf.done")
 	}
 	if len(res.Diagnostics) != 1 {
 		t.Fatalf("diagnostics = %v; want exactly 1", res.Diagnostics)

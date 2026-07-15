@@ -55,7 +55,15 @@ type Token struct {
 	Text string
 	// Name holds: Directive -> lowercase directive name; TagOpen/TagClose ->
 	// component name including dots ("sections.hero"); SlotOpen -> slot name.
-	Name      string
+	Name string
+	// Src holds, for Directive tokens ONLY, the ORIGINAL source slice from the
+	// '@' through the last byte the token consumed (the name plus any optional
+	// parenthesized args, including whitespace between name and '(' and inside
+	// the args, in original casing). It is "" for every other token kind. The
+	// renderer writes it verbatim for directives outside the closed subset so an
+	// unregistered directive (@media, @keyframes, …) survives byte-for-byte, as
+	// it does in real Blade.
+	Src       string
 	Attrs     []Attr
 	SelfClose bool
 	Pos       Pos
@@ -275,7 +283,9 @@ func (s *scanState) directive() {
 	s.skipSpaces()
 	if s.eof() || s.src[s.pos] != '(' {
 		s.restore(ap, al, ac) // trailing whitespace stays as content
-		s.tokens = append(s.tokens, Token{Kind: Directive, Name: name, Pos: pos})
+		// Src spans '@' (sp) through the name's last byte (the cursor after the
+		// restore) — no args consumed.
+		s.tokens = append(s.tokens, Token{Kind: Directive, Name: name, Src: string(s.src[sp:s.pos]), Pos: pos})
 		return
 	}
 	inner, ok := s.captureParens()
@@ -284,7 +294,9 @@ func (s *scanState) directive() {
 		s.emitToEOF(pos)
 		return
 	}
-	s.tokens = append(s.tokens, Token{Kind: Directive, Name: name, Text: strings.TrimSpace(inner), Pos: pos})
+	// Src spans '@' (sp) through the closing ')' the cursor now sits just past,
+	// so any whitespace between the name and '(' and every inner byte is kept.
+	s.tokens = append(s.tokens, Token{Kind: Directive, Name: name, Text: strings.TrimSpace(inner), Src: string(s.src[sp:s.pos]), Pos: pos})
 }
 
 // captureParens consumes a balanced-paren group starting at the current '(',
