@@ -30,6 +30,42 @@ swallows the spec's promise that `$loop->remaining/depth/parent` are app-tier).
 in the Go value model, or diagnostics + a spec §3.4 amendment. Start with oracle
 probes + fixtures pinning current behavior.
 
+#### Probe memo (2026-07-15, S4) — PINNED, resolution still a Phase 4 gate
+
+Oracle-probed each divergence against real Blade (data shaped exactly as the
+`SiteData` contract ships it: `$site` = `json_decode` object → **stdClass**,
+collections = arrays of **stdClass**, content items = **objects**). Exact results:
+
+| Case (input) | Real Blade | Go engine (pinned) |
+|---|---|---|
+| `@if ($site)` with `site.json = {}` | **truthy** — empty `stdClass` is truthy → true branch | **falsy** — empty `map[string]Value` → false branch |
+| `$plans[0]['name']` (`[]` on a stdClass item) | **fatal** `Error: Cannot use object of type stdClass as array` (surfaces as `ViewException`, non-zero exit) | works — `map` index read → `Pro` |
+| `$site['x']` (`[]` on the stdClass `$site`) | **fatal** — same `Cannot use object of type stdClass as array` | works — missing key → `nil` → `` |
+| `$posts[0]->typo` bare (undefined member) | **throws** `ErrorException: Undefined property: stdClass::$typo` (Laravel promotes the E_WARNING; `ViewException`, non-zero exit) | silent `nil` → `` |
+| `$posts[0]->typo ?? 'd'` (coalesced) | `d` — `??` uses isset semantics, suppresses the warning | `d` — **agrees** (no divergence) |
+
+Pinned as `"oracle": false` fixtures (`value-model-empty-object-truthiness`,
+`value-model-object-array-access`, `value-model-missing-member`); each carries
+**zero Go diagnostics** — that is the hazard, the Go engine silently succeeds
+where real Blade aborts. The `??` case is included to record that the coalesced
+form already matches (only the *bare* member/index access diverges).
+
+Two shapes of divergence:
+1. **Wrong-but-quiet output** (empty-object truthiness): both tiers render, bytes
+   differ. A `stdClass`-vs-array distinction in the Go value model is the only
+   fix; a diagnostic cannot help because there is no obvious error site.
+2. **Go succeeds where Blade fatals** (`[]`-on-object, bare undefined member): the
+   Go engine must not hand back HTML that real Blade would refuse to produce.
+
+**Recommendation:** introduce a **distinct object type** in the Go value model
+(carry JSON objects as an `object`, keep JSON arrays as the list/map array type),
+so `->` reads objects, `[]` on an object is an *error* diagnostic, an undefined
+member is an *error* (with `??`/isset still short-circuiting), and empty objects
+are truthy. Diagnostics-only (keep arrays, emit app-tier on `[]`-of-object and
+bare-missing-member) is the lighter fallback but cannot fix the truthiness bytes.
+Either way this ships with a spec §3.4 amendment. **Resolution stays a Phase 4
+gate** — this memo only pins the current behavior.
+
 ### 3. Undeclared-attribute lint warning (spec §3.3 commitment)
 Spec says "lint warns on undeclared attributes"; unimplemented (renderer silently
 drops them — correct for output parity — and `pocketknife lint` admits the gap).
