@@ -125,15 +125,24 @@ render shortest-round-trip (PHP `serialize_precision=-1`: `1.0` → `"1"`, `2.5`
 
 **Invalid-UTF-8 substitution (oracle-verified 2026-07-15):** the `ENT_SUBSTITUTE`
 replacement is done PHP's way, not Go's default. At an ill-formed offset,
-`htmlspecialchars` consumes the lead byte plus its continuation bytes (`0x80–0xBF`)
-up to the length the lead declares (`0xC2–0xDF` → 2, `0xE0–0xEF` → 3, `0xF0–0xF4` →
-4; any other lead — a stray continuation, an overlong `0xC0`/`0xC1`, or an
-out-of-range `0xF5–0xFF` — is length 1) and emits a **single** U+FFFD for the whole
-run. Overlong and surrogate sequences that reach full length still collapse to one
-U+FFFD (they are invalid, not preserved). So `E2 82` → one U+FFFD (not two, which is
-what a naive per-byte `utf8.DecodeRune` loop yields); `FF FF` → two. `Escape` in
-`blade/render/echo.go` implements this via `phpSubpartLen`; pinned by the
-`escape-invalid-utf8` fixture and `TestEscapeInvalidUTF8`.
+`htmlspecialchars` consumes a run and emits a **single** U+FFFD for it, in two parts:
+
+1. **Continuation run** — the lead byte plus its continuation bytes (`0x80–0xBF`)
+   up to the length the lead declares (`0xC2–0xDF` → 2, `0xE0–0xEF` → 3,
+   `0xF0–0xF4` → 4; any other lead — a stray continuation, an overlong
+   `0xC0`/`0xC1`, or an out-of-range `0xF5–0xFF` — is length 1). Overlong and
+   surrogate sequences that reach full length still collapse to one U+FFFD.
+2. **Trailing-invalid-lead absorption** — when the run stops **early** at a byte
+   that can never start a sequence (`0xC0`, `0xC1`, `0xF5–0xFF`), that ONE byte is
+   absorbed into the same U+FFFD (PHP's `utf8_lead(next) ? k : k+1`). A terminator
+   that is a valid lead (ASCII or `0xC2–0xF4`) is left for the next iteration;
+   absorption never chains (`C3 FF FF` → two U+FFFD) and never applies after a
+   full-length run (`E0 80 80 FF` → two U+FFFD).
+
+So `E2 82` → one U+FFFD (not two, which is what a naive per-byte `utf8.DecodeRune`
+loop yields); `C3 FF` and `E2 82 C0` → one; `FF FF` → two; `C3 C2 A9` → U+FFFD +
+`©`. `Escape` in `blade/render/echo.go` implements this via `phpSubpartLen`;
+pinned by the `escape-invalid-utf8` fixture and `TestEscapeInvalidUTF8`.
 
 ### 3.2 Control flow
 

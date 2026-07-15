@@ -107,11 +107,13 @@ spec §8 exit criteria.
   S4). Oracle probes found a real divergence: Go's per-byte `utf8.DecodeRune` loop
   emitted one U+FFFD **per byte**, but PHP's `htmlspecialchars(ENT_SUBSTITUTE)`
   collapses an ill-formed subsequence (lead + its `0x80–0xBF` continuations, up to
-  the lead's declared length) into a **single** U+FFFD — so `E2 82` → one, `FF FF`
-  → two, and overlong/surrogate full-length runs still collapse to one. Fixed
-  `Escape` (`phpSubpartLen` in `blade/render/echo.go`), pinned by
-  `TestEscapeInvalidUTF8` + the oracle-checked `escape-invalid-utf8` fixture, and
-  documented in spec §3.1.
+  the lead's declared length, **plus one** terminating `0xC0`/`0xC1`/`0xF5–0xFF`
+  byte when the run stops early) into a **single** U+FFFD — so `E2 82` → one,
+  `C3 FF` → one, `FF FF` → two, and overlong/surrogate full-length runs still
+  collapse to one. Fixed `Escape` (`phpSubpartLen` in `blade/render/echo.go`),
+  pinned by `TestEscapeInvalidUTF8` + the oracle-checked `escape-invalid-utf8`
+  fixture, and documented in spec §3.1. (The trailing-invalid-lead absorption was
+  caught in review — the first cut stopped at ANY non-continuation byte.)
 - ~~**No fixture echoes bool/int frontmatter values**~~ — RESOLVED (2026-07-15,
   S4). The oracle-checked `frontmatter-types` fixture echoes bool/int/float
   frontmatter through `{{ }}` and confirms both tiers agree byte-for-byte:

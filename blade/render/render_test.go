@@ -41,6 +41,20 @@ func TestEscapeInvalidUTF8(t *testing.T) {
 		{"two-lone-ff-are-two", "a\xff\xffb", "a" + fffd + fffd + "b"},
 		{"c0-is-invalid-lead-not-two-byte", "a\xc0\x80b", "a" + fffd + fffd + "b"},
 		{"f5-is-invalid-lead", "a\xf5\x80\x80\x80b", "a" + fffd + fffd + fffd + fffd + "b"},
+		// Trailing-invalid-lead absorption: an early-stopping run absorbs ONE
+		// terminating 0xC0/0xC1/0xF5–0xFF byte into the same U+FFFD.
+		{"absorbs-trailing-ff", "a\xc3\xffb", "a" + fffd + "b"},
+		{"absorbs-trailing-c0", "a\xc3\xc0b", "a" + fffd + "b"},
+		{"absorbs-trailing-c1", "a\xc3\xc1b", "a" + fffd + "b"},
+		{"absorbs-trailing-f5", "a\xc3\xf5b", "a" + fffd + "b"},
+		{"absorbs-after-two-continuations", "a\xe2\x82\xc0b", "a" + fffd + "b"},
+		{"absorbs-ff-after-two-continuations", "a\xe2\x82\xffb", "a" + fffd + "b"},
+		{"absorbs-ff-after-three-continuations", "a\xf0\x90\x80\xffb", "a" + fffd + "b"},
+		{"valid-lead-terminator-not-absorbed", "a\xc3\xc2\xa9b", "a" + fffd + "\xc2\xa9b"},
+		{"absorption-does-not-chain", "a\xc3\xff\xffb", "a" + fffd + fffd + "b"},
+		{"absorbed-byte-not-a-new-lead", "a\xc3\xc0\x80b", "a" + fffd + fffd + "b"},
+		{"no-absorption-after-full-run", "a\xe0\x80\x80\xffb", "a" + fffd + fffd + "b"},
+		{"absorbs-mid-run-stop", "a\xe0\x80\xffb", "a" + fffd + "b"},
 		{"valid-utf8-preserved", "a\xc3\xa9b", "a\xc3\xa9b"},
 		{"valid-euro-preserved", "a\xe2\x82\xacb", "a\xe2\x82\xacb"},
 	}
