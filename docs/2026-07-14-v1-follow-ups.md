@@ -142,6 +142,24 @@ spec §8 exit criteria.
   `fixtures/routing-table/` (entry→output-name conventions). Spec §2 updated.
 - §10: record the `\B@` word-boundary rule and the `@{{`-exemption (oracle-probed).
 
+## Phase 4a — App-tier serving (SHIPPED 2026-07-16)
+
+The Laravel package now **serves** a Blade site tree as a live app, per
+`docs/specs/2026-07-16-app-tier-serving-design.md` (marked IMPLEMENTED). Opt-in
+via `pocketknife.serve` (env `POCKETKNIFE_SERVE`, default false) + `site_root`:
+`PocketknifeServiceProvider::boot()` registers a `Route::fallback` (fires only
+when no app route matched — app routes always win) whose body is `SiteServer` →
+`{site_root}/public/` asset (mime-typed, contained, no dotfiles/listings) → page
+via `PageResolver` (mirrors `protocol.ResolveURL` row-for-row) rendered as real
+Blade at 200 → `pages/404.blade.html` at 404 → `abort(404)`. GET/HEAD only (POST
+to a page URL → Laravel's standard 405). New: `laravel/src/{PageResolver,
+SiteServer,AssetMime}.php`, `laravel/tests/PageResolverTest.php`, the `serve`
+config key. Proof: `oracle/tests/Feature/AppTierServingTest.php` (HTTP byte-parity,
+**21 fixtures / 25 URLs**, `data`-override fixtures skipped — no HTTP equivalent)
++ `ServingSemanticsTest.php` (404/precedence/app-wins/GET-only/assets/opt-in).
+Render conformance unchanged (35/35). Boundary held: pocketknife serves a tree;
+sync/publish/tokens remain `devdojo/sites`' job (a later phase).
+
 ## Tracked SHOULD-FIX-SOON (small, no decision needed)
 
 - **Named-slot names aren't camelCased** — `<x-slot:foo-bar>` binds an unreachable
