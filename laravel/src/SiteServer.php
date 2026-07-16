@@ -46,9 +46,10 @@ class SiteServer
             abort(404);
         }
 
-        // Request::path() is the decoded path with surrounding slashes trimmed
-        // ("/" -> "/", "/about/" -> "about"). Normalise the root to "" so both
-        // the asset check and PageResolver see a clean segment.
+        // Request::path() is the RAW (still percent-encoded) path with
+        // surrounding slashes trimmed ("/" -> "", "/about/" -> "about"). Leaving
+        // it encoded is deliberate: a literal "%2e%2e" segment misses realpath
+        // and never decodes into a "..". Normalise the root to "".
         $path = trim($request->path(), '/');
 
         if ($asset = $this->asset($siteRoot, $path)) {
@@ -98,6 +99,18 @@ class SiteServer
         // Containment: the resolved file must live inside public/.
         if ($target !== $base && ! str_starts_with($target, $base.DIRECTORY_SEPARATOR)) {
             return null;
+        }
+
+        // Defense in depth: re-check the RESOLVED path's segments for a dotfile.
+        // The segment loop above guards the request path, but a symlink INSIDE
+        // public/ pointing at a sibling dotfile (public/config -> public/.env)
+        // would otherwise pass — realpath resolves the link. Reject any dotfile
+        // component in the contained-relative resolved path.
+        $relative = substr($target, strlen($base) + 1);
+        foreach (explode(DIRECTORY_SEPARATOR, $relative) as $part) {
+            if ($part !== '' && $part[0] === '.') {
+                return null;
+            }
         }
 
         return new Response(

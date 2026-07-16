@@ -159,6 +159,24 @@ class ServingSemanticsTest extends ServingTestCase
         $this->assertStringNotContainsString('SECRET=leak', $response->getContent());
     }
 
+    public function test_a_symlink_to_a_dotfile_inside_public_is_not_served(): void
+    {
+        // Defense in depth: a symlink whose NAME is clean but whose target is a
+        // sibling dotfile inside public/ must still be refused — the request-path
+        // dotfile guard alone wouldn't catch it (realpath follows the link).
+        $root = $this->makeSite([
+            'resources/views/pages/index.blade.html' => '<h1>Home</h1>',
+            'public/.env' => 'SECRET=leak',
+        ]);
+        @symlink($root.'/public/.env', $root.'/public/config');
+        $this->serveFrom($root);
+
+        $response = $this->get('/config');
+
+        $response->assertNotFound();
+        $this->assertStringNotContainsString('SECRET=leak', $response->getContent());
+    }
+
     public function test_directory_paths_are_not_listed(): void
     {
         $root = $this->makeSite([
