@@ -359,17 +359,25 @@ The Laravel-side half of the contract. Its service provider:
 
 1. `View::addExtension('blade.html', 'blade')`
 2. Registers the site's view roots: `resources/views` for pages/views, anonymous
-   component path for `resources/views/components`
+   component path for `resources/views/components`. **View precedence — DECIDED: the host
+   app's views win.** The provider *appends* the site root via `View::addLocation`, and
+   Laravel's `FileViewFinder` returns the first location a view resolves in; the app
+   registered its own `resources/views` at framework boot, so an app-defined view shadows
+   a same-named site view. This is the precedence the toggle-to-app / devdojo Sites
+   integration direction requires (the host must be able to override a site layout or
+   shared component without editing the site tree) — append order is correct, the provider
+   must not prepend. Pinned by `laravel/tests/ViewPrecedenceTest.php`.
 3. Binds the data contract (§3.5): `$site`, collections, and content collections shared
    into views (view composers reading `resources/data/`)
 4. Swaps in the static-projection `Vite` implementation when the app has no built
    assets (§3.6)
 
-Config `config/pocketknife.php`: site root path, static-projection toggle. Supports
-Laravel `^11.0|^12.0|^13.0` (the platform is 11; the app template is 13). In later
-phases this same package grows the Folio page mounting and the toggle-to-app wiring —
-the oracle is its first consumer, which is what guarantees the two tiers can never
-disagree about what the files mean.
+Config `config/pocketknife.php`: site root path, static-projection toggle. Publishable
+with `php artisan vendor:publish --tag=pocketknife-config`. Supports Laravel
+`^11.0|^12.0|^13.0` (the platform is 11; the app template is 13; the oracle skeleton
+runs on 12). In later phases this same package grows the Folio page mounting and the
+toggle-to-app wiring — the oracle is its first consumer, which is what guarantees the two
+tiers can never disagree about what the files mean.
 
 Wiring into the platform (later phase): one additional Composer `path` repository entry
 pointing at `../pocketknife/laravel`. Publishing to Packagist, if Pocketknife goes

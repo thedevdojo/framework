@@ -169,9 +169,15 @@ spec §8 exit criteria.
   document that hosts must wrap the binary in limits, or add caps.
 - **Four near-identical quote/depth mini-scanners** (parser ×2, props ×2) with
   inconsistent depth-clamping — convergence candidate.
-- **Package hygiene:** no `publishes()` for config; `minimum-stability` noise in
-  `laravel/composer.json`; `View::addLocation` precedence (app views shadow site
-  views) needs a decision for toggle-to-app.
+- ~~**Package hygiene:** no `publishes()` for config; `minimum-stability` noise in
+  `laravel/composer.json`; `View::addLocation` precedence needs a decision~~ — RESOLVED
+  (2026-07-16). Added `publishes([... => config_path('pocketknife.php')], 'pocketknife-config')`
+  (verified via the oracle); dropped `minimum-stability: dev` (root-only, so meaningless
+  for a library consumed as a dependency — verified: the package's 164 locked deps are all
+  stable, `stability-flags` empty, `prefer-stable` kept). `View::addLocation` precedence
+  DECIDED — the **host app's views win** (required by the devdojo/sites override direction;
+  the provider's append order is already correct — do NOT prepend); documented as a
+  provider comment + spec §5, pinned by `laravel/tests/ViewPrecedenceTest.php`.
 - ~~**`word@@word` renders divergently**~~ — RESOLVED with decision #1 (2026-07-15):
   `a@@b` now renders `a@@b`, matching real Blade (the trailing `@b` is a literal
   unknown directive).

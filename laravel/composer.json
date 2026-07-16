@@ -18,6 +18,5 @@
         "test": "phpunit"
     },
     "extra": { "laravel": { "providers": ["Devdojo\\Pocketknife\\PocketknifeServiceProvider"] } },
-    "minimum-stability": "dev",
     "prefer-stable": true
 }
