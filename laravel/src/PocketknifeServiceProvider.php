@@ -4,6 +4,7 @@ namespace Devdojo\Pocketknife;
 
 use Illuminate\Foundation\Vite;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -46,6 +47,18 @@ class PocketknifeServiceProvider extends ServiceProvider
             View::addLocation($root.'/resources/views');
             Blade::anonymousComponentPath($root.'/resources/views/components');
             SiteData::share($this->app->make('view'), $root);
+
+            // Opt-in serving: register a Route::fallback that turns the site
+            // tree into a live app. A fallback fires ONLY when no real app route
+            // matched (app routes always win — spec requirement 2), and Laravel
+            // registers it for GET (+ HEAD), so other verbs are not served.
+            // serve=false registers nothing: setting site_root alone stays
+            // render-only (the oracle / protocol-client mode). The fallback is
+            // an invokable controller (not a closure) so it survives
+            // `php artisan route:cache`.
+            if (config('pocketknife.serve')) {
+                Route::fallback(SiteServer::class);
+            }
         }
     }
 }
