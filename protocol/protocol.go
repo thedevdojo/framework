@@ -23,6 +23,15 @@
 // value model exists to match the SiteData bindings, which the oracle DOES model
 // as stdClass.
 //
+// Diagnostic kinds: a diagnostic's `kind` is passed through verbatim — the
+// protocol does not validate it against an enum, so the set is additive and a
+// host iterates whatever kinds arrive. This compile path emits only `error` and
+// `app-tier`; the `warning` kind (undeclared component attributes) is produced
+// solely by `pocketknife lint` (render.Analyze), never here. That separation is
+// deliberate: hosts that treat ANY diagnostic in this stream as a hard failure
+// (the devdojo Sites template-sync gate) stay correct because a warning can
+// never reach it — see render.DiagKind.
+//
 // options.url is accepted on Input but UNUSED in v1: relative URLs are the
 // only rendering mode the engine supports, so the field round-trips without
 // affecting output. It exists so a future canonical-URL rendering mode (or a

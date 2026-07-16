@@ -225,6 +225,60 @@ func TestLintCleanTreeExitsZero(t *testing.T) {
 	}
 }
 
+// writeSite writes a set of relative-path files under root, creating parent
+// directories as needed — a small helper for the multi-file lint cases.
+func writeSite(t *testing.T, root string, files map[string]string) {
+	t.Helper()
+	for rel, content := range files {
+		p := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// TestLintUndeclaredAttributeWarnsExitsZero: an undeclared component attribute
+// prints a [warning] line but leaves the exit code at 0 — a warning is
+// advisory, not a failure.
+func TestLintUndeclaredAttributeWarnsExitsZero(t *testing.T) {
+	dir := t.TempDir()
+	writeSite(t, dir, map[string]string{
+		"resources/views/pages/index.blade.html":              `<x-sections.hero heading="Hi" subtitle="typo"/>`,
+		"resources/views/components/sections/hero.blade.html": "@props(['heading' => 'Default'])\n<h1>{{ $heading }}</h1>",
+	})
+	stdout, stderr, code := runCLI(t, "", "lint", dir)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0 for warnings-only (stdout: %s, stderr: %s)", code, stdout, stderr)
+	}
+	want := `[warning] undeclared attribute "subtitle" on <x-sections.hero> (not in @props)`
+	if !strings.Contains(stdout, want) {
+		t.Errorf("stdout = %q, want it to contain %q", stdout, want)
+	}
+}
+
+// TestLintDeclaredAndBoundAttributesSilent: a declared static attribute and a
+// bound attribute produce no warning at all.
+func TestLintDeclaredAndBoundAttributesSilent(t *testing.T) {
+	dir := t.TempDir()
+	writeSite(t, dir, map[string]string{
+		// $site is always bound (empty object with no site.json), so the bound
+		// attribute evaluates cleanly — the point is that neither the declared
+		// static attr nor the bound attr produces a lint warning.
+		"resources/views/pages/index.blade.html":              `<x-sections.hero heading="Hi" :rows="$site"/>`,
+		"resources/views/components/sections/hero.blade.html": "@props(['heading' => 'Default'])\n<h1>{{ $heading }}</h1>",
+	})
+	stdout, stderr, code := runCLI(t, "", "lint", dir)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0 (stdout: %s, stderr: %s)", code, stdout, stderr)
+	}
+	if strings.Contains(stdout, "[warning]") {
+		t.Errorf("expected no [warning] line, got %q", stdout)
+	}
+}
+
 func TestLintUsageMissingDir(t *testing.T) {
 	stdout, stderr, code := runCLI(t, "", "lint")
 	if code != 2 {

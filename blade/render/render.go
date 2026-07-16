@@ -27,12 +27,20 @@ import (
 
 // DiagKind classifies a diagnostic. KindError marks something the engine cannot
 // render (undefined variable, unrenderable expression); KindAppTier marks valid
-// Blade that needs real PHP and so falls to the app tier.
+// Blade that needs real PHP and so falls to the app tier; KindWarning marks a
+// non-fatal lint hint (an undeclared component attribute).
+//
+// KindWarning is LINT-ONLY: it is produced solely by Analyze (surfaced through
+// `pocketknife lint`), never by Compile. The compile protocol's diagnostic
+// stream carries only error/app-tier so that hosts which treat "any diagnostic"
+// as a hard failure (e.g. the devdojo Sites template-sync validation gate) are
+// untouched by warnings. See Analyze and the protocol package doc.
 type DiagKind string
 
 const (
 	KindError   DiagKind = "error"
 	KindAppTier DiagKind = "app-tier"
+	KindWarning DiagKind = "warning"
 )
 
 // Diagnostic is a single problem found while rendering an entry. Line/Col are

@@ -1,0 +1,159 @@
+package render
+
+import (
+	"github.com/thedevdojo/pocketknife/blade/ast"
+	"github.com/thedevdojo/pocketknife/blade/parser"
+	"github.com/thedevdojo/pocketknife/blade/scanner"
+	"github.com/thedevdojo/pocketknife/vfs"
+)
+
+// Analyze is the lint-only analysis pass, separate from Compile by design. It
+// walks each entry and every component it transitively references, and returns
+// the WARNING-kind diagnostics that Compile deliberately never emits — today,
+// undeclared component attributes (spec §3.3: "Lint warns on undeclared
+// attributes to catch typos").
+//
+// Why a separate pass rather than a flag on Compile: the compile protocol's
+// diagnostic stream is consumed by hosts that treat ANY diagnostic as a hard
+// failure (the devdojo Sites template-sync gate rejects a template on a single
+// diagnostic of any kind). A warning must never reach that stream. Keeping the
+// analysis out of Compile entirely — only `pocketknife lint` calls Analyze —
+// guarantees those any-diagnostic-fails semantics stay exactly as they were.
+//
+// Warnings are deduped by (file, line, col, message) so a component file
+// referenced from several pages reports each internal instance once. Analyze
+// never panics on user input.
+func Analyze(fs vfs.FS, entries []string) []Diagnostic {
+	a := &analyzer{fs: fs, walked: map[string]bool{}, cache: map[string][]ast.Node{}}
+	for _, entry := range entries {
+		if escapesRoot(entry) {
+			continue
+		}
+		src, ok := fs.Read(entry)
+		if !ok {
+			continue
+		}
+		a.walk(a.parse(entry, src))
+	}
+	return dedupeDiagnostics(a.warnings)
+}
+
+// analyzer holds the lint walk state: the source tree, the collected warnings,
+// the set of component files already descended into (so a file's internal
+// instances are analyzed once, however many pages reach it), and a parse cache.
+type analyzer struct {
+	fs       vfsReader
+	warnings []Diagnostic
+	walked   map[string]bool
+	cache    map[string][]ast.Node
+}
+
+// parse scans+parses a file, caching the node tree per path. Parse diagnostics
+// are ignored here — Compile owns reporting those; Analyze only adds warnings.
+func (a *analyzer) parse(path string, src []byte) []ast.Node {
+	if nodes, ok := a.cache[path]; ok {
+		return nodes
+	}
+	tokens := scanner.Scan(path, src)
+	nodes, _ := parser.Parse(path, tokens)
+	a.cache[path] = nodes
+	return nodes
+}
+
+// walk descends a node list, checking every component instance and recursing
+// into control-flow bodies, the instance's default slot, and its named slots.
+func (a *analyzer) walk(nodes []ast.Node) {
+	for _, n := range nodes {
+		switch v := n.(type) {
+		case *ast.Component:
+			a.checkInstance(v)
+			a.walk(v.Body)
+			for _, body := range v.Slots {
+				a.walk(body)
+			}
+		case *ast.If:
+			for _, br := range v.Branches {
+				a.walk(br.Body)
+			}
+			a.walk(v.Else)
+		case *ast.Foreach:
+			a.walk(v.Body)
+		}
+	}
+}
+
+// checkInstance resolves a component instance to its file, compares the
+// instance's STATIC attributes against the component's declared @props, and
+// warns for each attribute that isn't declared. It then descends into the
+// component file's own body exactly once (memoized in a.walked) so nested
+// instances inside components are analyzed without re-warning per referrer.
+func (a *analyzer) checkInstance(c *ast.Component) {
+	path := componentPath(c.Name)
+	src, ok := a.fs.Read(path)
+	if !ok {
+		// Missing component is Compile's error, not a lint warning: the analyzer
+		// cannot know the declared prop set, so it stays silent.
+		return
+	}
+	nodes := a.parse(path, src)
+
+	declared, known := declaredProps(nodes)
+	if known {
+		// Names bound as `:name="expr"` on this instance are the legitimate data
+		// pass; a static attr of the same name is a fallback, not a typo.
+		bound := boundAttrNames(c.Attrs)
+		for _, at := range c.Attrs {
+			if at.Bound {
+				continue // only static attributes are analyzed
+			}
+			key := camelCase(at.Name)
+			if _, isProp := declared[key]; isProp {
+				continue
+			}
+			if _, isBound := bound[key]; isBound {
+				continue
+			}
+			a.warnings = append(a.warnings, Diagnostic{
+				File:    at.Pos.File,
+				Line:    at.Pos.Line,
+				Col:     at.Pos.Col,
+				Kind:    KindWarning,
+				Message: `undeclared attribute "` + at.Name + `" on <x-` + c.Name + `> (not in @props)`,
+			})
+		}
+	}
+
+	if !a.walked[path] {
+		a.walked[path] = true
+		a.walk(nodes)
+	}
+}
+
+// declaredProps returns the component's declared prop set and whether it is
+// KNOWN. A component with no @props has a known, empty set (every attribute is
+// undeclared). A component whose @props literal cannot be parsed is UNKNOWN
+// (known=false): the analyzer suppresses warnings rather than guess, leaving
+// the props error for Compile to report on its own stream.
+func declaredProps(nodes []ast.Node) (propSet, bool) {
+	propsNode := extractLegalProps(nodes)
+	if propsNode == nil {
+		return propSet{}, true
+	}
+	ps, ok := parseProps(propsNode.Raw)
+	if !ok {
+		return nil, false
+	}
+	return ps, true
+}
+
+// boundAttrNames collects the camelCased names of an instance's bound
+// (`:name="expr"`) attributes.
+func boundAttrNames(attrs []scanner.Attr) map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, at := range attrs {
+		if at.Bound {
+			out[camelCase(at.Name)] = struct{}{}
+		}
+	}
+	return out
+}

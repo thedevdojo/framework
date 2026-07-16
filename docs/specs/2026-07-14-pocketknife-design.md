@@ -181,7 +181,16 @@ what the oracle exists to police.
 - **Undeclared attributes are dropped.** Real Blade routes them into `$attributes`; the
   dialect forbids `$attributes`, and a component that never echoes `$attributes`
   produces the same output as one where the attribute was dropped — so *outputs agree*.
-  Lint warns on undeclared attributes to catch typos.
+  **`pocketknife lint` warns on undeclared attributes** to catch typos: a `warning`-kind
+  diagnostic per **static** attribute whose (camelCased) name is not declared in the
+  target component's `@props`, e.g.
+  `index.blade.html:1:31 [warning] undeclared attribute "subtitle" on <x-sections.hero> (not in @props)`.
+  Bound attributes (`:rows="…"`) are exempt (they are the legitimate data-pass), as is a
+  static attr that collides with a bound attr of the same name on the same instance. A
+  component with no `@props` declares nothing, so every static attr on it is undeclared;
+  a component whose `@props` literal can't be parsed suppresses warnings (Compile reports
+  that error separately). The check is a **lint-only** pass (`render.Analyze`), kept out of
+  `compile`'s diagnostic stream by design — see §3.7.
 - `{{ $slot }}` — default slot. **Named slots** are supported: `<x-slot:title>…</x-slot>`
   (layouts need them; Designer Studio's Blade export already uses them).
 - Component recursion depth cap: **16**, exceeded → diagnostic error (real Blade would
@@ -276,6 +285,14 @@ Every diagnostic carries `file`, `line`, `col`, `message`, and a `kind`:
   (`@auth`, `function call`, `$attributes`, …). Hosts render these as "this needs your
   site running as an app," and the AI lint loop treats them as tier signals, not
   failures.
+- **`warning`** — a non-fatal lint hint (today: undeclared component attributes, §3.3).
+  **Lint-only:** the `compile` protocol stream carries only `error`/`app-tier`; `warning`
+  is produced exclusively by `pocketknife lint` (`render.Analyze`, a separate pass), never
+  by `compile`. This keeps the "any diagnostic fails" contract that hosts enforce on the
+  compile stream (the devdojo Sites template-sync validation gate) intact — a lint warning
+  can never reach it. Warnings do not affect `lint`'s exit code: only an `error` makes
+  `pocketknife lint` exit non-zero; a warnings-only tree exits 0. The protocol passes any
+  `kind` through verbatim (no enum validation), so the set stays additive for hosts.
 
 **Unknown directives render literally.** A directive outside the closed subset is
 written to output **byte-for-byte** (its exact source, casing and inner whitespace

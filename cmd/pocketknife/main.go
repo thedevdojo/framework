@@ -69,9 +69,12 @@ func cmdCompile() int {
 // resources/views/pages/**.blade.html discovery the protocol uses when
 // entries are omitted — protocol.DiscoverPages) and prints each diagnostic
 // as `file:line:col [kind] message`, sorted by file then line then column.
-// v1 lint is engine diagnostics only: it does not attempt undeclared-
-// attribute detection, which is not implemented as a diagnostic anywhere in
-// the render package.
+//
+// Lint merges two sources: render.Compile's error/app-tier diagnostics, and
+// render.Analyze's WARNING-kind hints (undeclared component attributes).
+// Analyze is a lint-only pass on purpose — its warnings never travel the
+// compile protocol stream (see render.Analyze), so a warning here is
+// advisory: warnings alone leave the exit code at 0; only a KindError sets 1.
 func cmdLint(args []string) int {
 	if len(args) != 1 {
 		fmt.Fprintln(os.Stderr, "usage: pocketknife lint <dir>")
@@ -95,6 +98,9 @@ func cmdLint(args []string) int {
 	result := render.Compile(fs, entries, render.Options{})
 
 	diags := append([]render.Diagnostic(nil), result.Diagnostics...)
+	// Warnings are lint-only (undeclared attributes) and come from a separate
+	// analysis pass so they never touch Compile's protocol diagnostic stream.
+	diags = append(diags, render.Analyze(fs, entries)...)
 	sort.Slice(diags, func(i, j int) bool {
 		a, b := diags[i], diags[j]
 		if a.File != b.File {

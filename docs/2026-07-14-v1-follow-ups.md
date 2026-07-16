@@ -89,11 +89,26 @@ bare-missing-member) is the lighter fallback but cannot fix the truthiness bytes
 Either way this ships with a spec §3.4 amendment. **Resolution stays a Phase 4
 gate** — this memo only pins the current behavior.
 
-### 3. Undeclared-attribute lint warning (spec §3.3 commitment)
-Spec says "lint warns on undeclared attributes"; unimplemented (renderer silently
-drops them — correct for output parity — and `pocketknife lint` admits the gap).
-Prerequisite: a `warning` diagnostic kind (today only `error` | `app-tier`).
-Implement, or amend the spec to drop the commitment.
+### 3. Undeclared-attribute lint warning (spec §3.3 commitment) — RESOLVED (implemented, 2026-07-16)
+Spec said "lint warns on undeclared attributes"; it was unimplemented (the renderer
+silently drops them — correct for output parity — and `pocketknife lint` admitted the gap).
+**Resolution (implemented):** added the third `warning` diagnostic kind
+(`render.DiagKind` / `KindWarning`) and a **lint-only** analysis pass
+(`render.Analyze`, `blade/render/analyze.go`) that walks each page and every
+component it transitively references, warning per **static** attribute whose
+camelCased name is not in the target component's `@props`. `pocketknife lint` merges
+these after Compile's diagnostics and prints them as
+`file:line:col [warning] undeclared attribute "foo" on <x-sections.hero> (not in @props)`;
+warnings never change the exit code (only an `error` exits 1). **Design decision
+(documented):** warnings are emitted ONLY by `lint`, never by `compile` — verified
+against the devdojo read-only side, where `TemplateSync::compileProblems` fails a
+template on ANY diagnostic in the compile stream (a warning there would wrongly reject
+templates), while `SiteGenerator::lint` only branches on `isAppTier()`/`isError()`
+(a warning would be silently ignored). Keeping warnings off the compile stream leaves
+both untouched. Bound attributes are exempt, as is a static attr colliding with a
+bound attr of the same name; unparseable/absent `@props` handled conservatively.
+Tests: `blade/render/analyze_test.go` (10 unit cases) + two CLI rows in
+`cmd/pocketknife/main_test.go`. Spec §3.3/§3.7 + the protocol package doc amended.
 
 ### 4. Oracle: Laravel 11 + permanent Composer audit bypass
 `oracle/composer.json` carries `audit.block-insecure: false` because every
