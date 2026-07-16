@@ -20,7 +20,30 @@ the `app-tier-directives` fixture output was regenerated (diagnostics unchanged)
 new oracle-checked `css-at-rules` fixture pins the CSS-at-rule parity, and spec §3.7
 now documents leave-literal.
 
-### 2. Go value model: JSON objects behave as PHP arrays, not objects
+### 2. Go value model: JSON objects behave as PHP arrays, not objects — RESOLVED (distinct object type, 2026-07-16)
+**Resolution (approved, distinct object type):** JSON objects now decode to a distinct
+order-preserving `expr.Object` (stdClass semantics), separate from `map[string]Value`
+(kept for PHP-associative-array semantics). Implemented in `blade/expr/object.go` (the
+`Object` type + the order-preserving `DecodeJSON` token-walker) and `blade/expr/expr.go`
+(Truthy = always true; `->` reads a member, missing → `error/undefined-property`
+suppressible by `??`; `[]` → `error/object-as-array`, NOT suppressed by `??`; `==`
+property-wise/order-independent/recursive, object-vs-number errors; ordered comparison
+errors; not stringable). Producers emit objects: `blade/render/data.go` (`$site` and
+collection object items via `DecodeJSON`, content items as ordered objects),
+`blade/render/control.go` (`$loop` — with `remaining`/`depth`/`parent` marked app-tier,
+fulfilling the spec promise), and `blade/render/render.go` `toValue` (protocol/`data`
+objects → sorted-key objects, since Go's json decode already lost their key order).
+Fixtures flipped: `value-model-empty-object-truthiness` is now oracle-checked parity
+(`[Y]`), `value-model-object-array-access` + `value-model-missing-member` carry the
+`object-as-array` / `undefined-property` diagnostics (+ the `?? does-not-suppress-[]`
+case), and the new oracle-checked `object-iteration-order` pins document-order foreach
+over a non-alphabetical `$site`. Spec §3.2/§3.4/§3.5 amended. All conformance green;
+zero changes needed to existing green fixtures. **The oracle caveat that remains:** the
+oracle decodes its `--data` flag with `assoc=true` (PHP arrays), so stdClass-vs-array
+edges on protocol-`data` objects are not oracle-validated — the object model targets the
+`SiteData` bindings, which the oracle DOES bind as stdClass. Original problem statement
+below.
+
 JSON objects become `map[string]Value` on the Go side (PHP-*array* semantics) but
 `stdClass` on the Laravel side. Silent divergences: empty-object truthiness
 (falsy Go / truthy PHP), `$emptyObj == null`, `$plans[0]['name']` (works Go /
@@ -90,7 +113,8 @@ spec §8 exit criteria.
 - §3.5: layouts are components — they receive data via bound props, see `$site`
   only (not "collections bound in pages and layouts").
 - §3.2: loop variables don't leak past `@endforeach` (documented divergence);
-  map iteration is sorted-key order.
+  objects iterate in insertion order (decision #2), while a bare `map[string]Value`
+  and protocol-`data` objects iterate sorted-key order.
 - §3.3: `@props` on a page / not-first-in-file → error (stricter than real Blade).
 - §4: promised root `pocketknife.Compile` facade doesn't exist (real API is
   `render.Compile`) — add the facade or amend.
@@ -133,7 +157,8 @@ spec §8 exit criteria.
 
 ## Known, endorsed divergences (documented, not defects)
 
-Loop vars don't leak; map iteration sorted; `@props` page-level restriction;
+Loop vars don't leak; objects iterate insertion order but bare maps / protocol-`data`
+objects iterate sorted (decision #2); `@props` page-level restriction;
 components see `$site` only; undefined vars are compile errors; unknown directives
 render literally + diagnosed app-tier (decision #1, 2026-07-15); classic-engine
 whitespace equivalence is NOT a guarantee (only Go-vs-real-Blade parity is).

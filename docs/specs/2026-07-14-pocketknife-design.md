@@ -152,7 +152,13 @@ pinned by the `escape-invalid-utf8` fixture and `TestEscapeInvalidUTF8`.
   — this is also how templates express "show the first N," since the dialect has no
   method calls
 - `$loop` inside loops: `index`, `iteration`, `first`, `last`, `count`, `even`, `odd`.
-  (`remaining`, `depth`, `parent` are app-tier in v1.)
+  `$loop` is a stdClass object (see §3.4), so those seven read as members and a bare
+  access to `remaining` / `depth` / `parent` reports **app-tier** (valid Blade, out of
+  v1's subset), while any other absent member is an undefined-property error.
+- **`@foreach` over an object** iterates its properties in **insertion order** — the
+  JSON document order for a file-sourced object ($site), matching real Blade's
+  foreach-over-stdClass. (A `map[string]Value` and a protocol-`data` object, whose key
+  order was lost when Go decoded the request JSON, iterate sorted — see §3.4.)
 
 **PHP output fidelity:** Blade directives compile to `<?php … ?>` and PHP consumes
 exactly one newline after a closing `?>` — so a directive on its own line leaves no
@@ -197,6 +203,32 @@ never `eval`, semantics ported from the proven classic evaluator):
 - **PHP truthiness** (`0`, `""`, `"0"`, `null`, `[]` falsy; `"false"` truthy) and
   **PHP 8 loose equality** (`'1' == 1` true, `'abc' == 0` false)
 
+**Objects vs. arrays (the value model).** JSON objects decode to a distinct
+**stdClass-like object** value (`expr.Object`), separate from JSON arrays. This is what
+lets the engine mirror real Blade, where `json_decode` without `assoc` yields stdClass —
+the shape the `SiteData` contract (§3.5) binds. Object semantics, each oracle-probed:
+
+- An object is **always truthy**, even an empty `{}` (a PHP empty stdClass is truthy,
+  where an empty array is falsy).
+- `$obj->member` reads a property; a **missing member** is an error
+  (`error/undefined-property`, mirroring PHP's "Undefined property" abort) that **`??`
+  suppresses** — `$obj->missing ?? 'd'` is `'d'`.
+- `$obj[key]` is an error (`error/object-as-array`, mirroring PHP's "Cannot use object of
+  type stdClass as array" fatal). `??` does **NOT** suppress it — `$obj['k'] ?? 'd'`
+  still errors, because isset on object-as-array itself throws in PHP.
+- `==` between two objects is property-wise, order-independent, and recursive; an object
+  `==` a number errors (PHP fatals); an object `==` a string/array/`null` is `false`;
+  ordered comparisons (`< > <= >=`) touching an object are out of the subset (error).
+- Echoing an object errors (PHP can't cast stdClass to string).
+- Objects iterate their properties in **insertion order** (see §3.2); the decoder
+  preserves JSON document order.
+
+`map[string]Value` remains in the value model with PHP **associative-array** semantics
+(empty is falsy, `[]` reads, missing key is `nil`, iterates sorted). File-sourced data —
+`$site`, collections' object items, content items — is decoded order-preserving into
+objects; a protocol-`data` object arrives pre-decoded by Go's `encoding/json` (key order
+lost), so it becomes a **sorted-key** object.
+
 **Not in the subset** (app-tier diagnostics): function/method calls, `?->`, string
 concatenation, assignments, closures, `$attributes`, `@php`, `@include`, `@auth` and
 every other directive not listed above.
@@ -214,6 +246,12 @@ its left-hand operand — `{{ $tagline ?? 'Welcome' }}` is always legal.
 | `resources/data/site.json` | `$site` (object) | Available everywhere. Namespaced so it cannot collide with collections. |
 | `resources/data/collections/plans.json` | `$plans` | JSON array; bound in pages and layouts. Components receive data via props only. Order is as authored in the file. |
 | `resources/data/content/post/*.md` | `$post` | Items carry frontmatter fields plus `content` (rendered HTML) and `link` (route). Ordered by filename ascending. Rendered inline via `{!! $item->content !!}`. |
+
+`$site`, each object **item** inside a collection array, and each content item are
+**stdClass objects** (§3.4) — decoded order-preserving, so `$site->name` reads a member,
+`$plans[0]['name']` errors (it's an object, not an array), and `@foreach ($site as …)`
+iterates in document order. This matches the PHP tier exactly: `laravel/src/SiteData.php`
+uses `json_decode` without `assoc`, so it binds stdClass too.
 
 Markdown-driven *page routing* (classic's nearest-template walk) is **not in v1** —
 content collections render inline; detail-page routing arrives with the Folio phase.

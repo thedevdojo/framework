@@ -1,1 +1,13 @@
-{"oracle": false, "entries": ["resources/views/pages/collection.blade.html", "resources/views/pages/site.blade.html"]}
+{
+  "oracle": false,
+  "entries": [
+    "resources/views/pages/collection.blade.html",
+    "resources/views/pages/site.blade.html",
+    "resources/views/pages/arrcoal.blade.html"
+  ],
+  "diagnostics": [
+    {"kind": "error", "construct": "object-as-array", "file": "resources/views/pages/collection.blade.html"},
+    {"kind": "error", "construct": "object-as-array", "file": "resources/views/pages/site.blade.html"},
+    {"kind": "error", "construct": "object-as-array", "file": "resources/views/pages/arrcoal.blade.html"}
+  ]
+}
