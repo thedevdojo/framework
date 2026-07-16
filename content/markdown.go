@@ -38,9 +38,12 @@ var md = goldmark.New(
 )
 
 // Frontmatter is a parsed scalar frontmatter map plus the markdown body that
-// follows it. Fields values are one of: string, int64, float64, bool.
+// follows it. Fields values are one of: string, int64, float64, bool. Order is
+// the field keys in first-occurrence document order, so a content item's object
+// iterates its properties the way real Blade's (object)$fields cast does.
 type Frontmatter struct {
 	Fields map[string]any
+	Order  []string
 	Body   string
 }
 
@@ -53,9 +56,10 @@ type File struct {
 
 // Item is a rendered content-collection entry: the frontmatter Fields plus the
 // rendered HTML (Content) and derived route (Link). The render scope turns this
-// into a map with the Fields keys, "content", and "link".
+// into an object with the Fields keys (in Order), "content", and "link".
 type Item struct {
 	Fields  map[string]any
+	Order   []string
 	Content string
 	Link    string
 }
@@ -83,6 +87,7 @@ func RenderCollection(dir string, files []File) (items []Item, errs []FileError)
 		}
 		items = append(items, Item{
 			Fields:  fm.Fields,
+			Order:   fm.Order,
 			Content: RenderMarkdown(fm.Body),
 			Link:    link(dir, f.Name),
 		})
@@ -129,6 +134,7 @@ func ParseFrontmatter(src []byte) (Frontmatter, error) {
 	}
 
 	fields := map[string]any{}
+	var order []string
 	for _, line := range strings.Split(block, "\n") {
 		if strings.TrimSpace(line) == "" {
 			continue
@@ -145,9 +151,13 @@ func ParseFrontmatter(src []byte) (Frontmatter, error) {
 		if err != nil {
 			return Frontmatter{}, err
 		}
-		fields[strings.TrimSpace(key)] = val // last duplicate wins
+		key = strings.TrimSpace(key)
+		if _, seen := fields[key]; !seen {
+			order = append(order, key) // first-occurrence position, PHP-array style
+		}
+		fields[key] = val // last duplicate wins on value; keeps its position
 	}
-	return Frontmatter{Fields: fields, Body: body}, nil
+	return Frontmatter{Fields: fields, Order: order, Body: body}, nil
 }
 
 // stripFence reports whether s opens with a `---` fence line and, if so, returns

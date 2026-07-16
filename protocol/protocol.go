@@ -10,13 +10,18 @@
 //
 // Data values are arbitrary JSON. Scalars, arrays, and objects all decode
 // through render.Options.Data into the expr package's Value type, and a JSON
-// object survives as a map — so `"data": {"nav": {"label": "Home"}}` supports
-// `{{ $nav->label }}` property access on the Go side exactly as it would for
-// data loaded from resources/data/site.json or a collection. (The PHP oracle
-// side currently decodes its own `--data` flag with assoc=true, which turns
-// objects into arrays rather than stdClass — a divergence noted in an
-// earlier task's report; it does not affect this package, which only speaks
-// the Go-side contract.)
+// object becomes an *expr.Object (stdClass semantics) — so
+// `"data": {"nav": {"label": "Home"}}` supports `{{ $nav->label }}` property
+// access on the Go side exactly as it would for $site. One caveat: this map is
+// decoded by encoding/json before it reaches the engine, which discards JSON
+// key order, so a data object iterates its properties in SORTED order (a
+// file-sourced object — $site, a collection — keeps document order via
+// expr.DecodeJSON). The PHP oracle side decodes its own `--data` flag with
+// assoc=true, turning objects into PHP arrays rather than stdClass; so the
+// stdClass-vs-array edges (empty-object truthiness, `[]`-access) on DATA objects
+// are a documented divergence not validated against the oracle — the object
+// value model exists to match the SiteData bindings, which the oracle DOES model
+// as stdClass.
 //
 // options.url is accepted on Input but UNUSED in v1: relative URLs are the
 // only rendering mode the engine supports, so the field round-trips without

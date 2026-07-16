@@ -15,6 +15,7 @@ package render
 import (
 	"errors"
 	"path"
+	"sort"
 	"strings"
 
 	"github.com/thedevdojo/pocketknife/blade/ast"
@@ -315,6 +316,17 @@ func (r *renderer) diagExprError(err error, p scanner.Pos) {
 		r.diag(p, KindError, "undefined-variable", err.Error())
 		return
 	}
+	// A missing object member mirrors real Blade's Undefined-property abort.
+	if errors.Is(err, expr.ErrUndefinedProp) {
+		r.diag(p, KindError, "undefined-property", err.Error())
+		return
+	}
+	// `[]` on an object mirrors PHP's "Cannot use object of type stdClass as
+	// array" fatal.
+	if errors.Is(err, expr.ErrObjectAsArray) {
+		r.diag(p, KindError, "object-as-array", err.Error())
+		return
+	}
 	var se *expr.SyntaxError
 	if errors.As(err, &se) && se.AppTier {
 		r.diag(p, KindAppTier, "expression", err.Error())
@@ -376,6 +388,15 @@ func outputName(entry string) string {
 // JSON numbers arrive as float64 and stay float64 — Stringify's shortest
 // round-trip prints an integral float without a fractional part, matching PHP's
 // echo of a JSON-decoded integer.
+//
+// A JSON OBJECT (map[string]any) becomes an *expr.Object with stdClass
+// semantics, so protocol/Options `data` objects behave like $site does. Their
+// keys are emitted in SORTED order: this map[string]any has already been decoded
+// by encoding/json, which discards JSON key order, so sorted is the only
+// deterministic choice available here (file-sourced objects go through
+// expr.DecodeJSON and keep true insertion order). The oracle decodes `--data`
+// with assoc=true (PHP arrays), so data-object stdClass-vs-array edges are a
+// documented, non-oracle-validated divergence — see protocol's package doc.
 func toValue(v any) expr.Value {
 	switch x := v.(type) {
 	case nil:
@@ -397,11 +418,16 @@ func toValue(v any) expr.Value {
 		}
 		return out
 	case map[string]any:
-		out := make(map[string]expr.Value, len(x))
-		for k, e := range x {
-			out[k] = toValue(e)
+		obj := expr.NewObject()
+		keys := make([]string, 0, len(x))
+		for k := range x {
+			keys = append(keys, k)
 		}
-		return out
+		sort.Strings(keys)
+		for _, k := range keys {
+			obj.Set(k, toValue(x[k]))
+		}
+		return obj
 	default:
 		return nil
 	}

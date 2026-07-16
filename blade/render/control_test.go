@@ -45,8 +45,10 @@ func TestControlFlow(t *testing.T) {
 		{`@foreach ($xs as $x){{ $x }}@break($loop->iteration == 2)@endforeach`, data{"xs": []any{1, 2, 3}}, "12"},
 		{`@foreach ($xs as $x)@continue($x == 2){{ $x }}@endforeach`, data{"xs": []any{1, 2, 3}}, "13"},
 
-		// --- map iteration: PHP arrays are ordered; a JSON object decodes to a
-		// Go map (UNORDERED), so v1 iterates map keys in SORTED order. ---
+		// --- protocol-data object iteration: a data object arrives already
+		// decoded by encoding/json (key order lost), so it becomes a sorted-key
+		// *Object and iterates in SORTED order. (File-sourced $site keeps JSON
+		// insertion order — see fixtures/object-iteration-order.) ---
 		{`@foreach ($m as $k => $v){{ $k }}={{ $v }};@endforeach`,
 			data{"m": map[string]any{"b": 2, "a": 1, "c": 3}}, "a=1;b=2;c=3;"},
 
@@ -67,6 +69,27 @@ func TestControlFlow(t *testing.T) {
 		if len(diags) != 0 {
 			t.Errorf("render(%q): unexpected diagnostics: %v", c.src, diags)
 		}
+	}
+}
+
+// TestLoopIsObject: $loop is a stdClass. Its seven v1 meta properties read
+// cleanly, but a bare access to remaining/depth/parent is APP-TIER (spec §3.2 —
+// the object model finally fulfills that promise; a map used to yield silent
+// nil), and any other absent member is an undefined-property error.
+func TestLoopIsObject(t *testing.T) {
+	// remaining is app-tier.
+	got, diags := renderSrc(t, "@foreach ($xs as $x){{ $loop->remaining }}@endforeach", data{"xs": []any{1, 2}})
+	if got != "" {
+		t.Errorf("output = %q; want empty (app-tier render)", got)
+	}
+	if len(diags) != 1 || diags[0].Kind != KindAppTier {
+		t.Fatalf("diagnostics = %v; want one app-tier for $loop->remaining", diags)
+	}
+
+	// A truly unknown member is an undefined-property error.
+	_, diags = renderSrc(t, "@foreach ($xs as $x){{ $loop->typo }}@endforeach", data{"xs": []any{1}})
+	if len(diags) != 1 || diags[0].Kind != KindError || diags[0].Construct != "undefined-property" {
+		t.Fatalf("diagnostics = %v; want one error/undefined-property for $loop->typo", diags)
 	}
 }
 

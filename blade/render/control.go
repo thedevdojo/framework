@@ -47,15 +47,7 @@ func (r *renderer) renderForeach(node *ast.Foreach) {
 		iteration := int64(i) + 1
 		vars := map[string]expr.Value{
 			valName: p.val,
-			"loop": map[string]expr.Value{
-				"index":     int64(i),
-				"iteration": iteration,
-				"first":     i == 0,
-				"last":      int64(i) == count-1,
-				"count":     count,
-				"even":      iteration%2 == 0,
-				"odd":       iteration%2 == 1,
-			},
+			"loop":  loopObject(i, iteration, count),
 		}
 		if node.KeyVar != "" {
 			vars[keyName] = p.key
@@ -106,6 +98,26 @@ func (r *renderer) renderLoopJump(node *ast.LoopJump) bool {
 	return directiveEatsNewline
 }
 
+// loopObject builds the $loop stdClass for the current iteration. It carries the
+// seven meta properties v1 supports, in real Blade's relative order, and marks
+// remaining/depth/parent as app-tier members (spec §3.2) so a bare access to one
+// reports app-tier — fulfilling the spec's promise now that $loop is an object
+// (a missing member on a map used to silently yield nil). As an *Object, an
+// access to any OTHER absent member (e.g. $loop->typo) is an undefined-property
+// error, matching real Blade's fatal.
+func loopObject(i int, iteration, count int64) *expr.Object {
+	loop := expr.NewObject()
+	loop.Set("iteration", iteration)
+	loop.Set("index", int64(i))
+	loop.Set("count", count)
+	loop.Set("first", i == 0)
+	loop.Set("last", int64(i) == count-1)
+	loop.Set("odd", iteration%2 == 1)
+	loop.Set("even", iteration%2 == 0)
+	loop.MarkAppTier("remaining", "depth", "parent")
+	return loop
+}
+
 // pair is one element of an iterated collection: its PHP key and value.
 type pair struct {
 	key expr.Value
@@ -114,15 +126,25 @@ type pair struct {
 
 // iterablePairs flattens an iterable value into ordered key/value pairs, or
 // reports ok=false for a non-iterable (scalar/nil) value. Lists key 0..n-1 as
-// int64. Maps are UNORDERED in Go (a JSON object decodes to one), so their keys
-// iterate in SORTED order — a documented v1 decision; JSON arrays are the
-// primary collection shape and keep their natural order.
+// int64. An *Object (a JSON object / stdClass) iterates its properties in
+// INSERTION order — real Blade's foreach-over-stdClass order — which the decoder
+// preserved from the JSON document. A bare map[string]Value has no stored order,
+// so its keys iterate SORTED (the vestigial path — protocol data objects, whose
+// order was lost at Go's json boundary, become sorted-key *Objects instead).
 func iterablePairs(v expr.Value) ([]pair, bool) {
 	switch items := v.(type) {
 	case []expr.Value:
 		pairs := make([]pair, len(items))
 		for i, e := range items {
 			pairs[i] = pair{key: int64(i), val: e}
+		}
+		return pairs, true
+	case *expr.Object:
+		keys := items.Keys()
+		pairs := make([]pair, len(keys))
+		for i, k := range keys {
+			v, _ := items.Get(k)
+			pairs[i] = pair{key: k, val: v}
 		}
 		return pairs, true
 	case map[string]expr.Value:

@@ -136,7 +136,9 @@ func Stringify(v expr.Value) (string, error) {
 		// Pre-rendered slot HTML. The echo path intercepts this before Stringify;
 		// handled here too so any other path stringifies it without error.
 		return string(x), nil
-	case []expr.Value, map[string]expr.Value:
+	case []expr.Value, map[string]expr.Value, *expr.Object:
+		// PHP can't echo an array, and an object without __toString fatals
+		// ("Object of class stdClass could not be converted to string").
 		return "", errNotStringable
 	default:
 		return "", errNotStringable

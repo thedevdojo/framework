@@ -39,6 +39,34 @@ func TestSiteMissing(t *testing.T) {
 	}
 }
 
+// TestEmptySiteIsTruthy: an empty site.json ({}) is a stdClass, which is TRUTHY
+// (unlike an empty array) — the headline value-model flip. `[]` on it, or a
+// missing member, is an error the render tier reports.
+func TestEmptySiteIsTruthy(t *testing.T) {
+	res := compileOne(t, map[string]string{
+		dataEntry:    "@if ($site)[Y]@else[N]@endif",
+		siteDataPath: `{}`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "[Y]" {
+		t.Errorf("empty $site truthiness: output = %q; want [Y]", got)
+	}
+	if len(res.Diagnostics) != 0 {
+		t.Errorf("unexpected diagnostics: %v", res.Diagnostics)
+	}
+
+	// [] on the object is an error/object-as-array, rendering empty.
+	res = compileOne(t, map[string]string{
+		dataEntry:    "[{{ $site['x'] }}]",
+		siteDataPath: `{}`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "[]" {
+		t.Errorf("$site['x'] output = %q; want []", got)
+	}
+	if !hasDiagKC(res, KindError, "object-as-array") {
+		t.Errorf("want object-as-array diagnostic, got %v", res.Diagnostics)
+	}
+}
+
 // TestSiteMalformed: invalid site.json → site-data error and an empty $site.
 func TestSiteMalformed(t *testing.T) {
 	res := compileOne(t, map[string]string{

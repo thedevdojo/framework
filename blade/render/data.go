@@ -1,7 +1,6 @@
 package render
 
 import (
-	"encoding/json"
 	"strings"
 
 	"github.com/thedevdojo/pocketknife/blade/expr"
@@ -62,21 +61,23 @@ func buildSiteData(fs vfs.FS, data map[string]any) siteData {
 
 // loadSite reads resources/data/site.json into the $site object. A missing file
 // yields an empty object and no diagnostic; malformed JSON (or a non-object, e.g.
-// a top-level array) yields an empty object and one site-data error.
+// a top-level array) yields an empty object and one site-data error. The
+// order-preserving decoder keeps $site's keys in document order so foreach over
+// $site matches real Blade's stdClass insertion-order iteration.
 func loadSite(fs vfs.FS) (expr.Value, []Diagnostic) {
 	raw, ok := fs.Read(siteDataPath)
 	if !ok {
-		return map[string]expr.Value{}, nil
+		return expr.NewObject(), nil
 	}
-	var obj map[string]any
-	if err := json.Unmarshal(raw, &obj); err != nil {
-		return map[string]expr.Value{}, []Diagnostic{dataDiag(siteDataPath, "site-data", "invalid site.json: "+err.Error())}
+	val, err := expr.DecodeJSON(raw)
+	if err != nil {
+		return expr.NewObject(), []Diagnostic{dataDiag(siteDataPath, "site-data", "invalid site.json: "+err.Error())}
 	}
-	m := make(map[string]expr.Value, len(obj))
-	for k, v := range obj {
-		m[k] = toValue(v)
+	obj, ok := val.(*expr.Object)
+	if !ok {
+		return expr.NewObject(), []Diagnostic{dataDiag(siteDataPath, "site-data", "site.json must be a JSON object")}
 	}
-	return m, nil
+	return obj, nil
 }
 
 // loadCollections reads every resources/data/collections/<name>.json into a
@@ -100,12 +101,20 @@ func loadCollections(fs vfs.FS) (map[string]expr.Value, []Diagnostic) {
 		if !ok {
 			continue
 		}
-		var arr []any
-		if err := json.Unmarshal(raw, &arr); err != nil {
+		// The order-preserving decoder turns every object ITEM inside the array
+		// into an *Object (stdClass semantics), nested objects too, while the
+		// array itself stays an ordered []Value.
+		val, err := expr.DecodeJSON(raw)
+		if err != nil {
 			diags = append(diags, dataDiag(path, "collection", "collection \""+name+"\" must be a JSON array"))
 			continue
 		}
-		out[name] = toValue(arr)
+		arr, ok := val.([]expr.Value)
+		if !ok {
+			diags = append(diags, dataDiag(path, "collection", "collection \""+name+"\" must be a JSON array"))
+			continue
+		}
+		out[name] = arr
 	}
 	return out, diags
 }
@@ -137,18 +146,19 @@ func loadContent(fs vfs.FS) (map[string]expr.Value, []Diagnostic) {
 	return out, diags
 }
 
-// contentItemValue turns a rendered content Item into the map an expression
-// sees: the frontmatter fields, then `content` (rendered HTML) and `link`
-// (route). content/link are added last, so they override any frontmatter key of
-// the same name.
+// contentItemValue turns a rendered content Item into the *Object an expression
+// sees: the frontmatter fields in document order, then `content` (rendered HTML)
+// and `link` (route). content/link are added last, so they override any
+// frontmatter key of the same name — and, being an object, a missing member is an
+// error while a present one reads, mirroring real Blade's (object)$fields item.
 func contentItemValue(it content.Item) expr.Value {
-	m := make(map[string]expr.Value, len(it.Fields)+2)
-	for k, v := range it.Fields {
-		m[k] = toValue(v)
+	obj := expr.NewObject()
+	for _, k := range it.Order {
+		obj.Set(k, toValue(it.Fields[k]))
 	}
-	m["content"] = it.Content
-	m["link"] = it.Link
-	return m
+	obj.Set("content", it.Content)
+	obj.Set("link", it.Link)
+	return obj
 }
 
 // groupContentFiles lists content markdown files grouped by their immediate
