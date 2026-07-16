@@ -33,7 +33,11 @@ import (
 )
 
 // Value is a dynamically typed template value. The closed set of concrete
-// types is: nil, bool, int64, float64, string, []Value, map[string]Value.
+// types is: nil, bool, int64, float64, string, []Value, map[string]Value,
+// *Object. *Object carries PHP-stdClass semantics (order-preserving, always
+// truthy, `->` reads members, `[]` is an error); map[string]Value keeps PHP
+// associative-array semantics. JSON objects decode to *Object (see object.go),
+// so every stdClass the SiteData contract binds mirrors real Blade.
 type Value any
 
 // Scope resolves a variable name (WITHOUT the leading '$') to its value. The
@@ -64,11 +68,51 @@ func (e *UndefinedVarError) Error() string {
 
 func (e *UndefinedVarError) Unwrap() error { return ErrUndefinedVar }
 
+// ErrUndefinedProp is the sentinel wrapped when `->member` reads a property an
+// *Object does not have. It mirrors real Blade's "Undefined property:
+// stdClass::$x" (an ErrorException that aborts the render) — but, like
+// ErrUndefinedVar, it is SUPPRESSED by `??`/isset, so `$obj->missing ?? 'd'`
+// still yields 'd' (oracle-probed). The renderer maps it to
+// error/undefined-property.
+var ErrUndefinedProp = errors.New("undefined property")
+
+// UndefinedPropError is the concrete error for a missing *Object member; it
+// wraps ErrUndefinedProp and exposes the property Name, mirroring
+// UndefinedVarError.
+type UndefinedPropError struct {
+	Name string
+}
+
+func (e *UndefinedPropError) Error() string {
+	return fmt.Sprintf("undefined property $%s", e.Name)
+}
+
+func (e *UndefinedPropError) Unwrap() error { return ErrUndefinedProp }
+
+// ErrObjectAsArray is returned when `[index]` is applied to an *Object. It
+// mirrors PHP's fatal "Cannot use object of type stdClass as array" — and,
+// unlike a missing member, `??`/isset does NOT suppress it (isset on
+// object-as-array itself throws; oracle-probed `$obj['k'] ?? 'd'` still fatals).
+// So it must be a plain error that propagates through a coalesce. The renderer
+// maps it to error/object-as-array.
+var ErrObjectAsArray = errors.New("cannot use object of type stdClass as array")
+
 // errArrayOrder is returned when an ordered comparison (< > <= >=) involves an
 // array or map — PHP's ordered array comparison is out of scope for v1. It is a
 // plain error: not ErrUndefinedVar and not a *SyntaxError, so @if treats it as
 // false while the renderer can still tell it apart.
 var errArrayOrder = errors.New("cannot order-compare arrays")
+
+// errObjectOrder mirrors errArrayOrder for objects: an ordered comparison
+// (< > <= >=) with an *Object on either side is out of v1's subset (real Blade
+// compares stdClass property-wise, or fatals against a number). @if treats it as
+// false; the renderer reports error/expression.
+var errObjectOrder = errors.New("cannot order-compare objects")
+
+// errObjectNumber is returned when `== / !=` compares an *Object with a number.
+// Real Blade fatals ("Object of class stdClass could not be converted to
+// int/float"), so the engine surfaces an error rather than silently succeeding.
+var errObjectNumber = errors.New("cannot compare object with a number")
 
 // SyntaxError describes input Eval could not evaluate. AppTier distinguishes
 // valid-Blade-needing-PHP (true) from malformed input (false).
@@ -753,7 +797,7 @@ func evalNode(node exprNode, scope Scope) (Value, error) {
 		if err != nil {
 			return nil, err
 		}
-		return propAccess(recv, n.name), nil
+		return propAccess(recv, n.name)
 	case *indexNode:
 		recv, err := evalNode(n.recv, scope)
 		if err != nil {
@@ -763,7 +807,7 @@ func evalNode(node exprNode, scope Scope) (Value, error) {
 		if err != nil {
 			return nil, err
 		}
-		return indexAccess(recv, idx), nil
+		return indexAccess(recv, idx)
 	case *unaryNode:
 		return evalUnary(n, scope)
 	case *compareNode:
@@ -773,7 +817,11 @@ func evalNode(node exprNode, scope Scope) (Value, error) {
 	case *coalesceNode:
 		lv, err := evalNode(n.left, scope)
 		if err != nil {
-			if errors.Is(err, ErrUndefinedVar) {
+			// `??` uses isset semantics: an undefined variable OR a missing
+			// object member short-circuits to the fallback. ErrObjectAsArray is
+			// deliberately NOT caught here — isset on object-as-array itself
+			// throws in PHP, so it propagates (oracle-probed).
+			if errors.Is(err, ErrUndefinedVar) || errors.Is(err, ErrUndefinedProp) {
 				return evalNode(n.right, scope)
 			}
 			return nil, err
@@ -786,28 +834,45 @@ func evalNode(node exprNode, scope Scope) (Value, error) {
 	return nil, &SyntaxError{Msg: "invalid expression node", AppTier: false}
 }
 
-// propAccess models PHP null-propagating property reads: a missing key, or a
-// property on nil/scalar/array, yields nil.
-func propAccess(recv Value, name string) Value {
-	if m, ok := recv.(map[string]Value); ok {
-		return m[name]
+// propAccess models `->member` reads. On an *Object a present member yields its
+// value; a missing one is ErrUndefinedProp (unless it is a known app-tier member,
+// e.g. $loop->remaining, which reports an app-tier SyntaxError). A map keeps its
+// null-on-missing behavior, and a property on nil/scalar/array yields nil (PHP's
+// null-propagation, left silent here as before).
+func propAccess(recv Value, name string) (Value, error) {
+	switch r := recv.(type) {
+	case *Object:
+		if v, ok := r.vals[name]; ok {
+			return v, nil
+		}
+		if r.appTier[name] {
+			return nil, &SyntaxError{Msg: "member ->" + name + " requires the app tier", AppTier: true}
+		}
+		return nil, &UndefinedPropError{Name: name}
+	case map[string]Value:
+		return r[name], nil
+	default:
+		return nil, nil
 	}
-	return nil
 }
 
-// indexAccess models PHP null-propagating array/index reads.
-func indexAccess(recv, idx Value) Value {
+// indexAccess models `[index]` reads. Applying it to an *Object is
+// ErrObjectAsArray (PHP's "Cannot use object of type stdClass as array" fatal);
+// lists and maps read the element the PHP way; anything else null-propagates.
+func indexAccess(recv, idx Value) (Value, error) {
 	switch r := recv.(type) {
+	case *Object:
+		return nil, ErrObjectAsArray
 	case []Value:
 		i, ok := toArrayIndex(idx)
 		if !ok || i < 0 || i >= len(r) {
-			return nil
+			return nil, nil
 		}
-		return r[i]
+		return r[i], nil
 	case map[string]Value:
-		return r[toStringKey(idx)]
+		return r[toStringKey(idx)], nil
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
@@ -920,6 +985,13 @@ func evalCompare(n *compareNode, scope Scope) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
+	// An object compared with a number fatals in PHP ("Object of class stdClass
+	// could not be converted to int/float"), so surface an error rather than
+	// silently succeed. Object-vs-null/bool/string/array/object are non-fatal and
+	// handled by LooseEq below.
+	if (isObject(lv) && isNumber(rv)) || (isNumber(lv) && isObject(rv)) {
+		return nil, errObjectNumber
+	}
 	switch n.op {
 	case "==":
 		return LooseEq(lv, rv), nil
@@ -965,6 +1037,10 @@ func Truthy(v Value) bool {
 		return len(x) != 0
 	case map[string]Value:
 		return len(x) != 0
+	case *Object:
+		// A PHP object is ALWAYS truthy, even an empty stdClass — unlike an empty
+		// array/map. This is the flip that gives `@if ($site)` with `{}` parity.
+		return true
 	default:
 		return true
 	}
@@ -1008,11 +1084,37 @@ func LooseEq(a, b Value) bool {
 			return fa == fb
 		}
 		return as == bs
+	case isObject(a) && isObject(b):
+		return objectEq(a.(*Object), b.(*Object))
 	case isArrayish(a) && isArrayish(b):
 		return arrayEq(a, b)
 	default:
+		// Object vs array/string (and array vs scalar) are unequal in PHP 8 with
+		// no fatal. Object vs a number DOES fatal in PHP; evalCompare intercepts
+		// that pair before reaching here, so a direct LooseEq call falls through
+		// to false.
 		return false
 	}
+}
+
+// objectEq is PHP `==` on two stdClass values: equal iff they have the same set
+// of properties (order-independent) and every property value is loosely equal,
+// recursively. Oracle-probed: key order does not matter; nested values compare
+// with `==`; two empty objects are equal.
+func objectEq(a, b *Object) bool {
+	if a.Len() != b.Len() {
+		return false
+	}
+	for _, k := range a.keys {
+		bv, ok := b.Get(k)
+		if !ok {
+			return false
+		}
+		if !LooseEq(a.vals[k], bv) {
+			return false
+		}
+	}
+	return true
 }
 
 // compareOrder returns -1/0/1 for a<b/a==b/a>b under PHP 8 relational rules, or
@@ -1020,6 +1122,9 @@ func LooseEq(a, b Value) bool {
 func compareOrder(a, b Value) (int, error) {
 	if isArrayish(a) || isArrayish(b) {
 		return 0, errArrayOrder
+	}
+	if isObject(a) || isObject(b) {
+		return 0, errObjectOrder
 	}
 	if isBool(a) || isBool(b) {
 		return cmpFloat(boolToFloat(Truthy(a)), boolToFloat(Truthy(b))), nil
@@ -1099,6 +1204,10 @@ func emptyForNull(v Value) bool {
 		return len(x) == 0
 	case map[string]Value:
 		return len(x) == 0
+	case *Object:
+		// A stdClass never equals null under `==` (probed: `$obj == null` false),
+		// even when empty — the object/array truthiness asymmetry again.
+		return false
 	default:
 		return false
 	}
@@ -1224,4 +1333,9 @@ func isArrayish(v Value) bool {
 		return true
 	}
 	return false
+}
+
+func isObject(v Value) bool {
+	_, ok := v.(*Object)
+	return ok
 }
