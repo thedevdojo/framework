@@ -1,0 +1,9 @@
+{
+  "entries": [
+    "resources/views/pages/index.blade.html",
+    "resources/views/pages/about.blade.html",
+    "resources/views/pages/about/index.blade.html",
+    "resources/views/pages/blog/index.blade.html",
+    "resources/views/pages/404.blade.html"
+  ]
+}

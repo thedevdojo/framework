@@ -131,9 +131,15 @@ spec §8 exit criteria.
   objects iterate in insertion order (decision #2), while a bare `map[string]Value`
   and protocol-`data` objects iterate sorted-key order.
 - §3.3: `@props` on a page / not-first-in-file → error (stricter than real Blade).
-- §4: promised root `pocketknife.Compile` facade doesn't exist (real API is
-  `render.Compile`) — add the facade or amend.
-- §2: promised routing-table fixture doesn't exist — add or amend.
+- ~~§4: promised root `pocketknife.Compile` facade doesn't exist~~ — RESOLVED
+  (2026-07-16). Added the root facade (`pocketknife.go`, package `pocketknife` at
+  the module root): `Compile`/`Analyze` forwarders + `Options`/`Result`/`Diagnostic`/
+  `DiagKind`/kind-const aliases over `blade/render`; round-trip test in
+  `pocketknife_test.go`. Spec §4 updated.
+- ~~§2: promised routing-table fixture doesn't exist~~ — RESOLVED (2026-07-16).
+  Added `protocol.ResolveURL` (URL→entry table: flat-wins, 404 fallback,
+  traversal-guarded; `protocol/routing_test.go`) and the oracle-checked
+  `fixtures/routing-table/` (entry→output-name conventions). Spec §2 updated.
 - §10: record the `\B@` word-boundary rule and the `@{{`-exemption (oracle-probed).
 
 ## Tracked SHOULD-FIX-SOON (small, no decision needed)

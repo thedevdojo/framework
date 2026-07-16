@@ -97,8 +97,13 @@ can mechanically rename to `.blade.php` for users who want zero-dependency views
 **Routing** (same rules as the classic engine; the app-tier Folio mount must match):
 `/` → `pages/index.blade.html`; `/about` → `pages/about.blade.html`, else
 `pages/about/index.blade.html` (flat wins); 404 → `pages/404.blade.html` if present.
-v1 exercises routing only through explicit protocol `entries`; a routing fixture pins
-the table for the later phases.
+v1 exercises routing only through explicit protocol `entries` — hosts pass the entry
+list, the engine does not route automatically. The table above is **pinned** in two
+places so the later Folio-mount phase can't drift from it: `protocol.ResolveURL(fs, url)`
+implements the URL→entry map (flat-wins, 404 fallback, traversal-guarded; table-driven
+test in `protocol/routing_test.go`), and the oracle-checked `fixtures/routing-table/`
+pins the entry→output-name half (index / flat page / directory index / nested / `404`),
+which the URL table can't express through the render-explicit-entries fixture format.
 
 There is no root config file in v1 — the compile protocol carries all options.
 
@@ -339,7 +344,12 @@ Conventions carried over from sitebuilder, deliberately:
   external dependency is `goldmark` in the outer `content/` package.
 - **Fixture-first development.** A behavior without a fixture doesn't exist.
 - Table-driven tests, Go fuzz targets on scanner/parser, `gofmt`/`go vet` clean.
-- Public Go API kept minimal: `pocketknife.Compile(fs, entries, opts) → files, deps, diagnostics`.
+- Public Go API kept minimal: the **root facade** `pocketknife.Compile(fs, entries, opts)
+  → files, deps, diagnostics` (package `pocketknife` at the module root, `pocketknife.go`)
+  — a thin forwarder over `blade/render` with `Options`/`Result`/`Diagnostic`/`DiagKind`
+  re-exported as aliases and `pocketknife.Analyze` for the lint-only warning pass, so a
+  host embeds `github.com/thedevdojo/pocketknife` without reaching into internal
+  subpackages. Round-trip test in `pocketknife_test.go`.
 
 ---
 
