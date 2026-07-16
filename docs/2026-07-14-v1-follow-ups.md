@@ -110,11 +110,11 @@ bound attr of the same name; unparseable/absent `@props` handled conservatively.
 Tests: `blade/render/analyze_test.go` (10 unit cases) + two CLI rows in
 `cmd/pocketknife/main_test.go`. Spec §3.3/§3.7 + the protocol package doc amended.
 
-### 4. Oracle: Laravel 11 + permanent Composer audit bypass
-`oracle/composer.json` carries `audit.block-insecure: false` because every
-installable Laravel 11 release is advisory-flagged (11 is past its patch window).
-**Recommendation:** bump the oracle to Laravel 12 or 13 — the package already
-supports `^11|^12|^13`, it removes the bypass, and 13 matches `default/`.
+### 4. Oracle: Laravel 11 + permanent Composer audit bypass — RESOLVED (2026-07-16)
+Resolved: the oracle now runs **Laravel 12** (12.64) and the
+`audit.block-insecure` bypass is REMOVED — a clean `composer install`
+passes `composer audit` with no advisories. (`^13` remains available in
+the package constraint if `default/`-parity is ever wanted.)
 
 ### 5. GitHub repo + first CI run
 The workflow (`.github/workflows/ci.yml`) is authored and every command verified
