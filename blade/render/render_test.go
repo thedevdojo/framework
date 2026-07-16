@@ -82,6 +82,34 @@ func TestStringify(t *testing.T) {
 	if _, err := Stringify([]expr.Value{}); err == nil {
 		t.Fatal("arrays must error")
 	}
+	// An object cannot be echoed either — PHP fatals casting stdClass to string
+	// (htmlspecialchars(): Argument #1 must be of type string, stdClass given;
+	// oracle-probed). Empty or not, Stringify refuses it.
+	if _, err := Stringify(expr.NewObject()); err == nil {
+		t.Fatal("objects must error")
+	}
+	obj := expr.NewObject()
+	obj.Set("a", int64(1))
+	if _, err := Stringify(obj); err == nil {
+		t.Fatal("non-empty objects must error")
+	}
+}
+
+// TestEchoObjectDiagnoses: echoing an object ({{ $site }}) renders empty with an
+// error/expression diagnostic — the render-tier surface of Stringify's refusal.
+func TestEchoObjectDiagnoses(t *testing.T) {
+	entry := "resources/views/pages/index.blade.html"
+	fs := vfs.Mem{
+		entry:                      "X{{ $site }}Y",
+		"resources/data/site.json": `{"name":"Acme"}`,
+	}
+	res := Compile(fs, []string{entry}, Options{})
+	if got := res.Files["index.html"]; got != "XY" {
+		t.Fatalf("output = %q; want %q", got, "XY")
+	}
+	if len(res.Diagnostics) != 1 || res.Diagnostics[0].Kind != KindError || res.Diagnostics[0].Construct != "expression" {
+		t.Fatalf("diagnostics = %v; want one error/expression", res.Diagnostics)
+	}
 }
 
 // TestNewlineModel encodes the oracle-verified newline rule directly (the

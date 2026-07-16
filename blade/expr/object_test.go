@@ -157,6 +157,23 @@ func TestDecodeJSONOrder(t *testing.T) {
 	}
 }
 
+// TestDecodeJSONDuplicateKeys: a duplicated key takes the LAST value but keeps
+// its FIRST position in the iteration order — PHP's json_decode/assignment
+// semantics, which Object.Set encodes.
+func TestDecodeJSONDuplicateKeys(t *testing.T) {
+	v, err := DecodeJSON([]byte(`{"a":1,"b":2,"a":3}`))
+	if err != nil {
+		t.Fatalf("DecodeJSON error: %v", err)
+	}
+	obj := v.(*Object)
+	if got := obj.Keys(); !reflect.DeepEqual(got, []string{"a", "b"}) {
+		t.Errorf("keys = %v; want [a b] (duplicate keeps first position)", got)
+	}
+	if a, _ := obj.Get("a"); a != float64(3) {
+		t.Errorf("a = %#v; want float64(3) (last value wins)", a)
+	}
+}
+
 // TestDecodeJSONInvalid: malformed input, a non-object top level, and trailing
 // data are all handled without panic (callers decide what to do with each).
 func TestDecodeJSONInvalid(t *testing.T) {
@@ -175,9 +192,9 @@ func TestDecodeJSONInvalid(t *testing.T) {
 	}
 }
 
-// TestObjectStringifyNotStringable: an object cannot be echoed — Eval returns
-// the value fine, but the render tier refuses it (see Stringify). Here we assert
-// the value is an *Object so the render path hits its errNotStringable branch.
+// TestObjectAppTierMember: a member marked app-tier (via MarkAppTier — $loop's
+// remaining/depth/parent) reports an app-tier SyntaxError on bare access, while
+// present members read normally and other absent members are ErrUndefinedProp.
 func TestObjectAppTierMember(t *testing.T) {
 	loop := NewObject()
 	loop.Set("index", int64(0))
