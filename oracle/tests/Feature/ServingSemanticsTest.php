@@ -27,7 +27,7 @@ class ServingSemanticsTest extends ServingTestCase
         $response = $this->get('/about');
 
         $response->assertOk();
-        // pages/about.blade.html ("<h1>About</h1>"), NOT pages/about/index
+        // pages/about.blade.php ("<h1>About</h1>"), NOT pages/about/index
         // ("<h1>About Index</h1>").
         $this->assertSame("<h1>About</h1>\n", $response->getContent());
     }
@@ -46,9 +46,9 @@ class ServingSemanticsTest extends ServingTestCase
 
     public function test_falls_through_to_app_404_without_a_site_404_page(): void
     {
-        // A tree with an index page but NO pages/404.blade.html.
+        // A tree with an index page but NO pages/404.blade.php.
         $root = $this->makeSite([
-            'resources/views/pages/index.blade.html' => '<h1>Home</h1>',
+            'resources/views/pages/index.blade.php' => '<h1>Home</h1>',
         ]);
         $this->serveFrom($root);
 
@@ -104,7 +104,7 @@ class ServingSemanticsTest extends ServingTestCase
     public function test_public_assets_are_served_with_the_right_mime(): void
     {
         $root = $this->makeSite([
-            'resources/views/pages/index.blade.html' => '<h1>Home</h1>',
+            'resources/views/pages/index.blade.php' => '<h1>Home</h1>',
             'public/assets/app.css' => 'body{color:red}',
             'public/img/logo.png' => "\x89PNG\r\n\x1a\nFAKE",
             'public/data.json' => '{"ok":true}',
@@ -131,8 +131,8 @@ class ServingSemanticsTest extends ServingTestCase
         // A public/ file takes precedence over page resolution (spec: assets
         // are tried first so a bare tree is fully self-serving).
         $root = $this->makeSite([
-            'resources/views/pages/index.blade.html' => '<h1>Home</h1>',
-            'resources/views/pages/robots.txt.blade.html' => 'PAGE',
+            'resources/views/pages/index.blade.php' => '<h1>Home</h1>',
+            'resources/views/pages/robots.txt.blade.php' => 'PAGE',
             'public/robots.txt' => "User-agent: *\nDisallow:",
         ]);
         $this->serveFrom($root);
@@ -147,7 +147,7 @@ class ServingSemanticsTest extends ServingTestCase
     public function test_dotfiles_are_not_served(): void
     {
         $root = $this->makeSite([
-            'resources/views/pages/index.blade.html' => '<h1>Home</h1>',
+            'resources/views/pages/index.blade.php' => '<h1>Home</h1>',
             'public/.env' => 'SECRET=leak',
         ]);
         $this->serveFrom($root);
@@ -165,7 +165,7 @@ class ServingSemanticsTest extends ServingTestCase
         // sibling dotfile inside public/ must still be refused — the request-path
         // dotfile guard alone wouldn't catch it (realpath follows the link).
         $root = $this->makeSite([
-            'resources/views/pages/index.blade.html' => '<h1>Home</h1>',
+            'resources/views/pages/index.blade.php' => '<h1>Home</h1>',
             'public/.env' => 'SECRET=leak',
         ]);
         @symlink($root.'/public/.env', $root.'/public/config');
@@ -180,7 +180,7 @@ class ServingSemanticsTest extends ServingTestCase
     public function test_directory_paths_are_not_listed(): void
     {
         $root = $this->makeSite([
-            'resources/views/pages/index.blade.html' => '<h1>Home</h1>',
+            'resources/views/pages/index.blade.php' => '<h1>Home</h1>',
             'public/assets/app.css' => 'body{color:red}',
         ]);
         $this->serveFrom($root);
@@ -194,7 +194,7 @@ class ServingSemanticsTest extends ServingTestCase
     public function test_asset_traversal_is_refused(): void
     {
         $root = $this->makeSite([
-            'resources/views/pages/index.blade.html' => '<h1>Home</h1>',
+            'resources/views/pages/index.blade.php' => '<h1>Home</h1>',
             'public/assets/app.css' => 'body{color:red}',
             'secret.txt' => 'TOP SECRET',
         ]);

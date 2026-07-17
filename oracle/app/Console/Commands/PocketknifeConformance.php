@@ -28,8 +28,8 @@ class PocketknifeConformance extends Command
             }
 
             foreach ($case['entries'] as $entry) {
-                // entry: resources/views/pages/index.blade.html -> view name pages.index, output index.html
-                $view = str_replace('/', '.', preg_replace('#^resources/views/(.+)\.blade\.html$#', '$1', $entry));
+                // entry: resources/views/pages/index.blade.php -> view name pages.index, output index.html
+                $view = str_replace('/', '.', preg_replace('#^resources/views/(.+)\.blade\.php$#', '$1', $entry));
                 $out = preg_replace('#^pages\.#', '', $view);
                 $outFile = str_replace('.', '/', $out).'.html';
 
