@@ -37,8 +37,8 @@ class EngineTest extends TestCase
     public function test_it_compiles_a_one_page_site(): void
     {
         $result = $this->engine()->compile(new CompileRequest([
-            'resources/views/pages/index.blade.html' => '<x-layouts.main><h1>{{ $site->title }}</h1></x-layouts.main>',
-            'resources/views/components/layouts/main.blade.html' => '<!DOCTYPE html><body>{{ $slot }}</body>',
+            'resources/views/pages/index.blade.php' => '<x-layouts.main><h1>{{ $site->title }}</h1></x-layouts.main>',
+            'resources/views/components/layouts/main.blade.php' => '<!DOCTYPE html><body>{{ $slot }}</body>',
             'resources/data/site.json' => '{"title":"Hello"}',
         ]));
 
@@ -52,7 +52,7 @@ class EngineTest extends TestCase
         // deps: output → the source files read to render it.
         $this->assertArrayHasKey('index.html', $result->deps);
         $this->assertContains(
-            'resources/views/components/layouts/main.blade.html',
+            'resources/views/components/layouts/main.blade.php',
             $result->deps['index.html']
         );
 
@@ -65,7 +65,7 @@ class EngineTest extends TestCase
     public function test_app_tier_construct_is_data_and_the_page_still_renders(): void
     {
         $result = $this->engine()->compile(new CompileRequest([
-            'resources/views/pages/index.blade.html' => '@auth<p>secret</p>@endauth',
+            'resources/views/pages/index.blade.php' => '@auth<p>secret</p>@endauth',
         ]));
 
         // No exception; the app-tier construct is reported as data.
@@ -84,7 +84,7 @@ class EngineTest extends TestCase
     public function test_error_diagnostic_is_data_not_an_exception(): void
     {
         $result = $this->engine()->compile(new CompileRequest([
-            'resources/views/pages/index.blade.html' => '<p>{{ $undefined }}</p>',
+            'resources/views/pages/index.blade.php' => '<p>{{ $undefined }}</p>',
         ]));
 
         $errors = $result->errors();
@@ -92,7 +92,7 @@ class EngineTest extends TestCase
         $this->assertTrue($errors[0]->isError());
         $this->assertSame(
             $errors,
-            $result->diagnosticsFor('resources/views/pages/index.blade.html')
+            $result->diagnosticsFor('resources/views/pages/index.blade.php')
         );
 
         // The page is still returned — errors are markers/empties, not aborts.
@@ -103,7 +103,7 @@ class EngineTest extends TestCase
     {
         $this->expectException(EngineVersionException::class);
         $this->engine('99.0.0')->compile(new CompileRequest([
-            'resources/views/pages/index.blade.html' => '<p>hi</p>',
+            'resources/views/pages/index.blade.php' => '<p>hi</p>',
         ]));
     }
 
@@ -115,7 +115,7 @@ class EngineTest extends TestCase
         $big = str_repeat('devdojo ', 200000); // ~1.6MB of pass-through text
 
         $result = $this->engine()->compile(new CompileRequest([
-            'resources/views/pages/index.blade.html' => '<article>'.$big.'</article>',
+            'resources/views/pages/index.blade.php' => '<article>'.$big.'</article>',
         ]));
 
         $this->assertSame('<article>'.$big.'</article>', $result->file('index.html'));

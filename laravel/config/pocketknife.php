@@ -17,7 +17,7 @@ return [
     //     guarded. GET/HEAD only; other verbs are not served.
     //   - {site_root}/public/{path} is served first (mime-typed, contained, no
     //     dotfiles, no directory listings) so a bare tree is self-serving.
-    //   - An unresolved path renders pages/404.blade.html with a 404 status when
+    //   - An unresolved path renders pages/404.blade.php with a 404 status when
     //     present, else falls through to the app's own 404.
     'serve' => env('POCKETKNIFE_SERVE', false),
 

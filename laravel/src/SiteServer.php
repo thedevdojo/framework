@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\View;
  *   (a) a file under {site_root}/public/  -> serve it with the right mime type
  *       (realpath-contained, no dotfiles, no directory listings);
  *   (b) a page resolved by PageResolver     -> render it as real Blade, 200;
- *   (c) the site's pages/404.blade.html      -> render it, 404;
+ *   (c) the site's pages/404.blade.php      -> render it, 404;
  *   (d) neither                              -> abort(404), the app's own 404.
  *
  * Rendering is real Laravel Blade with the provider's already-registered site

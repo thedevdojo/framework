@@ -16,7 +16,7 @@ namespace Devdojo\Pocketknife;
  *
  * It is a pure class: no container, no framework — just filesystem lookups
  * under $siteRoot/resources/views/pages. resolve() returns the page's
- * VIEW-RELATIVE path without the ".blade.html" extension (e.g. "pages/blog/index"),
+ * VIEW-RELATIVE path without the ".blade.php" extension (e.g. "pages/blog/index"),
  * which the serving layer turns into a dot view name for View::make — the exact
  * mapping the conformance harness uses (str_replace('/', '.', ...)), so serving
  * and the oracle agree byte-for-byte. (A page-path segment containing a literal
@@ -37,7 +37,7 @@ class PageResolver
     private const PAGES_DIR = 'resources/views/pages';
 
     /**
-     * Resolve $urlPath to a page's view-relative path (without ".blade.html"),
+     * Resolve $urlPath to a page's view-relative path (without ".blade.php"),
      * or null when no page serves it.
      */
     public static function resolve(string $siteRoot, string $urlPath): ?string
@@ -61,10 +61,10 @@ class PageResolver
         $base = rtrim($siteRoot, '/').'/'.self::PAGES_DIR;
 
         // A flat file wins over a same-named directory index.
-        if (self::isPage($base.'/'.$seg.'.blade.html')) {
+        if (self::isPage($base.'/'.$seg.'.blade.php')) {
             return self::PAGES.'/'.$seg;
         }
-        if (self::isPage($base.'/'.$seg.'/index.blade.html')) {
+        if (self::isPage($base.'/'.$seg.'/index.blade.php')) {
             return self::PAGES.'/'.$seg.'/index';
         }
 
@@ -77,7 +77,7 @@ class PageResolver
      */
     public static function notFoundView(string $siteRoot): ?string
     {
-        if (self::isPage(rtrim($siteRoot, '/').'/'.self::PAGES_DIR.'/404.blade.html')) {
+        if (self::isPage(rtrim($siteRoot, '/').'/'.self::PAGES_DIR.'/404.blade.php')) {
             return self::PAGES.'/404';
         }
 

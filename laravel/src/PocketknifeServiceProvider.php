@@ -31,9 +31,6 @@ class PocketknifeServiceProvider extends ServiceProvider
             ], 'pocketknife-config');
         }
 
-        // The one line that makes *.blade.html real Blade.
-        View::addExtension('blade.html', 'blade');
-
         if ($root = config('pocketknife.site_root')) {
             // View path precedence — DECIDED: the host APP's views win over the
             // site's. The finder searches locations in registration order and

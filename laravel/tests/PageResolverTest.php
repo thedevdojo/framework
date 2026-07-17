@@ -27,11 +27,11 @@ class PageResolverTest extends TestCase
     {
         // Mirror protocol/routing_test.go routingTree().
         $this->root = sys_get_temp_dir().'/pk-page-resolver-'.uniqid();
-        $this->writePage('index.blade.html', 'home');
-        $this->writePage('about.blade.html', 'about-flat');
-        $this->writePage('about/index.blade.html', 'about-nested');
-        $this->writePage('blog/index.blade.html', 'blog');
-        $this->writePage('404.blade.html', 'not found');
+        $this->writePage('index.blade.php', 'home');
+        $this->writePage('about.blade.php', 'about-flat');
+        $this->writePage('about/index.blade.php', 'about-nested');
+        $this->writePage('blog/index.blade.php', 'blog');
+        $this->writePage('404.blade.php', 'not found');
     }
 
     protected function tearDown(): void
@@ -76,7 +76,7 @@ class PageResolverTest extends TestCase
     {
         $bare = sys_get_temp_dir().'/pk-page-resolver-bare-'.uniqid();
         mkdir($bare.'/resources/views/pages', 0755, true);
-        file_put_contents($bare.'/resources/views/pages/index.blade.html', 'home');
+        file_put_contents($bare.'/resources/views/pages/index.blade.php', 'home');
 
         try {
             $this->assertNull(PageResolver::resolve($bare, '/missing'));

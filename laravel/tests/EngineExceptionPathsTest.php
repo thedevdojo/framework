@@ -24,7 +24,7 @@ class EngineExceptionPathsTest extends TestCase
         $this->assertFalse($engine->isAvailable());
         $this->expectException(BinaryNotFoundException::class);
         $engine->compile(new CompileRequest([
-            'resources/views/pages/index.blade.html' => '<p>hi</p>',
+            'resources/views/pages/index.blade.php' => '<p>hi</p>',
         ]));
     }
 
@@ -35,7 +35,7 @@ class EngineExceptionPathsTest extends TestCase
         $this->assertFalse($engine->isAvailable());
         $this->expectException(BinaryNotFoundException::class);
         $engine->compile(new CompileRequest([
-            'resources/views/pages/index.blade.html' => '<p>hi</p>',
+            'resources/views/pages/index.blade.php' => '<p>hi</p>',
         ]));
     }
 
@@ -54,7 +54,7 @@ class EngineExceptionPathsTest extends TestCase
             $this->assertTrue($engine->isAvailable());
             $this->expectException(BinaryFailedException::class);
             $engine->compile(new CompileRequest([
-                'resources/views/pages/index.blade.html' => '<p>hi</p>',
+                'resources/views/pages/index.blade.php' => '<p>hi</p>',
             ]));
         } finally {
             @unlink($garbage);
@@ -73,7 +73,7 @@ class EngineExceptionPathsTest extends TestCase
             $this->expectException(BinaryFailedException::class);
             $this->expectExceptionMessageMatches('/code 3.*boom on stderr/s');
             (new Engine($noisy, 30, '0.1.0'))->compile(new CompileRequest([
-                'resources/views/pages/index.blade.html' => '<p>hi</p>',
+                'resources/views/pages/index.blade.php' => '<p>hi</p>',
             ]));
         } finally {
             @unlink($noisy);

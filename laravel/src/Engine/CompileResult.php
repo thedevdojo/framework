@@ -4,7 +4,7 @@ namespace Devdojo\Pocketknife\Engine;
 
 /**
  * One `pocketknife compile` response. `files` and `deps` are keyed by OUTPUT
- * path (`pages/index.blade.html` renders to `index.html`) — not by the entry
+ * path (`pages/index.blade.php` renders to `index.html`) — not by the entry
  * that produced them. Template problems land on `diagnostics`; the process
  * exiting cleanly does not mean the site compiled without diagnostics.
  */
