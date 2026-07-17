@@ -17,7 +17,7 @@ type data map[string]any
 // rendered bytes plus any diagnostics.
 func renderSrc(t *testing.T, src string, d data) (string, []Diagnostic) {
 	t.Helper()
-	entry := "resources/views/pages/index.blade.html"
+	entry := "resources/views/pages/index.blade.php"
 	res := Compile(vfs.Mem{entry: src}, []string{entry}, Options{Data: d})
 	return res.Files["index.html"], res.Diagnostics
 }
@@ -146,7 +146,7 @@ func TestContinueCondError(t *testing.T) {
 func TestLoopJumpOutsideLoop(t *testing.T) {
 	for _, cont := range []bool{false, true} {
 		r := &renderer{scope: dataScope{}}
-		p := scanner.Pos{File: "x.blade.html", Line: 3, Col: 5}
+		p := scanner.Pos{File: "x.blade.php", Line: 3, Col: 5}
 		eat := r.renderNode(&ast.LoopJump{Continue: cont, P: p}, false)
 		if r.sb.String() != "" {
 			t.Errorf("continue=%v: output = %q; want empty", cont, r.sb.String())

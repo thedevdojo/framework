@@ -91,7 +91,7 @@ func TestUsageUnknownCommand(t *testing.T) {
 }
 
 func TestCompileHappyPath(t *testing.T) {
-	input := `{"files":{"resources/views/pages/index.blade.html":"<h1>Hi</h1>"}}`
+	input := `{"files":{"resources/views/pages/index.blade.php":"<h1>Hi</h1>"}}`
 	stdout, stderr, code := runCLI(t, input, "compile")
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
@@ -115,7 +115,7 @@ func TestCompileHappyPath(t *testing.T) {
 // error-kind diagnostic is still a successful CLI invocation — the OUTPUT
 // carries the problem, the exit code does not.
 func TestCompileErrorDiagnosticsStillExitZero(t *testing.T) {
-	input := `{"files":{"resources/views/pages/index.blade.html":"{{ $nope }}"}}`
+	input := `{"files":{"resources/views/pages/index.blade.php":"{{ $nope }}"}}`
 	stdout, stderr, code := runCLI(t, input, "compile")
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 even with an error diagnostic (stderr: %s, stdout: %s)", code, stderr, stdout)
@@ -152,7 +152,7 @@ func TestLintErrorExitsOne(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("exit code = %d, want 1 (stdout: %s, stderr: %s)", code, stdout, stderr)
 	}
-	lineRe := regexp.MustCompile(`^resources/views/pages/index\.blade\.html:\d+:\d+ \[(error|app-tier)\] .+$`)
+	lineRe := regexp.MustCompile(`^resources/views/pages/index\.blade\.php:\d+:\d+ \[(error|app-tier)\] .+$`)
 	lines := strings.Split(strings.TrimRight(stdout, "\n"), "\n")
 	if len(lines) != 6 {
 		t.Fatalf("expected 6 diagnostic lines, got %d:\n%s", len(lines), stdout)
@@ -191,7 +191,7 @@ func TestLintAppTierOnlyExitsZero(t *testing.T) {
 		t.Fatal(err)
 	}
 	src := "<div>\n@auth\nWelcome\n@endauth\n</div>\n"
-	if err := os.WriteFile(filepath.Join(pages, "index.blade.html"), []byte(src), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(pages, "index.blade.php"), []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	stdout, stderr, code := runCLI(t, "", "lint", dir)
@@ -213,7 +213,7 @@ func TestLintCleanTreeExitsZero(t *testing.T) {
 	if err := os.MkdirAll(pages, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(pages, "index.blade.html"), []byte("<h1>Hi</h1>"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(pages, "index.blade.php"), []byte("<h1>Hi</h1>"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	stdout, stderr, code := runCLI(t, "", "lint", dir)
@@ -246,8 +246,8 @@ func writeSite(t *testing.T, root string, files map[string]string) {
 func TestLintUndeclaredAttributeWarnsExitsZero(t *testing.T) {
 	dir := t.TempDir()
 	writeSite(t, dir, map[string]string{
-		"resources/views/pages/index.blade.html":              `<x-sections.hero heading="Hi" subtitle="typo"/>`,
-		"resources/views/components/sections/hero.blade.html": "@props(['heading' => 'Default'])\n<h1>{{ $heading }}</h1>",
+		"resources/views/pages/index.blade.php":              `<x-sections.hero heading="Hi" subtitle="typo"/>`,
+		"resources/views/components/sections/hero.blade.php": "@props(['heading' => 'Default'])\n<h1>{{ $heading }}</h1>",
 	})
 	stdout, stderr, code := runCLI(t, "", "lint", dir)
 	if code != 0 {
@@ -267,8 +267,8 @@ func TestLintDeclaredAndBoundAttributesSilent(t *testing.T) {
 		// $site is always bound (empty object with no site.json), so the bound
 		// attribute evaluates cleanly — the point is that neither the declared
 		// static attr nor the bound attr produces a lint warning.
-		"resources/views/pages/index.blade.html":              `<x-sections.hero heading="Hi" :rows="$site"/>`,
-		"resources/views/components/sections/hero.blade.html": "@props(['heading' => 'Default'])\n<h1>{{ $heading }}</h1>",
+		"resources/views/pages/index.blade.php":              `<x-sections.hero heading="Hi" :rows="$site"/>`,
+		"resources/views/components/sections/hero.blade.php": "@props(['heading' => 'Default'])\n<h1>{{ $heading }}</h1>",
 	})
 	stdout, stderr, code := runCLI(t, "", "lint", dir)
 	if code != 0 {

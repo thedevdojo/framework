@@ -144,7 +144,7 @@ func TestScanGolden(t *testing.T) {
 		}},
 	}
 	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) { assertTokens(t, Scan("t.blade.html", []byte(c.src)), c.want) })
+		t.Run(c.name, func(t *testing.T) { assertTokens(t, Scan("t.blade.php", []byte(c.src)), c.want) })
 	}
 }
 
@@ -231,7 +231,7 @@ func TestScanClarifications(t *testing.T) {
 		}},
 	}
 	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) { assertTokens(t, Scan("t.blade.html", []byte(c.src)), c.want) })
+		t.Run(c.name, func(t *testing.T) { assertTokens(t, Scan("t.blade.php", []byte(c.src)), c.want) })
 	}
 }
 
@@ -266,7 +266,7 @@ func TestScanDirectiveSrc(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			toks := Scan("t.blade.html", []byte(c.src))
+			toks := Scan("t.blade.php", []byte(c.src))
 			if c.wantIdx >= len(toks) {
 				t.Fatalf("token[%d] out of range (%d tokens): %v", c.wantIdx, len(toks), toks)
 			}
@@ -284,7 +284,7 @@ func TestScanDirectiveSrc(t *testing.T) {
 // TestScanDirectiveSrcNameLowercasedSrcVerbatim: for `@Auth`, Name is the
 // lowercased "auth" while Src preserves the original "@Auth".
 func TestScanDirectiveSrcNameLowercasedSrcVerbatim(t *testing.T) {
-	toks := Scan("t.blade.html", []byte(`@Auth`))
+	toks := Scan("t.blade.php", []byte(`@Auth`))
 	if len(toks) != 1 || toks[0].Kind != Directive {
 		t.Fatalf("scan(@Auth) = %v; want a single Directive token", toks)
 	}
@@ -299,7 +299,7 @@ func TestScanDirectiveSrcNameLowercasedSrcVerbatim(t *testing.T) {
 // TestScanNonDirectiveHasNoSrc: Src is populated for Directive tokens only —
 // Text/Echo/tag tokens leave it empty.
 func TestScanNonDirectiveHasNoSrc(t *testing.T) {
-	toks := Scan("t.blade.html", []byte(`a {{ $x }} <x-c/>`))
+	toks := Scan("t.blade.php", []byte(`a {{ $x }} <x-c/>`))
 	for i, tok := range toks {
 		if tok.Kind != Directive && tok.Src != "" {
 			t.Errorf("token[%d] (%s) Src = %q; want empty", i, kindName(tok.Kind), tok.Src)
@@ -361,6 +361,6 @@ func TestScanWordBoundary(t *testing.T) {
 		}},
 	}
 	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) { assertTokens(t, Scan("t.blade.html", []byte(c.src)), c.want) })
+		t.Run(c.name, func(t *testing.T) { assertTokens(t, Scan("t.blade.php", []byte(c.src)), c.want) })
 	}
 }

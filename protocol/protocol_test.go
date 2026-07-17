@@ -19,8 +19,8 @@ import (
 func TestRunRoundTrip(t *testing.T) {
 	input := `{
 		"files": {
-			"resources/views/pages/index.blade.html": "<h1>{{ $greeting }}</h1>\n@auth\nWelcome back\n@endauth\n<x-alert message=\"Hi\"/>\n",
-			"resources/views/components/alert.blade.html": "@props(['message'])\n<div class=\"alert\">{{ $message }}</div>\n"
+			"resources/views/pages/index.blade.php": "<h1>{{ $greeting }}</h1>\n@auth\nWelcome back\n@endauth\n<x-alert message=\"Hi\"/>\n",
+			"resources/views/components/alert.blade.php": "@props(['message'])\n<div class=\"alert\">{{ $message }}</div>\n"
 		},
 		"data": { "greeting": "Hello" }
 	}`
@@ -49,8 +49,8 @@ func TestRunRoundTrip(t *testing.T) {
 	}
 
 	wantDeps := []string{
-		"resources/views/pages/index.blade.html",
-		"resources/views/components/alert.blade.html",
+		"resources/views/pages/index.blade.php",
+		"resources/views/components/alert.blade.php",
 	}
 	deps := got.Deps["index.html"]
 	if len(deps) != len(wantDeps) {
@@ -66,8 +66,8 @@ func TestRunRoundTrip(t *testing.T) {
 		t.Fatalf("diagnostics = %#v, want 2 entries", got.Diagnostics)
 	}
 	wantDiags := []render.Diagnostic{
-		{File: "resources/views/pages/index.blade.html", Line: 2, Col: 1, Kind: render.KindAppTier, Construct: "@auth", Message: "directive @auth is outside the Pocketknife subset; requires the PHP app tier"},
-		{File: "resources/views/pages/index.blade.html", Line: 4, Col: 1, Kind: render.KindAppTier, Construct: "@endauth", Message: "directive @endauth is outside the Pocketknife subset; requires the PHP app tier"},
+		{File: "resources/views/pages/index.blade.php", Line: 2, Col: 1, Kind: render.KindAppTier, Construct: "@auth", Message: "directive @auth is outside the Pocketknife subset; requires the PHP app tier"},
+		{File: "resources/views/pages/index.blade.php", Line: 4, Col: 1, Kind: render.KindAppTier, Construct: "@endauth", Message: "directive @endauth is outside the Pocketknife subset; requires the PHP app tier"},
 	}
 	for i, want := range wantDiags {
 		if got.Diagnostics[i] != want {
@@ -108,15 +108,15 @@ func TestRunEmptyKeysInitialized(t *testing.T) {
 }
 
 // TestRunEntriesOmittedDiscoversAllPages: with no "entries" key, Run compiles
-// every resources/views/pages/**.blade.html file, sorted, and nothing else
+// every resources/views/pages/**.blade.php file, sorted, and nothing else
 // (a component-only file under components/ must not become an output).
 func TestRunEntriesOmittedDiscoversAllPages(t *testing.T) {
 	input := `{
 		"files": {
-			"resources/views/pages/about.blade.html": "About",
-			"resources/views/pages/index.blade.html": "Index",
-			"resources/views/pages/blog/post.blade.html": "Post",
-			"resources/views/components/card.blade.html": "Card"
+			"resources/views/pages/about.blade.php": "About",
+			"resources/views/pages/index.blade.php": "Index",
+			"resources/views/pages/blog/post.blade.php": "Post",
+			"resources/views/components/card.blade.php": "Card"
 		}
 	}`
 	var out bytes.Buffer
@@ -150,10 +150,10 @@ func TestRunEntriesOmittedDiscoversAllPages(t *testing.T) {
 func TestRunEntriesExplicitOverridesDiscovery(t *testing.T) {
 	input := `{
 		"files": {
-			"resources/views/pages/about.blade.html": "About",
-			"resources/views/pages/index.blade.html": "Index"
+			"resources/views/pages/about.blade.php": "About",
+			"resources/views/pages/index.blade.php": "Index"
 		},
-		"entries": ["resources/views/pages/index.blade.html"]
+		"entries": ["resources/views/pages/index.blade.php"]
 	}`
 	var out bytes.Buffer
 	if err := Run(strings.NewReader(input), &out); err != nil {
@@ -172,7 +172,7 @@ func TestRunEntriesExplicitOverridesDiscovery(t *testing.T) {
 // and does not change output — v1 only renders relative URLs.
 func TestRunOptionsURLAcceptedButUnused(t *testing.T) {
 	input := `{
-		"files": {"resources/views/pages/index.blade.html": "hi"},
+		"files": {"resources/views/pages/index.blade.php": "hi"},
 		"options": {"url": "https://example.com/x"}
 	}`
 	var out bytes.Buffer

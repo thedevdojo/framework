@@ -59,7 +59,7 @@ const pagesPrefix = "resources/views/pages/"
 type Input struct {
 	Files   map[string]string `json:"files"`
 	Data    map[string]any    `json:"data,omitempty"`
-	Entries []string          `json:"entries,omitempty"` // empty → every resources/views/pages/**.blade.html, sorted
+	Entries []string          `json:"entries,omitempty"` // empty → every resources/views/pages/**.blade.php, sorted
 	Options struct {
 		URL string `json:"url,omitempty"` // accepted, unused in v1 — see package doc
 	} `json:"options"`
@@ -75,14 +75,14 @@ type Output struct {
 	Diagnostics []render.Diagnostic `json:"diagnostics"`
 }
 
-// DiscoverPages returns every resources/views/pages/**.blade.html path in fs,
+// DiscoverPages returns every resources/views/pages/**.blade.php path in fs,
 // sorted. This is the default entry set when a protocol Input omits entries,
 // and it is what `pocketknife lint <dir>` compiles — both callers share it so
 // "what counts as a page" has one definition.
 func DiscoverPages(fs vfs.FS) []string {
 	var out []string
 	for _, p := range fs.List(pagesPrefix) {
-		if strings.HasSuffix(p, ".blade.html") {
+		if strings.HasSuffix(p, ".blade.php") {
 			out = append(out, p)
 		}
 	}

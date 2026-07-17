@@ -377,7 +377,7 @@ func escapesRoot(p string) bool {
 
 // outputName maps an entry path to its output file name. Pages lose the
 // resources/views/pages/ prefix; any other view keeps its path relative to
-// resources/views/. In both cases .blade.html becomes .html.
+// resources/views/. In both cases .blade.php becomes .html.
 func outputName(entry string) string {
 	const pages = "resources/views/pages/"
 	const views = "resources/views/"
@@ -388,7 +388,7 @@ func outputName(entry string) string {
 	case strings.HasPrefix(name, views):
 		name = name[len(views):]
 	}
-	name = strings.TrimSuffix(name, ".blade.html")
+	name = strings.TrimSuffix(name, ".blade.php")
 	return name + ".html"
 }
 

@@ -10,11 +10,11 @@ import (
 // ResolveURL maps a request URL path to the page entry that serves it, using
 // the same convention as Folio and the classic engine (spec §2):
 //
-//	/            → resources/views/pages/index.blade.html
-//	/about       → resources/views/pages/about.blade.html        (a flat file wins)
-//	             → else resources/views/pages/about/index.blade.html
-//	/blog        → resources/views/pages/blog/index.blade.html    (directory index)
-//	(no match)   → resources/views/pages/404.blade.html           if present
+//	/            → resources/views/pages/index.blade.php
+//	/about       → resources/views/pages/about.blade.php        (a flat file wins)
+//	             → else resources/views/pages/about/index.blade.php
+//	/blog        → resources/views/pages/blog/index.blade.php    (directory index)
+//	(no match)   → resources/views/pages/404.blade.php           if present
 //
 // It returns the resolved entry and whether a serving page (or the 404 page)
 // exists. A leading/trailing slash is ignored; an empty path is the index. A
@@ -37,10 +37,10 @@ func ResolveURL(fs vfs.FS, urlPath string) (string, bool) {
 		return notFoundOr(fs)
 	}
 
-	if flat := pagesPrefix + seg + ".blade.html"; exists(fs, flat) {
+	if flat := pagesPrefix + seg + ".blade.php"; exists(fs, flat) {
 		return flat, true
 	}
-	if nested := pagesPrefix + seg + "/index.blade.html"; exists(fs, nested) {
+	if nested := pagesPrefix + seg + "/index.blade.php"; exists(fs, nested) {
 		return nested, true
 	}
 	return notFoundOr(fs)
@@ -48,7 +48,7 @@ func ResolveURL(fs vfs.FS, urlPath string) (string, bool) {
 
 // notFoundOr returns the 404 page entry when present, else ("", false).
 func notFoundOr(fs vfs.FS) (string, bool) {
-	if nf := pagesPrefix + "404.blade.html"; exists(fs, nf) {
+	if nf := pagesPrefix + "404.blade.php"; exists(fs, nf) {
 		return nf, true
 	}
 	return "", false

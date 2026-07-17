@@ -1,7 +1,7 @@
 {
-  "entries": ["resources/views/pages/index.blade.html"],
+  "entries": ["resources/views/pages/index.blade.php"],
   "oracle": false,
   "diagnostics": [
-    {"kind": "error", "construct": "component-recursion", "file": "resources/views/components/loop.blade.html", "line": 1}
+    {"kind": "error", "construct": "component-recursion", "file": "resources/views/components/loop.blade.php", "line": 1}
   ]
 }

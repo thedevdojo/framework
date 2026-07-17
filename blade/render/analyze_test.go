@@ -14,13 +14,13 @@ func warningsFor(files map[string]string) []Diagnostic {
 	for k, v := range files {
 		fs[k] = v
 	}
-	return Analyze(fs, []string{"resources/views/pages/index.blade.html"})
+	return Analyze(fs, []string{"resources/views/pages/index.blade.php"})
 }
 
 func TestAnalyzeUndeclaredAttributeWarns(t *testing.T) {
 	ws := warningsFor(map[string]string{
-		"resources/views/pages/index.blade.html":              `<x-sections.hero heading="Hi" subtitle="typo"/>`,
-		"resources/views/components/sections/hero.blade.html": "@props(['heading' => 'Default'])\n<h1>{{ $heading }}</h1>",
+		"resources/views/pages/index.blade.php":              `<x-sections.hero heading="Hi" subtitle="typo"/>`,
+		"resources/views/components/sections/hero.blade.php": "@props(['heading' => 'Default'])\n<h1>{{ $heading }}</h1>",
 	})
 	if len(ws) != 1 {
 		t.Fatalf("want 1 warning, got %d: %v", len(ws), ws)
@@ -43,8 +43,8 @@ func TestAnalyzeUndeclaredAttributeWarns(t *testing.T) {
 
 func TestAnalyzeDeclaredAttributeSilent(t *testing.T) {
 	ws := warningsFor(map[string]string{
-		"resources/views/pages/index.blade.html":              `<x-sections.hero heading="Hi"/>`,
-		"resources/views/components/sections/hero.blade.html": "@props(['heading' => 'Default'])\n<h1>{{ $heading }}</h1>",
+		"resources/views/pages/index.blade.php":              `<x-sections.hero heading="Hi"/>`,
+		"resources/views/components/sections/hero.blade.php": "@props(['heading' => 'Default'])\n<h1>{{ $heading }}</h1>",
 	})
 	if len(ws) != 0 {
 		t.Fatalf("want 0 warnings for a declared attribute, got %v", ws)
@@ -54,8 +54,8 @@ func TestAnalyzeDeclaredAttributeSilent(t *testing.T) {
 func TestAnalyzeKebabAttributeMatchesCamelProp(t *testing.T) {
 	// Real Blade matches foo-bar="…" to the fooBar prop; the analyzer must too.
 	ws := warningsFor(map[string]string{
-		"resources/views/pages/index.blade.html":     `<x-card data-title="Hi"/>`,
-		"resources/views/components/card.blade.html": "@props(['dataTitle' => ''])\n<div>{{ $dataTitle }}</div>",
+		"resources/views/pages/index.blade.php":     `<x-card data-title="Hi"/>`,
+		"resources/views/components/card.blade.php": "@props(['dataTitle' => ''])\n<div>{{ $dataTitle }}</div>",
 	})
 	if len(ws) != 0 {
 		t.Fatalf("want 0 warnings (foo-bar → fooBar), got %v", ws)
@@ -66,8 +66,8 @@ func TestAnalyzeBoundAttributeNotChecked(t *testing.T) {
 	// Only STATIC attributes are analyzed; a bound attribute is how collection
 	// data is legitimately handed in and is out of scope for the warning.
 	ws := warningsFor(map[string]string{
-		"resources/views/pages/index.blade.html":     `<x-card :rows="$plans"/>`,
-		"resources/views/components/card.blade.html": "@props(['title' => ''])\n<div>{{ $title }}</div>",
+		"resources/views/pages/index.blade.php":     `<x-card :rows="$plans"/>`,
+		"resources/views/components/card.blade.php": "@props(['title' => ''])\n<div>{{ $title }}</div>",
 	})
 	if len(ws) != 0 {
 		t.Fatalf("want 0 warnings for a bound attribute, got %v", ws)
@@ -79,8 +79,8 @@ func TestAnalyzeStaticCollidingWithBoundNotWarned(t *testing.T) {
 	// instance is not an undeclared-attribute typo — the bound form is the
 	// real pass. Don't warn on the static half.
 	ws := warningsFor(map[string]string{
-		"resources/views/pages/index.blade.html":     `<x-card title="fallback" :title="$t"/>`,
-		"resources/views/components/card.blade.html": "@props(['body' => ''])\n<div>{{ $body }}</div>",
+		"resources/views/pages/index.blade.php":     `<x-card title="fallback" :title="$t"/>`,
+		"resources/views/components/card.blade.php": "@props(['body' => ''])\n<div>{{ $body }}</div>",
 	})
 	if len(ws) != 0 {
 		t.Fatalf("want 0 warnings (static collides with bound), got %v", ws)
@@ -91,8 +91,8 @@ func TestAnalyzeNoPropsWarnsEveryStaticAttr(t *testing.T) {
 	// A component with no @props declares no props: every static attribute is
 	// undeclared.
 	ws := warningsFor(map[string]string{
-		"resources/views/pages/index.blade.html":     `<x-card title="Hi"/>`,
-		"resources/views/components/card.blade.html": "<div>a card</div>",
+		"resources/views/pages/index.blade.php":     `<x-card title="Hi"/>`,
+		"resources/views/components/card.blade.php": "<div>a card</div>",
 	})
 	if len(ws) != 1 {
 		t.Fatalf("want 1 warning, got %v", ws)
@@ -103,7 +103,7 @@ func TestAnalyzeMissingComponentNoWarning(t *testing.T) {
 	// A missing component is Compile's error, not a lint warning — the analyzer
 	// cannot know the prop set, so it stays silent.
 	ws := warningsFor(map[string]string{
-		"resources/views/pages/index.blade.html": `<x-sections.nope heading="Hi"/>`,
+		"resources/views/pages/index.blade.php": `<x-sections.nope heading="Hi"/>`,
 	})
 	if len(ws) != 0 {
 		t.Fatalf("want 0 warnings for a missing component, got %v", ws)
@@ -115,8 +115,8 @@ func TestAnalyzeUnparseablePropsNoWarning(t *testing.T) {
 	// be conservative and emit no warning (Compile still reports the props
 	// error on its own stream).
 	ws := warningsFor(map[string]string{
-		"resources/views/pages/index.blade.html":     `<x-card title="Hi"/>`,
-		"resources/views/components/card.blade.html": "@props(not-a-literal)\n<div>x</div>",
+		"resources/views/pages/index.blade.php":     `<x-card title="Hi"/>`,
+		"resources/views/components/card.blade.php": "@props(not-a-literal)\n<div>x</div>",
 	})
 	if len(ws) != 0 {
 		t.Fatalf("want 0 warnings for unparseable @props, got %v", ws)
@@ -128,12 +128,12 @@ func TestAnalyzeNestedInstanceInComponentCheckedOnce(t *testing.T) {
 	// instance internally: it must warn exactly once (the internal instance is
 	// a single source location), not once per referencing page.
 	fs := vfs.Mem{
-		"resources/views/pages/a.blade.html":                 `<x-layouts.main/>`,
-		"resources/views/pages/b.blade.html":                 `<x-layouts.main/>`,
-		"resources/views/components/layouts/main.blade.html": "<x-widget bad=\"x\"/>",
-		"resources/views/components/widget.blade.html":       "@props(['ok' => ''])\n<span>{{ $ok }}</span>",
+		"resources/views/pages/a.blade.php":                 `<x-layouts.main/>`,
+		"resources/views/pages/b.blade.php":                 `<x-layouts.main/>`,
+		"resources/views/components/layouts/main.blade.php": "<x-widget bad=\"x\"/>",
+		"resources/views/components/widget.blade.php":       "@props(['ok' => ''])\n<span>{{ $ok }}</span>",
 	}
-	ws := Analyze(fs, []string{"resources/views/pages/a.blade.html", "resources/views/pages/b.blade.html"})
+	ws := Analyze(fs, []string{"resources/views/pages/a.blade.php", "resources/views/pages/b.blade.php"})
 	if len(ws) != 1 {
 		t.Fatalf("want exactly 1 warning (checked once), got %d: %v", len(ws), ws)
 	}
@@ -145,8 +145,8 @@ func TestAnalyzeNestedInstanceInComponentCheckedOnce(t *testing.T) {
 func TestAnalyzeSelfRecursiveComponentTerminates(t *testing.T) {
 	// A component referencing itself must not loop the analyzer forever.
 	fs := vfs.Mem{
-		"resources/views/pages/index.blade.html":     `<x-node/>`,
-		"resources/views/components/node.blade.html": "<x-node/>",
+		"resources/views/pages/index.blade.php":     `<x-node/>`,
+		"resources/views/components/node.blade.php": "<x-node/>",
 	}
-	_ = Analyze(fs, []string{"resources/views/pages/index.blade.html"})
+	_ = Analyze(fs, []string{"resources/views/pages/index.blade.php"})
 }

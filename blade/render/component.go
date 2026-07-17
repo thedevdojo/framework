@@ -245,9 +245,9 @@ func extractLegalProps(nodes []ast.Node) *ast.Props {
 }
 
 // componentPath maps a dotted component name to its exact source file:
-// sections.hero → resources/views/components/sections/hero.blade.html.
+// sections.hero → resources/views/components/sections/hero.blade.php.
 func componentPath(name string) string {
-	return "resources/views/components/" + strings.ReplaceAll(name, ".", "/") + ".blade.html"
+	return "resources/views/components/" + strings.ReplaceAll(name, ".", "/") + ".blade.php"
 }
 
 // missingMarker is the byte-stable output marker for an unresolved component.

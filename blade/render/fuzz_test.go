@@ -46,7 +46,7 @@ func FuzzCompile(f *testing.F) {
 		f.Add(s)
 	}
 
-	entry := "resources/views/pages/index.blade.html"
+	entry := "resources/views/pages/index.blade.php"
 	data := map[string]any{
 		"a": true, "b": false, "x": "v", "h": "<b>x</b>",
 		"rows": []any{"a", "b"}, "n": float64(2),

@@ -21,7 +21,7 @@ func FuzzScan(f *testing.F) {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, src string) {
-		toks := Scan("f.blade.html", []byte(src)) // must not panic
+		toks := Scan("f.blade.php", []byte(src)) // must not panic
 		// Reconstruction invariant: total consumed bytes == len(src) is NOT
 		// guaranteed (escapes rewrite), but token positions must be ordered.
 		last := Pos{Line: 1, Col: 0}

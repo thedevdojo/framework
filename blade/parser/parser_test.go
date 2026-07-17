@@ -9,7 +9,7 @@ import (
 
 func parseSrc(t *testing.T, src string) ([]ast.Node, []Diag) {
 	t.Helper()
-	return Parse("t.blade.html", scanner.Scan("t.blade.html", []byte(src)))
+	return Parse("t.blade.php", scanner.Scan("t.blade.php", []byte(src)))
 }
 
 func requireNoDiags(t *testing.T, diags []Diag) {

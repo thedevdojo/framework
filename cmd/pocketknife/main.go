@@ -66,7 +66,7 @@ func cmdCompile() int {
 }
 
 // cmdLint compiles every page under <dir> (vfs.Dir, the same
-// resources/views/pages/**.blade.html discovery the protocol uses when
+// resources/views/pages/**.blade.php discovery the protocol uses when
 // entries are omitted — protocol.DiscoverPages) and prints each diagnostic
 // as `file:line:col [kind] message`, sorted by file then line then column.
 //

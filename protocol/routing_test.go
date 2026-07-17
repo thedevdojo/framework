@@ -8,11 +8,11 @@ import (
 
 func routingTree() vfs.FS {
 	return vfs.Mem{
-		"resources/views/pages/index.blade.html":       "home",
-		"resources/views/pages/about.blade.html":       "about-flat",
-		"resources/views/pages/about/index.blade.html": "about-nested",
-		"resources/views/pages/blog/index.blade.html":  "blog",
-		"resources/views/pages/404.blade.html":         "not found",
+		"resources/views/pages/index.blade.php":       "home",
+		"resources/views/pages/about.blade.php":       "about-flat",
+		"resources/views/pages/about/index.blade.php": "about-nested",
+		"resources/views/pages/blog/index.blade.php":  "blog",
+		"resources/views/pages/404.blade.php":         "not found",
 	}
 }
 
@@ -25,12 +25,12 @@ func TestResolveURL(t *testing.T) {
 		url   string
 		entry string
 	}{
-		{"/", "resources/views/pages/index.blade.html"},
-		{"", "resources/views/pages/index.blade.html"},
-		{"/about", "resources/views/pages/about.blade.html"},     // flat wins over about/index
-		{"/about/", "resources/views/pages/about.blade.html"},    // trailing slash ignored
-		{"/blog", "resources/views/pages/blog/index.blade.html"}, // directory index
-		{"/missing", "resources/views/pages/404.blade.html"},     // 404 fallback
+		{"/", "resources/views/pages/index.blade.php"},
+		{"", "resources/views/pages/index.blade.php"},
+		{"/about", "resources/views/pages/about.blade.php"},     // flat wins over about/index
+		{"/about/", "resources/views/pages/about.blade.php"},    // trailing slash ignored
+		{"/blog", "resources/views/pages/blog/index.blade.php"}, // directory index
+		{"/missing", "resources/views/pages/404.blade.php"},     // 404 fallback
 	}
 	for _, c := range cases {
 		entry, ok := ResolveURL(fs, c.url)
@@ -42,7 +42,7 @@ func TestResolveURL(t *testing.T) {
 
 // TestResolveURLNo404: with no 404 page, an unmatched URL resolves to nothing.
 func TestResolveURLNo404(t *testing.T) {
-	fs := vfs.Mem{"resources/views/pages/index.blade.html": "home"}
+	fs := vfs.Mem{"resources/views/pages/index.blade.php": "home"}
 	if entry, ok := ResolveURL(fs, "/missing"); ok {
 		t.Errorf("ResolveURL(/missing) = (%q, true), want (\"\", false) without a 404 page", entry)
 	}
@@ -51,7 +51,7 @@ func TestResolveURLNo404(t *testing.T) {
 // TestResolveURLTraversalGuarded: a URL that would escape the pages root
 // resolves to nothing (no 404 page present), never a file outside pages/.
 func TestResolveURLTraversalGuarded(t *testing.T) {
-	fs := vfs.Mem{"resources/views/pages/index.blade.html": "home"}
+	fs := vfs.Mem{"resources/views/pages/index.blade.php": "home"}
 	if entry, ok := ResolveURL(fs, "/../secret"); ok {
 		t.Errorf("ResolveURL(/../secret) = (%q, true), want (\"\", false)", entry)
 	}

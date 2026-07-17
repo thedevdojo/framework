@@ -6,7 +6,7 @@ import (
 	"github.com/thedevdojo/pocketknife/vfs"
 )
 
-const dataEntry = "resources/views/pages/index.blade.html"
+const dataEntry = "resources/views/pages/index.blade.php"
 
 // compileOne renders a single page over an in-memory filesystem.
 func compileOne(t *testing.T, files map[string]string, data map[string]any) Result {
@@ -116,7 +116,7 @@ func TestSitePresent(t *testing.T) {
 func TestSiteVisibleInComponent(t *testing.T) {
 	res := compileOne(t, map[string]string{
 		dataEntry: "<x-brand/>",
-		"resources/views/components/brand.blade.html": "{{ $site->name ?? 'unset' }}",
+		"resources/views/components/brand.blade.php": "{{ $site->name ?? 'unset' }}",
 		siteDataPath: `{"name":"Acme"}`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "Acme" {
@@ -129,8 +129,8 @@ func TestSiteVisibleInComponent(t *testing.T) {
 func TestCollectionsNotVisibleInComponent(t *testing.T) {
 	res := compileOne(t, map[string]string{
 		dataEntry: "<x-list/>",
-		"resources/views/components/list.blade.html": "{{ $plans ?? 'no-plans' }}",
-		collectionsDir + "plans.json":                `[{"name":"Free"}]`,
+		"resources/views/components/list.blade.php": "{{ $plans ?? 'no-plans' }}",
+		collectionsDir + "plans.json":               `[{"name":"Free"}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "no-plans" {
 		t.Errorf("collections leaked into component: output = %q", got)
@@ -216,7 +216,7 @@ func TestContentNested(t *testing.T) {
 func TestDataOverridesSite(t *testing.T) {
 	files := map[string]string{
 		dataEntry: "page:{{ $site->name }} <x-brand/>",
-		"resources/views/components/brand.blade.html": "comp:{{ $site->name }}",
+		"resources/views/components/brand.blade.php": "comp:{{ $site->name }}",
 		siteDataPath: `{"name":"FromJson"}`,
 	}
 	res := compileOne(t, files, map[string]any{

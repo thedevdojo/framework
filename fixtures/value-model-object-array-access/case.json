@@ -1,13 +1,13 @@
 {
   "oracle": false,
   "entries": [
-    "resources/views/pages/collection.blade.html",
-    "resources/views/pages/site.blade.html",
-    "resources/views/pages/arrcoal.blade.html"
+    "resources/views/pages/collection.blade.php",
+    "resources/views/pages/site.blade.php",
+    "resources/views/pages/arrcoal.blade.php"
   ],
   "diagnostics": [
-    {"kind": "error", "construct": "object-as-array", "file": "resources/views/pages/collection.blade.html"},
-    {"kind": "error", "construct": "object-as-array", "file": "resources/views/pages/site.blade.html"},
-    {"kind": "error", "construct": "object-as-array", "file": "resources/views/pages/arrcoal.blade.html"}
+    {"kind": "error", "construct": "object-as-array", "file": "resources/views/pages/collection.blade.php"},
+    {"kind": "error", "construct": "object-as-array", "file": "resources/views/pages/site.blade.php"},
+    {"kind": "error", "construct": "object-as-array", "file": "resources/views/pages/arrcoal.blade.php"}
   ]
 }

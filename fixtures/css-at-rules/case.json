@@ -1,8 +1,8 @@
 {
-  "entries": ["resources/views/pages/index.blade.html"],
+  "entries": ["resources/views/pages/index.blade.php"],
   "diagnostics": [
-    {"kind": "app-tier", "construct": "@media", "file": "resources/views/pages/index.blade.html", "line": 6},
-    {"kind": "app-tier", "construct": "@keyframes", "file": "resources/views/pages/index.blade.html", "line": 9},
-    {"kind": "app-tier", "construct": "@handle", "file": "resources/views/pages/index.blade.html", "line": 16}
+    {"kind": "app-tier", "construct": "@media", "file": "resources/views/pages/index.blade.php", "line": 6},
+    {"kind": "app-tier", "construct": "@keyframes", "file": "resources/views/pages/index.blade.php", "line": 9},
+    {"kind": "app-tier", "construct": "@handle", "file": "resources/views/pages/index.blade.php", "line": 16}
   ]
 }

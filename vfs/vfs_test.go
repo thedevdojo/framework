@@ -8,11 +8,11 @@ import (
 
 func TestMemReadAndList(t *testing.T) {
 	fs := Mem{
-		"resources/views/pages/index.blade.html": "<h1>Hi</h1>",
-		"resources/views/pages/about.blade.html": "<h1>About</h1>",
-		"resources/data/site.json":               `{"name":"X"}`,
+		"resources/views/pages/index.blade.php": "<h1>Hi</h1>",
+		"resources/views/pages/about.blade.php": "<h1>About</h1>",
+		"resources/data/site.json":              `{"name":"X"}`,
 	}
-	b, ok := fs.Read("resources/views/pages/index.blade.html")
+	b, ok := fs.Read("resources/views/pages/index.blade.php")
 	if !ok || string(b) != "<h1>Hi</h1>" {
 		t.Fatalf("Read = %q, %v", b, ok)
 	}
@@ -21,8 +21,8 @@ func TestMemReadAndList(t *testing.T) {
 	}
 	got := fs.List("resources/views/pages/")
 	want := []string{
-		"resources/views/pages/about.blade.html",
-		"resources/views/pages/index.blade.html",
+		"resources/views/pages/about.blade.php",
+		"resources/views/pages/index.blade.php",
 	}
 	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("List = %v, want %v", got, want)
@@ -67,13 +67,13 @@ func TestDirListStaysInRoot(t *testing.T) {
 	if err := os.MkdirAll(sub, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(sub, "index.blade.html"), []byte("x"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(sub, "index.blade.php"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	d := Dir(root)
 	got := d.List("resources/views/pages/")
-	if len(got) != 1 || got[0] != "resources/views/pages/index.blade.html" {
-		t.Fatalf("List = %v; want [resources/views/pages/index.blade.html]", got)
+	if len(got) != 1 || got[0] != "resources/views/pages/index.blade.php" {
+		t.Fatalf("List = %v; want [resources/views/pages/index.blade.php]", got)
 	}
 	for _, prefix := range []string{"../", "../../"} {
 		if out := d.List(prefix); len(out) != 0 {
