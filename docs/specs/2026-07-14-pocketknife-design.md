@@ -16,7 +16,7 @@ module `github.com/thedevdojo/pocketknife`) containing:
 | Part | What it is |
 |---|---|
 | `blade/` | The Go engine: scanner, parser, renderer, expression evaluator for the Blade subset. Stdlib-only core. Never `eval`s, never panics on user input, byte-faithful to user HTML. |
-| `laravel/` | The `devdojo/pocketknife` Composer package: makes the same files render in real Laravel (`View::addExtension('blade.html', 'blade')`, data bindings, component paths, static-projection Vite). |
+| `laravel/` | The `devdojo/pocketknife` Composer package: makes the same files render in real Laravel — `.blade.php` is Laravel's native extension, so no `addExtension` glue is needed (data bindings, component paths, static-projection Vite). |
 | `fixtures/` | **The contract.** Language-agnostic conformance cases, each rendered by the Go engine *and* by real Blade, byte-diffed. |
 | `oracle/` | A minimal Laravel skeleton that consumes `laravel/` and runs the fixtures through real Blade in CI. Doubles as a local preview server for converted templates. |
 | `cmd/pocketknife/` | CLI: `compile` (JSON stdin/stdout embedding protocol), `lint`, `version`. |
@@ -69,13 +69,13 @@ my-site/
 └── resources/
     ├── views/
     │   ├── pages/
-    │   │   ├── index.blade.html          # → /            (Folio's routing convention)
-    │   │   └── about.blade.html          # → /about
+    │   │   ├── index.blade.php          # → /            (Folio's routing convention)
+    │   │   └── about.blade.php          # → /about
     │   └── components/
     │       ├── layouts/
-    │       │   └── main.blade.html       # <x-layouts.main> … {{ $slot }}
+    │       │   └── main.blade.php       # <x-layouts.main> … {{ $slot }}
     │       └── sections/
-    │           └── hero.blade.html       # <x-sections.hero heading="…"/>
+    │           └── hero.blade.php       # <x-sections.hero heading="…"/>
     ├── css/
     │   └── site.css                      # Tailwind v4 entry (@import "tailwindcss")
     ├── js/
@@ -88,15 +88,23 @@ my-site/
             └── post/*.md                 # markdown items → $post collection
 ```
 
-**File extension: `.blade.html`** (the Statamic `.antlers.html` pattern). It carries
-both truths — Blade syntax, HTML document. HTML highlighting in Monaco and GitHub, no
-PHP-execution footgun on user content in exports, and real Laravel compiles it via one
-line in the package: `View::addExtension('blade.html', 'blade')`. Eject-to-plain-Laravel
-can mechanically rename to `.blade.php` for users who want zero-dependency views.
+**File extension: `.blade.php`** — Laravel's native Blade extension.
+> **ProjectBlade (2026-07-16):** the extension was renamed from the original
+> `.blade.html` to `.blade.php`. A **naming change only** — the dialect subset,
+> the app-tier boundary, routing, and the output-name mapping are all unchanged.
+> The payoff is that `.blade.php` renders in real Laravel with **zero
+> configuration**: the package's old `View::addExtension('blade.html', 'blade')`
+> line is **deleted**, and a file copied straight out of a Pocketknife site into
+> a Laravel app's `resources/views/` just works. Highlighting is decoupled from
+> the extension (the editor maps `.blade.php` → HTML highlighting), and the
+> safety footgun the old `.html` suffix guarded against never materialised in the
+> real flows: the Go engine never executes PHP, exports ship compiled **HTML**
+> (not source), and in a Laravel app these live in `resources/` — never
+> web-served.
 
 **Routing** (same rules as the classic engine; the app-tier Folio mount must match):
-`/` → `pages/index.blade.html`; `/about` → `pages/about.blade.html`, else
-`pages/about/index.blade.html` (flat wins); 404 → `pages/404.blade.html` if present.
+`/` → `pages/index.blade.php`; `/about` → `pages/about.blade.php`, else
+`pages/about/index.blade.php` (flat wins); 404 → `pages/404.blade.php` if present.
 v1 exercises routing only through explicit protocol `entries` — hosts pass the entry
 list, the engine does not route automatically. The table above is **pinned** in two
 places so the later Folio-mount phase can't drift from it: `protocol.ResolveURL(fs, url)`
@@ -174,7 +182,7 @@ what the oracle exists to police.
 
 - `<x-sections.hero heading="…"/>` — self-closing or paired. Dots are directory
   separators under `resources/views/components/`; **exact file match only**
-  (`sections/hero.blade.html`; index-file resolution à la `hero/index.blade.php` is not
+  (`sections/hero.blade.php`; index-file resolution à la `hero/index.blade.php` is not
   in v1 — lint reports it app-tier).
 - `@props(['heading' => 'Default headline'])` — a literal array with scalar defaults.
   Declared props become variables; **defaults live in the template** via `@props` (and
@@ -189,7 +197,7 @@ what the oracle exists to police.
   **`pocketknife lint` warns on undeclared attributes** to catch typos: a `warning`-kind
   diagnostic per **static** attribute whose (camelCased) name is not declared in the
   target component's `@props`, e.g.
-  `index.blade.html:1:31 [warning] undeclared attribute "subtitle" on <x-sections.hero> (not in @props)`.
+  `index.blade.php:1:31 [warning] undeclared attribute "subtitle" on <x-sections.hero> (not in @props)`.
   Bound attributes (`:rows="…"`) are exempt (they are the legitimate data-pass), as is a
   static attr that collides with a bound attr of the same name on the same instance. A
   component with no `@props` declares nothing, so every static attr on it is undeclared;
@@ -357,7 +365,9 @@ Conventions carried over from sitebuilder, deliberately:
 
 The Laravel-side half of the contract. Its service provider:
 
-1. `View::addExtension('blade.html', 'blade')`
+1. Registers nothing for the extension — `.blade.php` is Laravel's native Blade
+   extension (ProjectBlade, 2026-07-16; the old `View::addExtension('blade.html',
+   'blade')` line is deleted).
 2. Registers the site's view roots: `resources/views` for pages/views, anonymous
    component path for `resources/views/components`. **View precedence — DECIDED: the host
    app's views win.** The provider *appends* the site root via `View::addLocation`, and
@@ -393,9 +403,9 @@ sitebuilder's protocol so host wrappers transfer directly:
 ```jsonc
 // stdin
 {
-  "files":   { "resources/views/pages/index.blade.html": "…", "resources/data/site.json": "…" },
+  "files":   { "resources/views/pages/index.blade.php": "…", "resources/data/site.json": "…" },
   "data":    { "site_name": "My Site" },        // optional; merged over $site
-  "entries": ["resources/views/pages/index.blade.html"],   // omitted → all pages
+  "entries": ["resources/views/pages/index.blade.php"],   // omitted → all pages
   "options": { "url": "relative" }
 }
 
@@ -403,7 +413,7 @@ sitebuilder's protocol so host wrappers transfer directly:
 {
   "engine":      "0.1.0",
   "files":       { "index.html": "<rendered>" },
-  "deps":        { "index.html": ["resources/views/components/layouts/main.blade.html"] },
+  "deps":        { "index.html": ["resources/views/components/layouts/main.blade.php"] },
   "diagnostics": [ { "file": "…", "line": 12, "col": 3, "kind": "app-tier", "construct": "@auth", "message": "…" } ]
 }
 ```
@@ -495,7 +505,7 @@ v1 substitute for a dev-server CLI.
 |---|---|---|
 | Where the engine lives | Self-contained `~/devdojo/pocketknife`; sitebuilder untouched | Platform only consumes the compile protocol, so duplication is ~small plumbing; no semantic contract exists between dialects; the legacy engine stays frozen and retires with the classic grammar |
 | Go + PHP in one repo | Yes — engine, package, fixtures, oracle together | The same-grammar pair (Go vs real Blade) and its conformance suite version atomically; cross-repo contract drift becomes structurally impossible |
-| File extension | `.blade.html` | Blade syntax + HTML document (the Antlers pattern); Monaco/GitHub highlighting; no PHP-execution footgun; one-line `addExtension` on the Laravel side |
+| File extension | `.blade.php` (ProjectBlade, 2026-07-16; was `.blade.html`) | Laravel's native Blade extension — renders with **zero config** (no `addExtension`), so a file copies straight into a Laravel app; highlighting is decoupled (editor maps `.blade.php` → HTML); the old `.html` footgun never materialised (engine never executes PHP, exports ship compiled HTML, views live in `resources/`) |
 | Folder structure | Mirror Laravel (`resources/views/pages`, `components/layouts`, `components/sections`) | Pages align with Folio's convention; layouts become real component layouts; toggle-to-app moves zero files |
 | Undefined variables | Compile-time error | Real Blade throws at runtime; silent empties would be invisible drift; `??` is the sanctioned default pattern |
 | Named slots / `$attributes` | Named slots in; `$attributes` out | Layouts need named slots (Studio's export uses them); dropping undeclared attrs is output-equivalent to real Blade when `$attributes` is never echoed |

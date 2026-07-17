@@ -151,7 +151,7 @@ via `pocketknife.serve` (env `POCKETKNIFE_SERVE`, default false) + `site_root`:
 when no app route matched — app routes always win) whose body is `SiteServer` →
 `{site_root}/public/` asset (mime-typed, contained, no dotfiles/listings) → page
 via `PageResolver` (mirrors `protocol.ResolveURL` row-for-row) rendered as real
-Blade at 200 → `pages/404.blade.html` at 404 → `abort(404)`. GET/HEAD only (POST
+Blade at 200 → `pages/404.blade.php` at 404 → `abort(404)`. GET/HEAD only (POST
 to a page URL → Laravel's standard 405). New: `laravel/src/{PageResolver,
 SiteServer,AssetMime}.php`, `laravel/tests/PageResolverTest.php`, the `serve`
 config key. Proof: `oracle/tests/Feature/AppTierServingTest.php` (HTTP byte-parity,

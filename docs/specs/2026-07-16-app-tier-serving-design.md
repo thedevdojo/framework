@@ -24,14 +24,14 @@ devdojo/sites (a later phase) = own the tree** (sync/tokens/eject).
 
 - **Routing table = the engine's, exactly** (the contract pinned by
   `protocol.ResolveURL` + the `routing-table` fixture): `/` → `pages/index`,
-  `/about` → `pages/about.blade.html` else `pages/about/index.blade.html`
+  `/about` → `pages/about.blade.php` else `pages/about/index.blade.php`
   (flat wins), nested paths, traversal-guarded. A PHP `PageResolver` in the
   package mirrors the table; its tests assert the same rows the Go side pins.
 - **Rendering**: the resolved page renders as a real Blade view with the
   package's existing bindings ($site, collections, content, @vite static
   projection when no build exists). No editor markers, no diagnostics — this
   is real Laravel; real Blade errors behave like any app error.
-- **404**: unresolved path + site has `pages/404.blade.html` → render it with
+- **404**: unresolved path + site has `pages/404.blade.php` → render it with
   status 404; else fall through to the app's own 404.
 - **Methods**: GET/HEAD only; other verbs fall through untouched.
 - **Site public assets**: when the request path matches a file under
@@ -74,7 +74,7 @@ Shipped in the `devdojo/pocketknife` Laravel package (`laravel/`):
   (`laravel/src/AssetMime.php`) — the fallback body: (a) `{site_root}/public/`
   file (realpath-contained, no dotfiles, no directory listings, mime-typed via a
   package-local port of devdojo's `assetMimeType`), (b) page → real Blade at 200,
-  (c) `pages/404.blade.html` → 404, (d) `abort(404)`. GET/HEAD only.
+  (c) `pages/404.blade.php` → 404, (d) `abort(404)`. GET/HEAD only.
 - **Provider wiring** — `PocketknifeServiceProvider::boot()` registers a
   `Route::fallback` only when `config('pocketknife.serve')` (env
   `POCKETKNIFE_SERVE`, default false) AND `site_root` are set. `serve` is the one

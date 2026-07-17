@@ -1,5 +1,13 @@
 # Pocketknife v1 Implementation Plan
 
+> **Superseded note (ProjectBlade, 2026-07-16):** the template extension was
+> renamed `.blade.html` → `.blade.php` (a naming change only). This plan's file
+> paths have been updated to `.blade.php`; the one behavioural consequence is
+> that the package **no longer** registers `View::addExtension('blade.html',
+> 'blade')` — `.blade.php` is Laravel's native Blade extension and renders with
+> zero config. Where this plan describes that `addExtension` step below, read it
+> as the original v1 design, since removed.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the Pocketknife v1 engine per `docs/specs/2026-07-14-pocketknife-design.md`: a Go static renderer for a closed Blade subset, the `devdojo/pocketknife` Laravel package, a dual-oracle conformance suite, the compile/lint CLI, and 2–3 hand-converted templates.
@@ -16,7 +24,7 @@
 - **Every node/token/diagnostic carries file/line/col** (1-based line and col).
 - **Fixture-first:** a behavior without a fixture doesn't exist. Fixture cases must pass BOTH renderers byte-identically unless `case.json` sets `"oracle": false`.
 - **Diagnostics** use `kind: "error"` or `kind: "app-tier"` exactly (§3.7 of spec).
-- **File extension:** views are `*.blade.html`. Structure: `resources/views/pages`, `resources/views/components`, `resources/data/{site.json,collections,content}`, `public/`.
+- **File extension:** views are `*.blade.php`. Structure: `resources/views/pages`, `resources/views/components`, `resources/data/{site.json,collections,content}`, `public/`.
 - Repo: `~/devdojo/pocketknife`, module `github.com/thedevdojo/pocketknife`, branch `main`. Commit after every green task step-pair; `gofmt`/`go vet` clean before each commit.
 - Templates work happens in `~/devdojo/templates` on branch `blade-dev`.
 
@@ -59,12 +67,12 @@ pocketknife/
 ### Task 1: Repo scaffold, vfs, fixture harness
 
 **Files:**
-- Create: `go.mod`, `.gitignore`, `Makefile`, `vfs/vfs.go`, `vfs/vfs_test.go`, `fixtures/harness_test.go`, `fixtures/passthrough/input/resources/views/pages/index.blade.html`, `fixtures/passthrough/expected/index.html`, `fixtures/passthrough/case.json`
+- Create: `go.mod`, `.gitignore`, `Makefile`, `vfs/vfs.go`, `vfs/vfs_test.go`, `fixtures/harness_test.go`, `fixtures/passthrough/input/resources/views/pages/index.blade.php`, `fixtures/passthrough/expected/index.html`, `fixtures/passthrough/case.json`
 
 **Interfaces (later tasks rely on exactly these):**
 - `vfs.FS` interface: `Read(path string) ([]byte, bool)`; `List(prefix string) []string` (sorted, forward-slash paths relative to site root)
 - `vfs.Mem map[string]string` and `vfs.Dir string` both implement `FS`
-- Fixture `case.json` schema: `{"entries": ["resources/views/pages/index.blade.html"], "data": {}, "oracle": true, "diagnostics": [{"kind":"...","construct":"...","file":"...","line":1}]}` — all keys optional except `entries`; `oracle` defaults to `true`
+- Fixture `case.json` schema: `{"entries": ["resources/views/pages/index.blade.php"], "data": {}, "oracle": true, "diagnostics": [{"kind":"...","construct":"...","file":"...","line":1}]}` — all keys optional except `entries`; `oracle` defaults to `true`
 - The harness calls `render.Compile(fs, entries, render.Options{})` — Task 6 provides it; until then the harness build-tags itself out (see Step 4)
 
 - [ ] **Step 1: Scaffold module**
@@ -95,11 +103,11 @@ import "testing"
 
 func TestMemReadAndList(t *testing.T) {
 	fs := Mem{
-		"resources/views/pages/index.blade.html": "<h1>Hi</h1>",
-		"resources/views/pages/about.blade.html": "<h1>About</h1>",
+		"resources/views/pages/index.blade.php": "<h1>Hi</h1>",
+		"resources/views/pages/about.blade.php": "<h1>About</h1>",
 		"resources/data/site.json":               `{"name":"X"}`,
 	}
-	b, ok := fs.Read("resources/views/pages/index.blade.html")
+	b, ok := fs.Read("resources/views/pages/index.blade.php")
 	if !ok || string(b) != "<h1>Hi</h1>" {
 		t.Fatalf("Read = %q, %v", b, ok)
 	}
@@ -108,8 +116,8 @@ func TestMemReadAndList(t *testing.T) {
 	}
 	got := fs.List("resources/views/pages/")
 	want := []string{
-		"resources/views/pages/about.blade.html",
-		"resources/views/pages/index.blade.html",
+		"resources/views/pages/about.blade.php",
+		"resources/views/pages/index.blade.php",
 	}
 	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("List = %v, want %v", got, want)
@@ -187,7 +195,7 @@ Run: `go test ./vfs/` → PASS
 
 - [ ] **Step 4: Fixture harness + first fixture**
 
-`fixtures/passthrough/input/resources/views/pages/index.blade.html` (plain HTML — must pass through byte-identical, including the entity and the weird spacing):
+`fixtures/passthrough/input/resources/views/pages/index.blade.php` (plain HTML — must pass through byte-identical, including the entity and the weird spacing):
 
 ```html
 <!DOCTYPE html>
@@ -200,7 +208,7 @@ Run: `go test ./vfs/` → PASS
 ```
 
 `fixtures/passthrough/expected/index.html`: identical bytes to the input file.
-`fixtures/passthrough/case.json`: `{"entries": ["resources/views/pages/index.blade.html"]}`
+`fixtures/passthrough/case.json`: `{"entries": ["resources/views/pages/index.blade.php"]}`
 
 `fixtures/harness_test.go` — note the build tag: it compiles only once Task 6 lands `render.Compile`; remove the tag in Task 6, Step 1.
 
@@ -316,7 +324,7 @@ The oracle exists from here on so every later fixture is verified against real B
 
 **Interfaces:**
 - Consumes: fixture layout + `case.json` from Task 1
-- Produces: `php artisan pocketknife:conformance <fixtures-dir>` — for each case dir with `"oracle" != false`: points the view finder at `input/resources/views`, renders each entry through real Blade, byte-diffs against `expected/**`, exits non-zero listing mismatched files. Also `pocketknife:render <input-dir> <entry>` printing rendered output (the manual-probe tool). The provider registers `View::addExtension('blade.html', 'blade')` — the package's first real behavior.
+- Produces: `php artisan pocketknife:conformance <fixtures-dir>` — for each case dir with `"oracle" != false`: points the view finder at `input/resources/views`, renders each entry through real Blade, byte-diffs against `expected/**`, exits non-zero listing mismatched files. Also `pocketknife:render <input-dir> <entry>` printing rendered output (the manual-probe tool). *(Original v1 design: the provider registered `View::addExtension('blade.html', 'blade')`; ProjectBlade removed that line — `.blade.php` is native.)*
 
 - [ ] **Step 1: Package skeleton**
 
@@ -372,9 +380,8 @@ class PocketknifeServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // The one line that makes *.blade.html real Blade.
-        View::addExtension('blade.html', 'blade');
-
+        // (Original v1 registered View::addExtension('blade.html', 'blade') here.
+        // ProjectBlade removed it — .blade.php is Laravel's native extension.)
         if ($root = config('pocketknife.site_root')) {
             View::addLocation($root.'/resources/views');
             Blade::anonymousComponentPath($root.'/resources/views/components');
@@ -426,7 +433,7 @@ class PocketknifeConformance extends Command
                 continue;
             }
             foreach ($case['entries'] as $entry) {
-                // entry: resources/views/pages/index.blade.html → view name pages.index, output index.html
+                // entry: resources/views/pages/index.blade.php → view name pages.index, output index.html
                 $view = str_replace('/', '.', preg_replace('#^resources/views/(.+)\.blade\.html$#', '$1', $entry));
                 $out = preg_replace('#^pages\.#', '', $view);
                 $outFile = str_replace('.', '/', $out).'.html';
@@ -474,7 +481,7 @@ Expected: `ok passthrough :: index.html`, exit 0. (Data bindings like `$site` co
 - [ ] **Step 5: Commit**
 
 ```bash
-git add -A && git commit -m "feat: laravel package (blade.html extension) + oracle conformance runner"
+git add -A && git commit -m "feat: laravel package (blade.php extension) + oracle conformance runner"
 ```
 
 ---
@@ -577,7 +584,7 @@ func TestScanGolden(t *testing.T) {
 		}},
 	}
 	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) { assertTokens(t, Scan("t.blade.html", []byte(c.src)), c.want) })
+		t.Run(c.name, func(t *testing.T) { assertTokens(t, Scan("t.blade.php", []byte(c.src)), c.want) })
 	}
 }
 ```
@@ -639,7 +646,7 @@ func FuzzScan(f *testing.F) {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, src string) {
-		toks := Scan("f.blade.html", []byte(src)) // must not panic
+		toks := Scan("f.blade.php", []byte(src)) // must not panic
 		// Reconstruction invariant: total consumed bytes == len(src) is NOT
 		// guaranteed (escapes rewrite), but token positions must be ordered.
 		last := Pos{Line: 1, Col: 0}
@@ -844,7 +851,7 @@ func Escape(s string) string      // Laravel e(): & < > " ' → entities; invali
 func Stringify(v expr.Value) (string, error) // PHP echo: nil/false → "", true → "1", float shortest round-trip; error for []Value/map
 ```
 
-Output naming: `resources/views/pages/about.blade.html` → `about.html`; `pages/index.blade.html` → `index.html`; nested `pages/docs/intro.blade.html` → `docs/intro.html`.
+Output naming: `resources/views/pages/about.blade.php` → `about.html`; `pages/index.blade.php` → `index.html`; nested `pages/docs/intro.blade.php` → `docs/intro.html`.
 
 **The newline rule (empirical, this task settles it):** PHP consumes one `\n` immediately after `?>`. Blade compiles both directives and echoes to `<?php … ?>`, so the assumption is: after a Directive construct AND after an Echo/RawEcho, one immediately-following `\n` is dropped; `{{-- comments --}}` are stripped pre-compile so they do NOT eat newlines. **Do not trust this paragraph** — Step 4 probes the oracle first and the fixture encodes whatever real Blade actually does.
 
@@ -888,7 +895,7 @@ Run: `go test ./blade/render/ ./fixtures/` → render green; passthrough fixture
 ```bash
 mkdir -p /tmp/probe/resources/views/pages
 printf 'A{{ $x }}\nB\n@if (true)\nC\n@endif\nD{{-- gone --}}\nE\n' \
-  > /tmp/probe/resources/views/pages/index.blade.html
+  > /tmp/probe/resources/views/pages/index.blade.php
 cd oracle && php artisan pocketknife:render /tmp/probe pages.index x=1   # extend render cmd: k=v pairs → view data
 ```
 
@@ -947,7 +954,7 @@ Run: `go test ./fixtures/` and `php artisan pocketknife:conformance ../fixtures`
 
 **Interfaces:**
 - Consumes: `ast.Component/Props`, vfs, expr
-- Produces: resolution `sections.hero` → `resources/views/components/sections/hero.blade.html` (exact match only); `Deps` gains every resolved component file; recursion cap **16** → `Diagnostic{Kind: "error", Construct: "component-recursion"}`; missing → output marker `<!-- pocketknife:missing component "sections.hero" -->` **byte-exact** + `Diagnostic{Kind: "error", Construct: "component-missing"}`.
+- Produces: resolution `sections.hero` → `resources/views/components/sections/hero.blade.php` (exact match only); `Deps` gains every resolved component file; recursion cap **16** → `Diagnostic{Kind: "error", Construct: "component-recursion"}`; missing → output marker `<!-- pocketknife:missing component "sections.hero" -->` **byte-exact** + `Diagnostic{Kind: "error", Construct: "component-missing"}`.
 
 Component scope rules (each is a test):
 1. `@props(['heading' => 'Default'])` — parse via a dedicated small parser over the literal-array grammar (`['k' => scalar, 'bare']`); bare entries have no default. Declared props become variables; static attr strings override defaults; bound attrs (`:plans="$plans"`) evaluate in the PARENT scope and pass values through.
@@ -960,7 +967,7 @@ Component scope rules (each is a test):
 
 - [ ] **Step 2: Fixtures.** `layout-slots` is the keystone — a real page:
 
-`fixtures/layout-slots/input/resources/views/pages/index.blade.html`:
+`fixtures/layout-slots/input/resources/views/pages/index.blade.php`:
 ```html
 <x-layouts.main title="Home">
 <x-slot:head><meta name="x" content="y"></x-slot>
@@ -968,7 +975,7 @@ Component scope rules (each is a test):
 </x-layouts.main>
 ```
 
-`.../components/layouts/main.blade.html`:
+`.../components/layouts/main.blade.php`:
 ```html
 @props(['title' => 'Untitled'])
 <!DOCTYPE html>
@@ -978,7 +985,7 @@ Component scope rules (each is a test):
 </html>
 ```
 
-`.../components/sections/hero.blade.html`:
+`.../components/sections/hero.blade.php`:
 ```html
 @props(['heading' => 'Hello'])
 <section><h1>{{ $heading }}</h1></section>
@@ -1074,7 +1081,7 @@ page: `@foreach ($plans as $plan)<li>{{ $plan->name }}: {{ $plan->price }}</li>@
 type Input struct {
 	Files   map[string]string `json:"files"`
 	Data    map[string]any    `json:"data,omitempty"`
-	Entries []string          `json:"entries,omitempty"` // empty → every resources/views/pages/**.blade.html
+	Entries []string          `json:"entries,omitempty"` // empty → every resources/views/pages/**.blade.php
 	Options struct{ URL string `json:"url,omitempty"` } `json:"options"`
 }
 type Output struct {
@@ -1138,8 +1145,8 @@ jobs:
 
 | Classic | Blade dialect |
 |---|---|
-| `src/views/pages/x.html` | `resources/views/pages/x.blade.html` |
-| `src/views/layouts/main.html` + `{slot}` | `resources/views/components/layouts/main.blade.html` + `{{ $slot }}` + `@props([...])` for its attrs |
+| `src/views/pages/x.html` | `resources/views/pages/x.blade.php` |
+| `src/views/layouts/main.html` + `{slot}` | `resources/views/components/layouts/main.blade.php` + `{{ $slot }}` + `@props([...])` for its attrs |
 | `<layout src="main.html" title="X">…</layout>` | `<x-layouts.main title="X">…</x-layouts.main>` |
 | `<include src="hero.html" heading="Y">` / `components/**` | `<x-hero heading="Y"/>` under `resources/views/components/`; add `@props(['heading' => '<default from companion yml>'])` |
 | `<ForEach collection="plans" as="plan">…{plan.name}…</ForEach>` | `@foreach ($plans as $plan)…{{ $plan->name }}…@endforeach`; move `count="3"` → `@break($loop->iteration == 3)`; `orderBy` → re-order the JSON file |

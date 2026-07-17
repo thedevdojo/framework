@@ -14,10 +14,10 @@ example/
     │   ├── site.json              # → $site
     │   └── collections/features.json  # → $features
     └── views/
-        ├── pages/index.blade.html
+        ├── pages/index.blade.php
         └── components/
-            ├── layouts/main.blade.html
-            └── sections/feature-list.blade.html
+            ├── layouts/main.blade.php
+            └── sections/feature-list.blade.php
 ```
 
 ## 1. Build the binary
@@ -49,8 +49,8 @@ stdin (`{"files": {path: content}}`), one on stdout (`files`, `deps`,
 engine — no disk, no eval, just bytes in and bytes out:
 
 ```bash
-jq -n --rawfile page example/resources/views/pages/index.blade.html \
-  '{files: {"resources/views/pages/index.blade.html": $page}}' \
+jq -n --rawfile page example/resources/views/pages/index.blade.php \
+  '{files: {"resources/views/pages/index.blade.php": $page}}' \
   | pocketknife compile | jq -r '.files["index.html"]'
 ```
 
