@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/thedevdojo/pocketknife/blade/render"
@@ -54,10 +53,28 @@ func TestFixtures(t *testing.T) {
 				}
 				return nil
 			})
-			// Expected diagnostics: match on kind+construct+file+line.
+			// Expected diagnostics: the EXACT set, order-insensitive. Each
+			// expected entry claims one actual diagnostic (matching on kind,
+			// plus construct/file/line/col when declared); an actual
+			// diagnostic no entry claims fails the fixture, so stray or
+			// duplicate diagnostics cannot accumulate unseen.
+			claimed := make([]bool, len(res.Diagnostics))
 			for _, wd := range spec.Diagnostics {
-				if !hasDiag(res.Diagnostics, wd) {
+				found := false
+				for i, d := range res.Diagnostics {
+					if !claimed[i] && diagMatches(d, wd) {
+						claimed[i] = true
+						found = true
+						break
+					}
+				}
+				if !found {
 					t.Errorf("expected diagnostic %v not found in %v", wd, res.Diagnostics)
+				}
+			}
+			for i, d := range res.Diagnostics {
+				if !claimed[i] {
+					t.Errorf("undeclared diagnostic %+v (declare it in case.json)", d)
 				}
 			}
 		})
@@ -72,16 +89,13 @@ func keys(m map[string]string) []string {
 	return out
 }
 
-func hasDiag(ds []render.Diagnostic, want map[string]any) bool {
-	for _, d := range ds {
-		if string(d.Kind) == want["kind"] &&
-			(want["construct"] == nil || d.Construct == want["construct"]) &&
-			(want["file"] == nil || d.File == want["file"]) &&
-			(want["line"] == nil || float64(d.Line) == want["line"]) {
-			return true
-		}
-	}
-	return false
+// diagMatches reports whether one actual diagnostic satisfies one expected
+// entry: kind always compares; construct/file/line/col compare only when the
+// entry declares them.
+func diagMatches(d render.Diagnostic, want map[string]any) bool {
+	return string(d.Kind) == want["kind"] &&
+		(want["construct"] == nil || d.Construct == want["construct"]) &&
+		(want["file"] == nil || d.File == want["file"]) &&
+		(want["line"] == nil || float64(d.Line) == want["line"]) &&
+		(want["col"] == nil || float64(d.Col) == want["col"])
 }
-
-var _ = strings.TrimSpace // keep imports honest until fleshed out

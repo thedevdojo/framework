@@ -170,8 +170,11 @@ sync/publish/tokens remain `devdojo/sites`' job (a later phase).
   the compile-time analogue), so duplicate detection and last-wins run on the
   binding name in document order; pinned by the oracle-checked `slot-dashed-names`
   fixture.
-- **Fixture harness matches diagnostics by presence, not exact set** — stray diags
-  could accumulate unseen in oracle-exempt fixtures.
+- ~~**Fixture harness matches diagnostics by presence, not exact set**~~ — RESOLVED
+  (2026-07-18). The harness now asserts the EXACT set, order-insensitive: each
+  declared diagnostic claims one actual (matching kind + construct/file/line/col
+  when declared) and any unclaimed actual diagnostic fails the fixture. Every
+  existing fixture already declared its full set — zero expectation fixes needed.
 - ~~**Invalid-UTF-8 escaping unverified vs real `e()`**~~ — RESOLVED (2026-07-15,
   S4). Oracle probes found a real divergence: Go's per-byte `utf8.DecodeRune` loop
   emitted one U+FFFD **per byte**, but PHP's `htmlspecialchars(ENT_SUBSTITUTE)`
