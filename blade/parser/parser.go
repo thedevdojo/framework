@@ -27,12 +27,16 @@ import (
 )
 
 // Diag is a recoverable parse error. It mirrors the scanner's position model
-// (1-based line/col in bytes).
+// (1-based line/col in bytes). Construct names the specific construct the
+// error is about — "@if", "@foreach", "@endif", a component tag ("<x-hero>"),
+// a slot ("<x-slot:head>") — so downstream diagnostics can say more than a
+// generic "parse"; it is "" only if a diag site has nothing more specific.
 type Diag struct {
-	File    string
-	Line    int
-	Col     int
-	Message string
+	File      string
+	Line      int
+	Col       int
+	Construct string
+	Message   string
 }
 
 // Parse builds the AST for tokens, which must come from scanner.Scan(file, …).
@@ -108,8 +112,8 @@ func (p *parser) push(f frame) { p.frames = append(p.frames, f) }
 
 func (p *parser) pop() { p.frames = p.frames[:len(p.frames)-1] }
 
-func (p *parser) diag(pos scanner.Pos, msg string) {
-	p.diags = append(p.diags, Diag{File: pos.File, Line: pos.Line, Col: pos.Col, Message: msg})
+func (p *parser) diag(pos scanner.Pos, construct, msg string) {
+	p.diags = append(p.diags, Diag{File: pos.File, Line: pos.Line, Col: pos.Col, Construct: construct, Message: msg})
 }
 
 // isBoundary reports whether tok closes/continues the current construct OR any
@@ -161,13 +165,13 @@ func (p *parser) parseNode(ctx bodyCtx) []ast.Node {
 	case scanner.TagOpen:
 		return one(p.parseComponent(ctx))
 	case scanner.TagClose:
-		p.diag(tok.Pos, "stray </x-"+tok.Name+"> with no open component")
+		p.diag(tok.Pos, "<x-"+tok.Name+">", "stray </x-"+tok.Name+"> with no open component")
 		p.next()
 		return nil
 	case scanner.SlotOpen:
 		return p.parseSlot(ctx)
 	case scanner.SlotClose:
-		p.diag(tok.Pos, "stray </x-slot> outside a component body")
+		p.diag(tok.Pos, "<x-slot>", "stray </x-slot> outside a component body")
 		p.next()
 		return nil
 	default:
@@ -186,7 +190,7 @@ func (p *parser) parseDirective(ctx bodyCtx) []ast.Node {
 	case "break", "continue":
 		p.next()
 		if !ctx.inForeach {
-			p.diag(tok.Pos, "@"+tok.Name+" outside a @foreach")
+			p.diag(tok.Pos, "@"+tok.Name, "@"+tok.Name+" outside a @foreach")
 			return nil
 		}
 		return one(&ast.LoopJump{Cond: tok.Text, Continue: tok.Name == "continue", P: tok.Pos})
@@ -199,7 +203,7 @@ func (p *parser) parseDirective(ctx bodyCtx) []ast.Node {
 	case "endif", "elseif", "else", "endforeach":
 		// Reaching here means no open construct wants this closer.
 		p.next()
-		p.diag(tok.Pos, "stray @"+tok.Name+" with no matching open construct")
+		p.diag(tok.Pos, "@"+tok.Name, "stray @"+tok.Name+" with no matching open construct")
 		return nil
 	default:
 		// Unknown directive: the renderer writes Src verbatim and classifies it
@@ -225,7 +229,7 @@ func (p *parser) parseIf(ctx bodyCtx) ast.Node {
 	inElse := false
 	for {
 		if p.eof() {
-			p.diag(open.Pos, "unclosed @if")
+			p.diag(open.Pos, "@if", "unclosed @if")
 			return node
 		}
 		tok := p.peek()
@@ -257,7 +261,7 @@ func (p *parser) parseIf(ctx bodyCtx) ast.Node {
 		}
 		// An ancestor's closer (or a stray @else/@elseif we won't accept):
 		// this @if is unclosed; unwind without consuming.
-		p.diag(open.Pos, "unclosed @if")
+		p.diag(open.Pos, "@if", "unclosed @if")
 		return node
 	}
 }
@@ -276,7 +280,7 @@ func (p *parser) parseForeach(ctx bodyCtx) []ast.Node {
 	if !p.eof() && p.peek().Kind == scanner.Directive && p.peek().Name == "endforeach" {
 		p.next()
 	} else {
-		p.diag(open.Pos, "unclosed @foreach")
+		p.diag(open.Pos, "@foreach", "unclosed @foreach")
 	}
 
 	if !argsOK {
@@ -307,7 +311,7 @@ func (p *parser) parseComponent(ctx bodyCtx) ast.Node {
 	if !p.eof() && p.peek().Kind == scanner.TagClose && p.peek().Name == open.Name {
 		p.next()
 	} else {
-		p.diag(open.Pos, "unclosed <x-"+open.Name+">")
+		p.diag(open.Pos, "<x-"+open.Name+">", "unclosed <x-"+open.Name+">")
 	}
 	return comp
 }
@@ -318,7 +322,7 @@ func (p *parser) parseComponent(ctx bodyCtx) ast.Node {
 func (p *parser) parseSlot(ctx bodyCtx) []ast.Node {
 	tok := p.peek()
 	if ctx.component == nil {
-		p.diag(tok.Pos, "<x-slot:"+tok.Name+"> is only valid directly inside a component body")
+		p.diag(tok.Pos, "<x-slot:"+tok.Name+">", "<x-slot:"+tok.Name+"> is only valid directly inside a component body")
 		p.next()
 		return nil
 	}
@@ -338,13 +342,13 @@ func (p *parser) parseNamedSlot(ctx bodyCtx) {
 		if !p.eof() && p.peek().Kind == scanner.SlotClose {
 			p.next()
 		} else {
-			p.diag(open.Pos, "unclosed <x-slot:"+name+">")
+			p.diag(open.Pos, "<x-slot:"+name+">", "unclosed <x-slot:"+name+">")
 		}
 	}
 
 	key := slotBindingName(name)
 	if _, dup := ctx.component.Slots[key]; dup {
-		p.diag(open.Pos, "duplicate slot \""+name+"\"; last one wins")
+		p.diag(open.Pos, "<x-slot:"+name+">", "duplicate slot \""+name+"\"; last one wins")
 	}
 	ctx.component.Slots[key] = body // last one wins
 }
@@ -414,12 +418,12 @@ var reLoopVar = regexp.MustCompile(`^\$[a-zA-Z_][a-zA-Z0-9_]*$`)
 func (p *parser) parseForeachArgs(open scanner.Token, node *ast.Foreach) bool {
 	left, right, found := splitLastAs(open.Text)
 	if !found {
-		p.diag(open.Pos, `malformed @foreach: expected "<expr> as $item"`)
+		p.diag(open.Pos, "@foreach", `malformed @foreach: expected "<expr> as $item"`)
 		return false
 	}
 	items := strings.TrimSpace(left)
 	if items == "" {
-		p.diag(open.Pos, "malformed @foreach: empty loop expression")
+		p.diag(open.Pos, "@foreach", "malformed @foreach: empty loop expression")
 		return false
 	}
 
@@ -428,7 +432,7 @@ func (p *parser) parseForeachArgs(open scanner.Token, node *ast.Foreach) bool {
 		key := strings.TrimSpace(keyRaw)
 		val := strings.TrimSpace(valRaw)
 		if !reLoopVar.MatchString(key) || !reLoopVar.MatchString(val) {
-			p.diag(open.Pos, "malformed @foreach: invalid loop variable(s)")
+			p.diag(open.Pos, "@foreach", "malformed @foreach: invalid loop variable(s)")
 			return false
 		}
 		node.KeyVar = key
@@ -436,7 +440,7 @@ func (p *parser) parseForeachArgs(open scanner.Token, node *ast.Foreach) bool {
 	} else {
 		val := strings.TrimSpace(right)
 		if !reLoopVar.MatchString(val) {
-			p.diag(open.Pos, "malformed @foreach: invalid loop variable")
+			p.diag(open.Pos, "@foreach", "malformed @foreach: invalid loop variable")
 			return false
 		}
 		node.ValVar = val

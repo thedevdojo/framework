@@ -3,6 +3,7 @@ package render
 import (
 	"testing"
 
+	"github.com/thedevdojo/pocketknife/blade/parser"
 	"github.com/thedevdojo/pocketknife/vfs"
 )
 
@@ -177,7 +178,8 @@ func TestAttributesDefinedNotSpecialCased(t *testing.T) {
 // --- parse-diag folding ------------------------------------------------------
 
 // TestParseDiagsFoldedPage: a recoverable parser.Diag from the PAGE file (a
-// stray @endif) folds into a Diagnostic{Kind: error, Construct: "parse"} with
+// stray @endif) folds into a Diagnostic{Kind: error, Construct: "@endif"} —
+// the parser's specific construct, not the generic "parse" fallback — with
 // File/Line/Col/Message carried over, and rendering still proceeds
 // best-effort around it.
 func TestParseDiagsFoldedPage(t *testing.T) {
@@ -195,8 +197,8 @@ func TestParseDiagsFoldedPage(t *testing.T) {
 		t.Fatalf("diagnostics = %v; want exactly 1", res.Diagnostics)
 	}
 	d := res.Diagnostics[0]
-	if d.Kind != KindError || d.Construct != "parse" {
-		t.Fatalf("diag = %+v; want error/parse", d)
+	if d.Kind != KindError || d.Construct != "@endif" {
+		t.Fatalf("diag = %+v; want error/@endif", d)
 	}
 	if d.File != entry || d.Line != 1 || d.Message == "" {
 		t.Fatalf("diag = %+v; want file %q, line 1, non-empty message", d, entry)
@@ -217,16 +219,39 @@ func TestParseDiagsFoldedComponentDeduped(t *testing.T) {
 	count := 0
 	componentFile := "resources/views/components/c.blade.php"
 	for _, d := range res.Diagnostics {
-		if d.Construct != "parse" {
+		if d.Construct != "@endif" {
 			continue
 		}
 		count++
 		if d.Kind != KindError || d.File != componentFile || d.Line != 1 {
-			t.Errorf("parse diag = %+v; want error/parse at %s:1", d, componentFile)
+			t.Errorf("parse diag = %+v; want error/@endif at %s:1", d, componentFile)
 		}
 	}
 	if count != 1 {
 		t.Fatalf("parse diagnostics = %d; want 1 (all diags: %v)", count, res.Diagnostics)
+	}
+}
+
+// TestFoldParseDiagsConstructs: foldParseDiags carries the parser's specific
+// construct through to the render Diagnostic and falls back to "parse" only
+// when a Diag has none.
+func TestFoldParseDiagsConstructs(t *testing.T) {
+	in := []parser.Diag{
+		{File: "a", Line: 1, Col: 2, Construct: "@foreach", Message: "malformed @foreach"},
+		{File: "a", Line: 3, Col: 4, Construct: "<x-hero>", Message: "unclosed <x-hero>"},
+		{File: "a", Line: 5, Col: 6, Message: "constructless"},
+	}
+	out := foldParseDiags(in)
+	if len(out) != 3 {
+		t.Fatalf("folded %d diags; want 3", len(out))
+	}
+	for i, want := range []string{"@foreach", "<x-hero>", "parse"} {
+		if out[i].Construct != want {
+			t.Errorf("out[%d].Construct = %q; want %q", i, out[i].Construct, want)
+		}
+		if out[i].Kind != KindError || out[i].Message != in[i].Message || out[i].File != in[i].File {
+			t.Errorf("out[%d] = %+v; want error kind, message/file carried over", i, out[i])
+		}
 	}
 }
 

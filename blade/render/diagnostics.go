@@ -30,7 +30,9 @@ func unknownDiagnostic(node *ast.Unknown) Diagnostic {
 
 // foldParseDiags maps parser.Diag values (recoverable parse errors from a page
 // or component file) into the render Diagnostic contract: Kind "error",
-// Construct "parse", File/Line/Col/Message carried over verbatim. Returns nil
+// File/Line/Col/Message carried over verbatim, Construct carrying the specific
+// construct the parser knows ("@if", "@foreach", "<x-hero>", "<x-slot:head>",
+// …) with "parse" as the fallback for a diag with no construct. Returns nil
 // for an empty/nil input so callers can append the result unconditionally.
 func foldParseDiags(diags []parser.Diag) []Diagnostic {
 	if len(diags) == 0 {
@@ -38,12 +40,16 @@ func foldParseDiags(diags []parser.Diag) []Diagnostic {
 	}
 	out := make([]Diagnostic, len(diags))
 	for i, d := range diags {
+		construct := d.Construct
+		if construct == "" {
+			construct = "parse"
+		}
 		out[i] = Diagnostic{
 			File:      d.File,
 			Line:      d.Line,
 			Col:       d.Col,
 			Kind:      KindError,
-			Construct: "parse",
+			Construct: construct,
 			Message:   d.Message,
 		}
 	}
