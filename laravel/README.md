@@ -77,7 +77,10 @@ on stdin, the response
 on stdout. `options.max_loop_iterations` caps the total `@foreach` iterations
 one entry may render before it aborts with an `error`/`render-budget`
 diagnostic (omitted → the engine's generous default; `CompileRequest` does not
-expose it — send it only from a host that runs untrusted templates). Template problems (undefined variables, missing components,
+expose it — send it only from a host that runs untrusted templates).
+`options.url` is accepted but **unused in v1**: it round-trips without
+affecting output, reserved for a future canonical-URL rendering mode (hosts
+that already send it, mirroring sitebuilder, need no change). Template problems (undefined variables, missing components,
 app-tier constructs) are **data** — they arrive as `Diagnostic` objects
 (`file`, `line`, `col`, `kind`, `construct`, `message`) alongside rendered
 output. Only process-level failures throw: `BinaryNotFoundException`,
