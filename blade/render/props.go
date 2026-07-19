@@ -11,23 +11,29 @@ import (
 // props. It is a small, dedicated grammar (NOT the expression evaluator):
 //
 //	array   := '[' (entry (',' entry)* ','?)? ']'
-//	entry   := string '=>' scalar   // keyed: prop name + default
+//	entry   := string '=>' default  // keyed: prop name + default
 //	         | string                // bare: prop name, no default
+//	default := scalar
+//	         | '[' (scalar (',' scalar)* ','?)? ']'   // empty or flat scalar list
 //	scalar  := string | number | 'true' | 'false' | 'null'
 //	string  := '...' | "..."   (only \\ and the matching quote are escapes)
 //
 // A bare entry must be a string (its value becomes the prop name). Anything
 // outside this grammar returns ok=false, which the renderer surfaces as a props
-// diagnostic and treats as no declared props.
-func parseProps(raw string) (propSet, bool) {
+// diagnostic and treats as no declared props — EXCEPT a keyed default that is a
+// valid-but-unsupported array shape (nested or associative): the prop is then
+// declared WITHOUT a default and a precise message is appended to issues, which
+// the renderer surfaces as an app-tier diagnostic (real Blade accepts any PHP
+// literal there; this engine models only the empty/flat-list shapes).
+func parseProps(raw string) (props propSet, issues []string, ok bool) {
 	s := strings.TrimSpace(raw)
 	if len(s) < 2 || s[0] != '[' || s[len(s)-1] != ']' {
-		return nil, false
+		return nil, nil, false
 	}
 	inner := s[1 : len(s)-1]
 	entries, ok := splitTopLevel(inner, ',')
 	if !ok {
-		return nil, false
+		return nil, nil, false
 	}
 
 	out := propSet{}
@@ -38,27 +44,81 @@ func parseProps(raw string) (propSet, bool) {
 		}
 		key, val, hasArrow, ok := splitArrowEntry(e)
 		if !ok {
-			return nil, false
+			return nil, nil, false
 		}
 		if hasArrow {
 			name, ok := parseStringLiteral(strings.TrimSpace(key))
 			if !ok {
-				return nil, false
+				return nil, nil, false
 			}
-			def, ok := parseScalar(strings.TrimSpace(val))
+			def, supported, ok := parseDefault(strings.TrimSpace(val))
 			if !ok {
-				return nil, false
+				return nil, nil, false
+			}
+			if !supported {
+				issues = append(issues, "@props default for \""+name+"\" is a nested or associative array, outside the Pocketknife subset; requires the PHP app tier")
+				out[name] = propDecl{hasDefault: false}
+				continue
 			}
 			out[name] = propDecl{hasDefault: true, def: def}
 		} else {
 			name, ok := parseStringLiteral(e) // bare entry: a string prop name
 			if !ok {
-				return nil, false
+				return nil, nil, false
 			}
 			out[name] = propDecl{hasDefault: false}
 		}
 	}
-	return out, true
+	return out, issues, true
+}
+
+// parseDefault parses one keyed entry's default value. Scalars parse per
+// parseScalar. Array literals are supported in exactly the two shapes the
+// value model can carry as a PHP array: the empty array ([]) and a flat list
+// of scalars (['a', 'b'] → []expr.Value, iterated/tested like any array;
+// oracle-checked by the props-array-defaults fixture). A keyed (associative)
+// or nested array default is valid real Blade this engine cannot model:
+// supported=false with ok=true, so the caller declares the prop without a
+// default and diagnoses precisely instead of silently degrading. ok=false
+// means the text is outside the grammar entirely (malformed @props).
+func parseDefault(s string) (def expr.Value, supported, ok bool) {
+	if s == "" {
+		return nil, false, false
+	}
+	if s[0] != '[' {
+		v, ok := parseScalar(s)
+		return v, ok, ok
+	}
+	if s[len(s)-1] != ']' {
+		return nil, false, false
+	}
+	entries, ok := splitTopLevel(s[1:len(s)-1], ',')
+	if !ok {
+		return nil, false, false
+	}
+	list := []expr.Value{}
+	for _, e := range entries {
+		e = strings.TrimSpace(e)
+		if e == "" {
+			continue // trailing comma / empty array
+		}
+		_, _, hasArrow, entryOK := splitArrowEntry(e)
+		if !entryOK {
+			return nil, false, false
+		}
+		if hasArrow {
+			return nil, false, true // associative: valid PHP, outside the subset
+		}
+		if e[0] == '[' {
+			return nil, false, true // nested array: valid PHP, outside the subset
+		}
+		v, ok := parseScalar(e)
+		if !ok {
+			return nil, false, false
+		}
+		list = append(list, v)
+	}
+	return list, true, true
 }
 
 // splitArrowEntry splits an entry on its first top-level "=>". Returns the

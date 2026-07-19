@@ -139,7 +139,7 @@ func declaredProps(nodes []ast.Node) (propSet, bool) {
 	if propsNode == nil {
 		return propSet{}, true
 	}
-	ps, ok := parseProps(propsNode.Raw)
+	ps, _, ok := parseProps(propsNode.Raw)
 	if !ok {
 		return nil, false
 	}

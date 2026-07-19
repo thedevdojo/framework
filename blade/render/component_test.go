@@ -8,47 +8,70 @@ import (
 )
 
 // TestParseProps drives the dedicated literal-array parser: string/number/bool/
-// null values, bare (default-less) entries, the empty array, and the malformed
-// rows that must report ok=false so the renderer can treat props as empty.
+// null values, bare (default-less) entries, the empty array, empty/flat-list
+// array defaults, the valid-but-unsupported array shapes (nested/associative —
+// declared without a default, one precise issue each), and the malformed rows
+// that must report ok=false so the renderer can treat props as empty.
 func TestParseProps(t *testing.T) {
 	cases := []struct {
-		raw  string
-		ok   bool
-		want map[string]propDecl
+		raw    string
+		ok     bool
+		issues int
+		want   map[string]propDecl
 	}{
-		{`['heading' => 'Default']`, true, map[string]propDecl{"heading": {hasDefault: true, def: "Default"}}},
-		{`['heading' => 'Default', 'bare']`, true, map[string]propDecl{
+		{`['heading' => 'Default']`, true, 0, map[string]propDecl{"heading": {hasDefault: true, def: "Default"}}},
+		{`['heading' => 'Default', 'bare']`, true, 0, map[string]propDecl{
 			"heading": {hasDefault: true, def: "Default"},
 			"bare":    {hasDefault: false},
 		}},
-		{`["dq" => "v"]`, true, map[string]propDecl{"dq": {hasDefault: true, def: "v"}}},
-		{`['n' => 42, 'f' => 2.5, 'b' => true, 'z' => false, 'nul' => null]`, true, map[string]propDecl{
+		{`["dq" => "v"]`, true, 0, map[string]propDecl{"dq": {hasDefault: true, def: "v"}}},
+		{`['n' => 42, 'f' => 2.5, 'b' => true, 'z' => false, 'nul' => null]`, true, 0, map[string]propDecl{
 			"n":   {hasDefault: true, def: int64(42)},
 			"f":   {hasDefault: true, def: 2.5},
 			"b":   {hasDefault: true, def: true},
 			"z":   {hasDefault: true, def: false},
 			"nul": {hasDefault: true, def: nil},
 		}},
-		{`[]`, true, map[string]propDecl{}},
-		{`['a' => 'x', 'b' => 'y',]`, true, map[string]propDecl{ // trailing comma tolerated
+		{`[]`, true, 0, map[string]propDecl{}},
+		{`['a' => 'x', 'b' => 'y',]`, true, 0, map[string]propDecl{ // trailing comma tolerated
 			"a": {hasDefault: true, def: "x"},
 			"b": {hasDefault: true, def: "y"},
 		}},
-		{`["bare"]`, true, map[string]propDecl{"bare": {hasDefault: false}}},
+		{`["bare"]`, true, 0, map[string]propDecl{"bare": {hasDefault: false}}},
+
+		// array defaults: empty and flat scalar lists are modeled
+		{`['menu' => []]`, true, 0, map[string]propDecl{"menu": {hasDefault: true, def: []expr.Value{}}}},
+		{`['items' => ['a', 'b']]`, true, 0, map[string]propDecl{"items": {hasDefault: true, def: []expr.Value{"a", "b"}}}},
+		{`['mix' => [1, 2.5, true, null, 'x',]]`, true, 0, map[string]propDecl{ // trailing comma tolerated here too
+			"mix": {hasDefault: true, def: []expr.Value{int64(1), 2.5, true, nil, "x"}},
+		}},
+
+		// valid-but-unsupported array defaults: declared without a default + issue
+		{`['cfg' => ['a' => 1]]`, true, 1, map[string]propDecl{"cfg": {hasDefault: false}}},
+		{`['grid' => [[1, 2], [3]]]`, true, 1, map[string]propDecl{"grid": {hasDefault: false}}},
+		{`['cfg' => ['a' => 1], 'ok' => 'x']`, true, 1, map[string]propDecl{
+			"cfg": {hasDefault: false},
+			"ok":  {hasDefault: true, def: "x"},
+		}},
 
 		// malformed rows → ok=false
-		{`'heading' => 'Default'`, false, nil},  // no surrounding brackets
-		{`['a' => ]`, false, nil},               // missing value
-		{`['a' => @foo]`, false, nil},           // non-literal value
-		{`[42]`, false, nil},                    // bare non-string entry
-		{`['a' => 'x' 'b' => 'y']`, false, nil}, // missing comma
-		{``, false, nil},                        // empty raw (e.g. @props())
+		{`'heading' => 'Default'`, false, 0, nil},  // no surrounding brackets
+		{`['a' => ]`, false, 0, nil},               // missing value
+		{`['a' => @foo]`, false, 0, nil},           // non-literal value
+		{`[42]`, false, 0, nil},                    // bare non-string entry
+		{`['a' => 'x' 'b' => 'y']`, false, 0, nil}, // missing comma
+		{`['a' => [@foo]]`, false, 0, nil},         // non-literal list element
+		{`['a' => ['x']`, false, 0, nil},           // unbalanced array default
+		{``, false, 0, nil},                        // empty raw (e.g. @props())
 	}
 	for _, c := range cases {
-		got, ok := parseProps(c.raw)
+		got, issues, ok := parseProps(c.raw)
 		if ok != c.ok {
 			t.Errorf("parseProps(%q) ok = %v; want %v", c.raw, ok, c.ok)
 			continue
+		}
+		if len(issues) != c.issues {
+			t.Errorf("parseProps(%q) issues = %v; want %d", c.raw, issues, c.issues)
 		}
 		if !c.ok {
 			continue
@@ -67,6 +90,19 @@ func TestParseProps(t *testing.T) {
 }
 
 func valueEq(a, b expr.Value) bool {
+	as, aok := a.([]expr.Value)
+	bs, bok := b.([]expr.Value)
+	if aok || bok {
+		if !aok || !bok || len(as) != len(bs) {
+			return false
+		}
+		for i := range as {
+			if !valueEq(as[i], bs[i]) {
+				return false
+			}
+		}
+		return true
+	}
 	return a == b
 }
 

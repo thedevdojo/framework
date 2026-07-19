@@ -96,8 +96,14 @@ func (r *renderer) renderComponent(node *ast.Component) {
 	propsNode := extractLegalProps(nodes)
 	declared := propSet{}
 	if propsNode != nil {
-		if ps, ok := parseProps(propsNode.Raw); ok {
+		if ps, issues, ok := parseProps(propsNode.Raw); ok {
 			declared = ps
+			// A valid-but-unmodelable default (nested/assoc array) leaves its
+			// prop declared without a default; each one is app-tier — real
+			// Blade accepts it, this engine cannot carry the value.
+			for _, msg := range issues {
+				r.diag(propsNode.P, KindAppTier, "props", msg)
+			}
 		} else {
 			r.diag(propsNode.P, KindError, "props", "invalid @props(...) literal")
 		}

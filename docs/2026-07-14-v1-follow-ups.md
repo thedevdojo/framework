@@ -232,6 +232,14 @@ whitespace equivalence is NOT a guarantee (only Go-vs-real-Blade parity is).
   space on page output (`TestIfConditionError`, `TestAttributesIfCondAppTier`)
   were corrected. Templates authored to start with non-whitespace are unaffected;
   the aria workaround can now be dropped.
-- **`@props` rejects array defaults** (`@props(['menu' => []])`) — array-holding
-  props must be declared bare. Either teach the restricted literal parser
-  empty-array defaults or document the bare-declaration idiom in the spec.
+- ~~**`@props` rejects array defaults** (`@props(['menu' => []])`)~~ — RESOLVED
+  (2026-07-18). Oracle probe: real Blade defaults `[]` (falsy, iterates zero
+  times) and `['a', 'b']` (iterates in order) behave as plain PHP arrays. The
+  props parser now models exactly those shapes — the empty array and a flat
+  scalar list — as `[]expr.Value` (`parseDefault`, `blade/render/props.go`),
+  oracle-checked by the `props-array-defaults` fixture. A nested/associative
+  array default (valid real Blade the value model can't carry) declares the
+  prop WITHOUT a default and emits a precise app-tier `props` diagnostic
+  instead of the old whole-@props "invalid literal" error — pinned by the
+  `props-array-default-unsupported` fixture (output parity still holds when
+  the prop goes unread).

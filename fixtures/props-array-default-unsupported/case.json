@@ -1,0 +1,6 @@
+{
+  "entries": ["resources/views/pages/index.blade.php"],
+  "diagnostics": [
+    {"kind": "app-tier", "construct": "props", "file": "resources/views/components/nav.blade.php", "line": 1}
+  ]
+}
