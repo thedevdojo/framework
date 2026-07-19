@@ -34,6 +34,16 @@ type renderCtx struct {
 	// (real Blade's View::share leaks $site into anonymous components), unlike
 	// collections/content/Options.Data, which pages see but components do not.
 	site expr.Value
+	// loopCap / loopUsed implement the per-entry @foreach iteration budget
+	// (Options.MaxLoopIterations): every renderer sharing this ctx — the page,
+	// its components, its slots — draws from the same allowance. exceeded
+	// latches once the budget runs out so the abort diagnoses exactly once
+	// and renderNodes stops walking at every level. A zero loopCap (a
+	// renderer built without Compile, as some unit tests do) disables the
+	// budget entirely.
+	loopCap  int
+	loopUsed int
+	exceeded bool
 }
 
 // vfsReader is the slice of vfs.FS the renderer needs (only Read). Declared here

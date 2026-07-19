@@ -71,9 +71,13 @@ if ($engine->isAvailable()) {
 ```
 
 On the wire this is one `pocketknife compile` process per call: the request
-JSON `{"files": {...}, "data": {...}?, "entries": [...]?}` on stdin, the
-response `{"engine": "x.y.z", "files": {...}, "deps": {...}, "diagnostics": [...]}`
-on stdout. Template problems (undefined variables, missing components,
+JSON `{"files": {...}, "data": {...}?, "entries": [...]?, "options": {...}?}`
+on stdin, the response
+`{"engine": "x.y.z", "files": {...}, "deps": {...}, "diagnostics": [...]}`
+on stdout. `options.max_loop_iterations` caps the total `@foreach` iterations
+one entry may render before it aborts with an `error`/`render-budget`
+diagnostic (omitted → the engine's generous default; `CompileRequest` does not
+expose it — send it only from a host that runs untrusted templates). Template problems (undefined variables, missing components,
 app-tier constructs) are **data** — they arrive as `Diagnostic` objects
 (`file`, `line`, `col`, `kind`, `construct`, `message`) alongside rendered
 output. Only process-level failures throw: `BinaryNotFoundException`,

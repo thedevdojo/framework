@@ -37,6 +37,13 @@
 // affecting output. It exists so a future canonical-URL rendering mode (or a
 // host that already sends it, mirroring sitebuilder) has somewhere to land
 // without an Input shape change.
+//
+// options.max_loop_iterations tunes the per-entry render budget: the total
+// @foreach iterations one entry may run (across nesting, components, and
+// slots) before its render aborts with a single error/render-budget
+// diagnostic. Omitted or zero applies render.DefaultMaxLoopIterations — a
+// bound no legitimate site approaches; hosts running untrusted or
+// machine-generated templates can lower it.
 package protocol
 
 import (
@@ -61,7 +68,12 @@ type Input struct {
 	Data    map[string]any    `json:"data,omitempty"`
 	Entries []string          `json:"entries,omitempty"` // empty → every resources/views/pages/**.blade.php, sorted
 	Options struct {
-		URL string `json:"url,omitempty"` // accepted, unused in v1 — see package doc
+		URL string `json:"url,omitempty"` // accepted but UNUSED in v1; reserved for canonical-URL rendering — see package doc
+		// MaxLoopIterations caps the total @foreach iterations one entry's
+		// render may run before it aborts with an error/render-budget
+		// diagnostic. Zero (or omitted) means render.DefaultMaxLoopIterations;
+		// there is no unlimited setting — see render.Options.
+		MaxLoopIterations int `json:"max_loop_iterations,omitempty"`
 	} `json:"options"`
 }
 
@@ -115,7 +127,10 @@ func Run(in io.Reader, out io.Writer) error {
 		entries = DiscoverPages(fs)
 	}
 
-	result := render.Compile(fs, entries, render.Options{Data: input.Data})
+	result := render.Compile(fs, entries, render.Options{
+		Data:              input.Data,
+		MaxLoopIterations: input.Options.MaxLoopIterations,
+	})
 	return encode(out, Output{
 		Engine:      blade.Version,
 		Files:       nonNilStrings(result.Files),

@@ -174,3 +174,76 @@ func TestBreakBreaksInnermostOnly(t *testing.T) {
 		t.Fatalf("unexpected diagnostics: %v", diags)
 	}
 }
+
+// TestLoopBudgetConfigured: nested @foreach whose total iterations exceed a
+// configured MaxLoopIterations aborts the entry's render — exactly one
+// error/render-budget diagnostic, loop output truncated at the budget, and
+// nothing after the aborted construct renders (the trailing "!" is gone).
+func TestLoopBudgetConfigured(t *testing.T) {
+	fs := vfs.Mem{
+		"resources/views/pages/index.blade.php": `@foreach ($xs as $x)(@foreach ($xs as $y)x @endforeach)@endforeach!`,
+	}
+	res := Compile(fs, []string{"resources/views/pages/index.blade.php"},
+		Options{Data: map[string]any{"xs": []any{1, 2, 3, 4, 5}}, MaxLoopIterations: 10})
+	// Budget 10 consumes: outer#1 (1), inner x5 (2-6), outer#2 (7), inner x3
+	// (8-10); the 11th iteration trips the budget mid-inner-loop, so the
+	// second ")" and the trailing "!" never render.
+	want := "(x x x x x )(x x x "
+	if got := res.Files["index.html"]; got != want {
+		t.Fatalf("output = %q; want %q", got, want)
+	}
+	budget := 0
+	for _, d := range res.Diagnostics {
+		if d.Construct == "render-budget" {
+			budget++
+			if d.Kind != KindError {
+				t.Errorf("render-budget diag kind = %q; want error", d.Kind)
+			}
+		}
+	}
+	if budget != 1 {
+		t.Fatalf("render-budget diagnostics = %d; want 1 (all: %v)", budget, res.Diagnostics)
+	}
+}
+
+// TestLoopBudgetDefaultCap: with no MaxLoopIterations configured an entry may
+// run exactly DefaultMaxLoopIterations loop iterations; one more aborts with
+// error/render-budget.
+func TestLoopBudgetDefaultCap(t *testing.T) {
+	xs := make([]any, DefaultMaxLoopIterations+1)
+	entry := "resources/views/pages/index.blade.php"
+	src := `@foreach ($xs as $x)@endforeach`
+
+	at := Compile(vfs.Mem{entry: src}, []string{entry},
+		Options{Data: map[string]any{"xs": xs[:DefaultMaxLoopIterations]}})
+	if len(at.Diagnostics) != 0 {
+		t.Fatalf("at the cap: unexpected diagnostics: %v", at.Diagnostics)
+	}
+
+	over := Compile(vfs.Mem{entry: src}, []string{entry},
+		Options{Data: map[string]any{"xs": xs}})
+	if len(over.Diagnostics) != 1 || over.Diagnostics[0].Construct != "render-budget" || over.Diagnostics[0].Kind != KindError {
+		t.Fatalf("over the cap: diagnostics = %v; want one error/render-budget", over.Diagnostics)
+	}
+}
+
+// TestLoopBudgetPerEntry: the budget is per entry, not per Compile — two
+// entries each under the cap stay clean even though their sum exceeds it.
+func TestLoopBudgetPerEntry(t *testing.T) {
+	src := `@foreach ($xs as $x)[{{ $x }}]@endforeach`
+	fs := vfs.Mem{
+		"resources/views/pages/a.blade.php": src,
+		"resources/views/pages/b.blade.php": src,
+	}
+	res := Compile(fs, []string{"resources/views/pages/a.blade.php", "resources/views/pages/b.blade.php"},
+		Options{Data: map[string]any{"xs": []any{1, 2, 3, 4, 5, 6}}, MaxLoopIterations: 10})
+	if len(res.Diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", res.Diagnostics)
+	}
+	if got := res.Files["a.html"]; got != "[1][2][3][4][5][6]" {
+		t.Fatalf("a.html = %q; want %q", got, "[1][2][3][4][5][6]")
+	}
+	if got := res.Files["b.html"]; got != "[1][2][3][4][5][6]" {
+		t.Fatalf("b.html = %q; want %q", got, "[1][2][3][4][5][6]")
+	}
+}

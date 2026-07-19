@@ -54,11 +54,24 @@ type Diagnostic struct {
 	Message   string   `json:"message"`
 }
 
+// DefaultMaxLoopIterations is the per-entry @foreach iteration budget applied
+// when Options.MaxLoopIterations is unset. It is a safety bound against
+// pathological nesting over host data (real Blade has none — an unbounded
+// nested loop simply runs), sized so no legitimate site comes near it: the
+// whole fixture + template corpus renders in a few hundred iterations.
+const DefaultMaxLoopIterations = 100_000
+
 // Options carries render inputs. Data is the protocol's "data" map, merged over
 // the site's data sources ($site, collections, content); its keys become
 // top-level $variables and win on collision (a `site` key replaces $site).
 type Options struct {
 	Data map[string]any
+	// MaxLoopIterations caps the TOTAL number of @foreach iterations one
+	// entry's render may run, summed across nesting, components, and slots.
+	// Exceeding it aborts that entry's render with a single
+	// error/render-budget diagnostic (output truncated at the budget). Zero or
+	// negative means DefaultMaxLoopIterations; there is no unlimited setting.
+	MaxLoopIterations int
 }
 
 // Result is the output of a Compile: rendered files by output name, the source
@@ -102,6 +115,10 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 	// Compile: a component file resolved more than once (siblings, recursion) is
 	// scanned+parsed only once.
 	parseCache := map[string][]ast.Node{}
+	loopCap := opts.MaxLoopIterations
+	if loopCap <= 0 {
+		loopCap = DefaultMaxLoopIterations
+	}
 	for _, entry := range entries {
 		// Refuse an entry that escapes the site root — either the entry path
 		// itself or the output name it would derive (the pages/views prefix
@@ -126,7 +143,9 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 		// (deduped, in encounter order, entry first).
 		deps := newOrderedSet()
 		deps.add(entry)
-		ctx := &renderCtx{fs: fs, deps: deps, cache: parseCache, site: data.site}
+		// The loop budget is per entry: each output gets the full allowance, so
+		// one pathological page cannot starve its siblings.
+		ctx := &renderCtx{fs: fs, deps: deps, cache: parseCache, site: data.site, loopCap: loopCap}
 		r := &renderer{scope: scope, ctx: ctx}
 		r.renderNodes(nodes, false)
 		// Real Blade returns ltrim(ob_get_clean()) for every rendered view
@@ -174,11 +193,13 @@ type renderer struct {
 // renderNodes renders a body left to right, threading the newline-eat state, and
 // returns the state left after the last node. A raised loop signal (from a
 // @break/@continue) stops the walk immediately so it can bubble up to the
-// innermost @foreach, which consumes it.
+// innermost @foreach, which consumes it. An exhausted loop budget also stops
+// the walk — unconditionally, at every nesting level — so an aborted render
+// unwinds without rendering anything further (see consumeLoopIteration).
 func (r *renderer) renderNodes(nodes []ast.Node, eat bool) bool {
 	for _, n := range nodes {
 		eat = r.renderNode(n, eat)
-		if r.signal != sigNone {
+		if r.signal != sigNone || r.overBudget() {
 			return eat
 		}
 	}

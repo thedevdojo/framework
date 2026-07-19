@@ -188,6 +188,42 @@ func TestRunOptionsURLAcceptedButUnused(t *testing.T) {
 	}
 }
 
+// TestRunOptionsMaxLoopIterations: options.max_loop_iterations reaches
+// render.Options — a loop over the budget aborts with the render-budget
+// diagnostic, and the same input without the option renders clean under
+// the default cap.
+func TestRunOptionsMaxLoopIterations(t *testing.T) {
+	const files = `"files": {"resources/views/pages/index.blade.php": "@foreach ($xs as $x)[{{ $x }}]@endforeach"},
+		"data": {"xs": [1, 2, 3, 4]}`
+
+	var capped bytes.Buffer
+	if err := Run(strings.NewReader(`{`+files+`, "options": {"max_loop_iterations": 3}}`), &capped); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	var got Output
+	if err := json.Unmarshal(capped.Bytes(), &got); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if got.Files["index.html"] != "[1][2][3]" {
+		t.Errorf("capped files = %#v; want output truncated at 3 iterations", got.Files)
+	}
+	if len(got.Diagnostics) != 1 || got.Diagnostics[0].Construct != "render-budget" || got.Diagnostics[0].Kind != render.KindError {
+		t.Errorf("capped diagnostics = %v; want one error/render-budget", got.Diagnostics)
+	}
+
+	var uncapped bytes.Buffer
+	if err := Run(strings.NewReader(`{`+files+`}`), &uncapped); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	got = Output{}
+	if err := json.Unmarshal(uncapped.Bytes(), &got); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if got.Files["index.html"] != "[1][2][3][4]" || len(got.Diagnostics) != 0 {
+		t.Errorf("uncapped = %#v / %v; want the full render, no diagnostics", got.Files, got.Diagnostics)
+	}
+}
+
 // TestRunMalformedJSON: invalid JSON on stdin never surfaces as a Go error
 // from Run (hosts always get a parseable document) — it becomes a single
 // protocol-kind error diagnostic, with files/deps/engine still present.

@@ -201,8 +201,21 @@ sync/publish/tokens remain `devdojo/sites`' job (a later phase).
   file. Pinned by `TestComponentMissingMarker`/`TestViteDeps` and the
   `component-missing` fixture via the harness's new optional exact-`deps`
   assertion (`case.json` `"deps"`, ignored by the oracle).
-- **No render budget** — nested `@foreach` over protocol data is unbounded; either
-  document that hosts must wrap the binary in limits, or add caps.
+- ~~**No render budget**~~ — RESOLVED (2026-07-19). Each entry's render now
+  has a total-@foreach-iteration budget, summed across nesting, components,
+  and slots (one shared counter on the per-entry renderCtx). Default
+  `render.DefaultMaxLoopIterations` = 100 000 — the whole fixture corpus uses
+  a few hundred — configurable per call via the protocol's
+  `options.max_loop_iterations` (0/omitted → default; no unlimited setting).
+  The first draw past the cap emits ONE `error/render-budget` diagnostic at
+  the tripping @foreach and latches an abort flag `renderNodes` checks at
+  every level, so the entry's render unwinds immediately (output truncated at
+  the budget); sibling entries render with a fresh allowance. Iterations were
+  chosen over an output-size cap because loops are the only amplification
+  mechanism host data controls (component recursion is already depth-capped).
+  Pinned by `TestLoopBudget{Configured,DefaultCap,PerEntry}` +
+  `TestRunOptionsMaxLoopIterations`; the full suite staying green is the
+  proof no legitimate fixture approaches the default.
 - **Four near-identical quote/depth mini-scanners** (parser ×2, props ×2) with
   inconsistent depth-clamping — convergence candidate.
 - ~~**Package hygiene:** no `publishes()` for config; `minimum-stability` noise in

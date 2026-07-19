@@ -2,9 +2,11 @@ package render
 
 import (
 	"sort"
+	"strconv"
 
 	"github.com/thedevdojo/pocketknife/blade/ast"
 	"github.com/thedevdojo/pocketknife/blade/expr"
+	"github.com/thedevdojo/pocketknife/blade/scanner"
 )
 
 // loopSignal is the non-local control state a @break/@continue raises inside a
@@ -44,6 +46,9 @@ func (r *renderer) renderForeach(node *ast.Foreach) {
 	parent := r.scope
 	r.loopDepth++
 	for i, p := range pairs {
+		if !r.consumeLoopIteration(node.P) {
+			break // budget exhausted: the whole render is aborting
+		}
 		iteration := int64(i) + 1
 		vars := map[string]expr.Value{
 			valName: p.val,
@@ -65,6 +70,38 @@ func (r *renderer) renderForeach(node *ast.Foreach) {
 	}
 	r.loopDepth--
 	r.scope = parent
+}
+
+// consumeLoopIteration draws one @foreach iteration from the entry's shared
+// budget (renderCtx.loopCap, set from Options.MaxLoopIterations). The first
+// draw past the cap emits the single error/render-budget diagnostic — at the
+// position of the @foreach that tripped it — and latches ctx.exceeded, which
+// renderNodes treats as a full-render abort. Returns false once the budget is
+// gone. A renderer with no ctx, or a ctx with no cap (unit-test constructions
+// outside Compile), runs unbudgeted.
+func (r *renderer) consumeLoopIteration(p scanner.Pos) bool {
+	if r.ctx == nil || r.ctx.loopCap <= 0 {
+		return true
+	}
+	if r.ctx.exceeded {
+		return false
+	}
+	if r.ctx.loopUsed >= r.ctx.loopCap {
+		r.ctx.exceeded = true
+		r.diag(p, KindError, "render-budget",
+			"render budget exceeded: more than "+strconv.Itoa(r.ctx.loopCap)+
+				" @foreach iterations in one entry; render aborted")
+		return false
+	}
+	r.ctx.loopUsed++
+	return true
+}
+
+// overBudget reports whether this render's entry has exhausted its loop
+// budget; renderNodes checks it after every node so the abort unwinds the
+// whole entry, not just the loop that tripped it.
+func (r *renderer) overBudget() bool {
+	return r.ctx != nil && r.ctx.exceeded
 }
 
 // renderLoopJump handles @break/@continue. With no active loop (a parser edge
