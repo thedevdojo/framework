@@ -62,7 +62,10 @@ type LoopJump struct {
 }
 
 // Component is an <x-name ...>...</x-name> (or self-closing) tag. Body is the
-// default-slot content; Slots holds named <x-slot:name> content.
+// default-slot content; Slots holds named <x-slot:name> content, keyed by the
+// BINDING name (a source name containing '-' is camelized by the parser, the
+// way real Blade's ComponentTagCompiler applies Str::camel to inline slot
+// names), so <x-slot:foo-bar> appears here as "fooBar".
 type Component struct {
 	Name      string
 	Attrs     []scanner.Attr

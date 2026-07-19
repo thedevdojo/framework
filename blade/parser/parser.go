@@ -342,10 +342,61 @@ func (p *parser) parseNamedSlot(ctx bodyCtx) {
 		}
 	}
 
-	if _, dup := ctx.component.Slots[name]; dup {
+	key := slotBindingName(name)
+	if _, dup := ctx.component.Slots[key]; dup {
 		p.diag(open.Pos, "duplicate slot \""+name+"\"; last one wins")
 	}
-	ctx.component.Slots[name] = body // last one wins
+	ctx.component.Slots[key] = body // last one wins
+}
+
+// slotBindingName maps a named slot's source name to the variable name it binds
+// in the component scope. Real Blade (ComponentTagCompiler::compileSlots)
+// applies Str::camel to an INLINE slot name only when it contains a dash — so
+// <x-slot:foo-bar> binds $fooBar and <x-slot:foo-bar_baz> binds $fooBarBaz
+// (Str::camel splits on both '-' and '_'), but <x-slot:foo_bar> binds $foo_bar
+// untouched. Oracle-probed 2026-07-18 (Laravel 12.64). Applied at parse time
+// (the compile-time analogue) so duplicate detection and last-wins operate on
+// the binding name, in document order, exactly as compiled Blade would.
+func slotBindingName(name string) string {
+	if !strings.Contains(name, "-") {
+		return name
+	}
+	var b strings.Builder
+	b.Grow(len(name))
+	upperNext := false
+	first := true
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		if c == '-' || c == '_' {
+			upperNext = !first // only capitalize once a letter has been emitted
+			continue
+		}
+		switch {
+		case first:
+			b.WriteByte(lowerByte(c))
+			first = false
+		case upperNext:
+			b.WriteByte(upperByte(c))
+			upperNext = false
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
+}
+
+func lowerByte(c byte) byte {
+	if c >= 'A' && c <= 'Z' {
+		return c + ('a' - 'A')
+	}
+	return c
+}
+
+func upperByte(c byte) byte {
+	if c >= 'a' && c <= 'z' {
+		return c - ('a' - 'A')
+	}
+	return c
 }
 
 // branchCtx derives the context for an @if branch body: break/continue legality

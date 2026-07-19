@@ -162,8 +162,14 @@ sync/publish/tokens remain `devdojo/sites`' job (a later phase).
 
 ## Tracked SHOULD-FIX-SOON (small, no decision needed)
 
-- **Named-slot names aren't camelCased** — `<x-slot:foo-bar>` binds an unreachable
-  `$foo-bar`. Oracle-probe real Blade first, then camelCase or diagnose.
+- ~~**Named-slot names aren't camelCased**~~ — RESOLVED (2026-07-18). Oracle probe
+  (Laravel 12.64): real Blade camelizes an inline slot name ONLY when it contains a
+  dash (`Str::camel`, which splits on '-' AND '_') — `<x-slot:foo-bar>` binds
+  `$fooBar`, `<x-slot:foo-bar_baz>` binds `$fooBarBaz`, but `<x-slot:foo_bar>` stays
+  `$foo_bar`. Matched at parse time (`slotBindingName`, `blade/parser/parser.go` —
+  the compile-time analogue), so duplicate detection and last-wins run on the
+  binding name in document order; pinned by the oracle-checked `slot-dashed-names`
+  fixture.
 - **Fixture harness matches diagnostics by presence, not exact set** — stray diags
   could accumulate unseen in oracle-exempt fixtures.
 - ~~**Invalid-UTF-8 escaping unverified vs real `e()`**~~ — RESOLVED (2026-07-15,

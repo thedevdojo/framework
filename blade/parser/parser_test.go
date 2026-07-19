@@ -242,6 +242,45 @@ func TestDuplicateSlotLastWins(t *testing.T) {
 	}
 }
 
+// TestNamedSlotDashCamelization: a named slot whose source name contains a dash
+// is captured under its camelized BINDING name (real Blade applies Str::camel
+// to inline slot names containing '-'); an underscore-only name stays raw; a
+// mixed name camelizes fully (Str::camel splits on '-' AND '_'). Oracle-probed
+// against Laravel 12.64.
+func TestNamedSlotDashCamelization(t *testing.T) {
+	src := `<x-c><x-slot:foo-bar>A</x-slot><x-slot:foo_bar>B</x-slot><x-slot:foo-bar_baz>C</x-slot></x-c>`
+	nodes, diags := parseSrc(t, src)
+	requireNoDiags(t, diags)
+	c := nodes[0].(*ast.Component)
+	for key, want := range map[string]string{"fooBar": "A", "foo_bar": "B", "fooBarBaz": "C"} {
+		body, ok := c.Slots[key]
+		if !ok {
+			t.Fatalf("slot %q not captured (have %+v)", key, c.Slots)
+		}
+		if body[0].(*ast.Text).Bytes != want {
+			t.Errorf("slot %q body = %+v; want %q", key, body[0], want)
+		}
+	}
+	if _, raw := c.Slots["foo-bar"]; raw {
+		t.Fatal("dashed slot must not also bind under its raw name")
+	}
+}
+
+// TestDuplicateSlotAcrossSpellings: <x-slot:foo-bar> and <x-slot:fooBar> bind
+// the SAME variable in real Blade (the dashed spelling camelizes), so the
+// parser treats them as duplicates — diagnosed, document-order last one wins.
+func TestDuplicateSlotAcrossSpellings(t *testing.T) {
+	src := `<x-c><x-slot:foo-bar>1</x-slot><x-slot:fooBar>2</x-slot></x-c>`
+	nodes, diags := parseSrc(t, src)
+	if len(diags) != 1 {
+		t.Fatalf("want 1 duplicate-slot diag, got %+v", diags)
+	}
+	c := nodes[0].(*ast.Component)
+	if c.Slots["fooBar"][0].(*ast.Text).Bytes != "2" {
+		t.Fatalf("last slot must win under the binding name: %+v", c.Slots)
+	}
+}
+
 // --- misc node shapes ---
 
 func TestUnknownDirective(t *testing.T) {
