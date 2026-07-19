@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/thedevdojo/pocketknife/blade/expr"
+	"github.com/thedevdojo/pocketknife/blade/internal/strscan"
 )
 
 // parseProps parses a @props(...) argument — a PHP literal array — into declared
@@ -121,80 +122,32 @@ func parseDefault(s string) (def expr.Value, supported, ok bool) {
 	return list, true, true
 }
 
-// splitArrowEntry splits an entry on its first top-level "=>". Returns the
-// key/value halves and whether an arrow was present. ok=false only on a
-// malformed (unbalanced) entry.
+// splitArrowEntry splits an entry on its first top-level "=>" (strscan's
+// shared quote/depth rules). Returns the key/value halves and whether an
+// arrow was present. ok=false on a malformed (unbalanced) arrow-less entry —
+// strscan.Balanced is a shade stricter than the historical quote-only check
+// (a stray closer now also fails), which only tightens inputs the literal
+// parsers downstream rejected anyway.
 func splitArrowEntry(e string) (key, val string, hasArrow, ok bool) {
-	depth := 0
-	var quote byte
-	for i := 0; i < len(e); i++ {
-		c := e[i]
-		if quote != 0 {
-			if c == '\\' {
-				i++
-				continue
-			}
-			if c == quote {
-				quote = 0
-			}
-			continue
-		}
-		switch c {
-		case '\'', '"':
-			quote = c
-		case '(', '[', '{':
-			depth++
-		case ')', ']', '}':
-			depth--
-		case '=':
-			if depth == 0 && i+1 < len(e) && e[i+1] == '>' {
-				return e[:i], e[i+2:], true, true
-			}
-		}
+	if i := strscan.Index(e, "=>"); i >= 0 {
+		return e[:i], e[i+2:], true, true
 	}
-	if quote != 0 {
+	if !strscan.Balanced(e) {
 		return "", "", false, false
 	}
 	return e, "", false, true
 }
 
 // splitTopLevel splits s on the given separator byte at bracket/paren depth 0
-// and outside string literals. ok=false when a quote is left unterminated.
+// and outside string literals (strscan's shared rules). ok=false when the
+// text is unbalanced — an unterminated quote, an unclosed bracket, or a
+// stray closer (the last is stricter than the historical net-depth check,
+// which accepted stray-closer input like `a)(b`).
 func splitTopLevel(s string, sep byte) ([]string, bool) {
-	var parts []string
-	depth := 0
-	var quote byte
-	start := 0
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if quote != 0 {
-			if c == '\\' {
-				i++
-				continue
-			}
-			if c == quote {
-				quote = 0
-			}
-			continue
-		}
-		switch c {
-		case '\'', '"':
-			quote = c
-		case '(', '[', '{':
-			depth++
-		case ')', ']', '}':
-			depth--
-		case sep:
-			if depth == 0 {
-				parts = append(parts, s[start:i])
-				start = i + 1
-			}
-		}
-	}
-	if quote != 0 || depth != 0 {
+	parts, balanced := strscan.Split(s, sep)
+	if !balanced {
 		return nil, false
 	}
-	parts = append(parts, s[start:])
 	return parts, true
 }
 

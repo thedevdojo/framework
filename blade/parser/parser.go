@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/thedevdojo/pocketknife/blade/ast"
+	"github.com/thedevdojo/pocketknife/blade/internal/strscan"
 	"github.com/thedevdojo/pocketknife/blade/scanner"
 )
 
@@ -450,78 +451,25 @@ func (p *parser) parseForeachArgs(open scanner.Token, node *ast.Foreach) bool {
 }
 
 // splitLastAs splits s on the LAST top-level " as " (a literal space-a-s-space,
-// case-sensitive, outside quotes and parentheses/brackets/braces). It returns
-// the left/right substrings and whether a separator was found.
+// case-sensitive, outside quotes and parentheses/brackets/braces — strscan's
+// shared rules). It returns the left/right substrings and whether a separator
+// was found.
 func splitLastAs(s string) (left, right string, found bool) {
-	depth := 0
-	var quote byte
-	last := -1
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if quote != 0 {
-			if c == '\\' {
-				i++ // skip the escaped byte
-				continue
-			}
-			if c == quote {
-				quote = 0
-			}
-			continue
-		}
-		switch c {
-		case '\'', '"':
-			quote = c
-		case '(', '[', '{':
-			depth++
-		case ')', ']', '}':
-			if depth > 0 {
-				depth--
-			}
-		case ' ':
-			if depth == 0 && i+3 < len(s) && s[i+1] == 'a' && s[i+2] == 's' && s[i+3] == ' ' {
-				last = i
-			}
-		}
-	}
-	if last < 0 {
+	i := strscan.LastIndex(s, " as ")
+	if i < 0 {
 		return "", "", false
 	}
-	return s[:last], s[last+4:], true
+	return s[:i], s[i+4:], true
 }
 
-// splitArrow splits s on the first top-level "=>" (outside quotes and brackets).
-// When absent it returns (s, "", false).
+// splitArrow splits s on the first top-level "=>" (outside quotes and brackets
+// — strscan's shared rules). When absent it returns (s, "", false).
 func splitArrow(s string) (key, val string, found bool) {
-	depth := 0
-	var quote byte
-	for i := 0; i+1 < len(s); i++ {
-		c := s[i]
-		if quote != 0 {
-			if c == '\\' {
-				i++
-				continue
-			}
-			if c == quote {
-				quote = 0
-			}
-			continue
-		}
-		switch c {
-		case '\'', '"':
-			quote = c
-		case '(', '[', '{':
-			depth++
-		case ')', ']', '}':
-			if depth > 0 {
-				depth--
-			}
-		case '=':
-			if depth == 0 && s[i+1] == '>' {
-				return s[:i], s[i+2:], true
-			}
-		}
+	i := strscan.Index(s, "=>")
+	if i < 0 {
+		return s, "", false
 	}
-	return s, "", false
+	return s[:i], s[i+2:], true
 }
 
 func one(n ast.Node) []ast.Node { return []ast.Node{n} }

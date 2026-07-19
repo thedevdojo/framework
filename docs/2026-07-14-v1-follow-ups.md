@@ -216,8 +216,21 @@ sync/publish/tokens remain `devdojo/sites`' job (a later phase).
   Pinned by `TestLoopBudget{Configured,DefaultCap,PerEntry}` +
   `TestRunOptionsMaxLoopIterations`; the full suite staying green is the
   proof no legitimate fixture approaches the default.
-- **Four near-identical quote/depth mini-scanners** (parser ×2, props ×2) with
-  inconsistent depth-clamping — convergence candidate.
+- ~~**Four near-identical quote/depth mini-scanners** (parser ×2, props ×2) with
+  inconsistent depth-clamping~~ — RESOLVED (2026-07-19). One shared scanner now
+  owns the rules: `blade/internal/strscan` (`Index`/`LastIndex`/`Split`/
+  `Balanced` over one `walk`) — quotes with backslash-escape, depth CLAMPED at
+  zero (the parser's historical behavior), a stray closer marks the scan
+  unbalanced, `balanced` = quotes closed + depth zero + no stray closer. All
+  four call sites ported: `parser.splitLastAs`/`splitArrow` and
+  `render.splitArrowEntry`/`splitTopLevel` are now thin wrappers (the four
+  hand-rolled loops deleted). One deliberate tightening, noted in the wrapper
+  comments: the render pair historically let depth go negative and only
+  checked quotes at EOF, so net-zero stray-closer input (`'a'],['b'`) passed
+  the splitter and failed later in the literal parsers; strscan rejects it at
+  the splitter with the same end diagnostics. Safety net held: full suite,
+  fixtures, and 15s fuzz on parser+render all green; no call site had
+  semantics the shared helper couldn't express.
 - ~~**Package hygiene:** no `publishes()` for config; `minimum-stability` noise in
   `laravel/composer.json`; `View::addLocation` precedence needs a decision~~ — RESOLVED
   (2026-07-16). Added `publishes([... => config_path('pocketknife.php')], 'pocketknife-config')`
