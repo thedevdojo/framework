@@ -87,12 +87,15 @@ func (r *renderer) renderVite(node *ast.Vite) {
 		if r.ctx == nil {
 			continue // defensive: no filesystem to resolve against
 		}
+		// The entry path joins deps whether or not the asset exists: a missing
+		// asset is a dependency on the path @vite looked for, so a
+		// render-on-save host re-renders this output when the file is created.
+		r.ctx.deps.add(entry)
 		src, ok := r.ctx.fs.Read(entry)
 		if !ok {
 			r.diag(node.P, KindError, "@vite", "vite asset \""+entry+"\" not found")
 			continue
 		}
-		r.ctx.deps.add(entry)
 		styles = append(styles, string(src))
 	}
 

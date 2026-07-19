@@ -294,6 +294,19 @@ func TestComponentMissingMarker(t *testing.T) {
 	if d.File != pageEntry || d.Line != 1 || d.Col != 2 {
 		t.Fatalf("diag pos = %s:%d:%d; want %s:1:2", d.File, d.Line, d.Col, pageEntry)
 	}
+	// The path the resolver LOOKED FOR joins deps even though it is absent, so
+	// a render-on-save host re-renders this output when the user later creates
+	// resources/views/components/sections/hero.blade.php.
+	deps := res.Deps["index.html"]
+	wantDeps := []string{pageEntry, "resources/views/components/sections/hero.blade.php"}
+	if len(deps) != len(wantDeps) {
+		t.Fatalf("deps = %v; want %v", deps, wantDeps)
+	}
+	for i := range wantDeps {
+		if deps[i] != wantDeps[i] {
+			t.Fatalf("deps = %v; want %v", deps, wantDeps)
+		}
+	}
 }
 
 // TestComponentRecursionCap: a self-including component renders a bounded number

@@ -62,7 +62,9 @@ if ($engine->isAvailable()) {
     ));
 
     $result->file('index.html');         // rendered output, keyed by OUTPUT path
-    $result->deps;                       // output path => every source read to render it
+    $result->deps;                       // output path => every source read OR looked for
+                                         // (missing components / @vite assets included, so a
+                                         // render-on-save host re-renders once they exist)
     $result->errors();                   // Diagnostic[] with kind "error"
     $result->appTier();                  // Diagnostic[] with kind "app-tier"
 }

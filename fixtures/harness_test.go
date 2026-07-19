@@ -15,6 +15,13 @@ type caseSpec struct {
 	Data        map[string]any   `json:"data"`
 	Oracle      *bool            `json:"oracle"`
 	Diagnostics []map[string]any `json:"diagnostics"`
+	// Deps, when declared, pins an output's dependency list EXACTLY (order
+	// included). Deps record every source path the render used or LOOKED FOR
+	// (a missing component's candidate path, a missing @vite asset), so a
+	// render-on-save host re-renders once the user creates the missing file.
+	// The oracle ignores this key: deps are a Go-engine contract, not a Blade
+	// output.
+	Deps map[string][]string `json:"deps"`
 }
 
 func TestFixtures(t *testing.T) {
@@ -75,6 +82,20 @@ func TestFixtures(t *testing.T) {
 			for i, d := range res.Diagnostics {
 				if !claimed[i] {
 					t.Errorf("undeclared diagnostic %+v (declare it in case.json)", d)
+				}
+			}
+			// Declared deps: exact list per output, order included.
+			for out, want := range spec.Deps {
+				got := res.Deps[out]
+				if len(got) != len(want) {
+					t.Errorf("deps[%s] = %v; want %v", out, got, want)
+					continue
+				}
+				for i := range want {
+					if got[i] != want[i] {
+						t.Errorf("deps[%s] = %v; want %v", out, got, want)
+						break
+					}
 				}
 			}
 		})

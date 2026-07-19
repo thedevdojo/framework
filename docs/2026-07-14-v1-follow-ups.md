@@ -190,8 +190,17 @@ sync/publish/tokens remain `devdojo/sites`' job (a later phase).
   S4). The oracle-checked `frontmatter-types` fixture echoes bool/int/float
   frontmatter through `{{ }}` and confirms both tiers agree byte-for-byte:
   `42`/`-7`/`0`, `3.14`/`2.5`, `3.0` → `3`, `true` → `1`, `false` → `` (empty).
-- **Missing components / missing `@vite` assets aren't added to deps** — a
-  render-on-save host won't refresh when the user creates the missing file.
+- ~~**Missing components / missing `@vite` assets aren't added to deps**~~ —
+  RESOLVED (2026-07-19). The path a resolver LOOKS FOR now joins the output's
+  deps whether or not the file exists, in the same normalized form as every
+  resolved dep (the component's single candidate
+  `resources/views/components/<dotted→slashed>.blade.php`, the `@vite` entry
+  path verbatim): `renderComponent`/`renderVite` add to the deps set before
+  the `fs.Read` miss-branch. A render-on-save host diffing a saved path
+  against deps therefore re-renders the moment the user CREATES the missing
+  file. Pinned by `TestComponentMissingMarker`/`TestViteDeps` and the
+  `component-missing` fixture via the harness's new optional exact-`deps`
+  assertion (`case.json` `"deps"`, ignored by the oracle).
 - **No render budget** — nested `@foreach` over protocol data is unbounded; either
   document that hosts must wrap the binary in limits, or add caps.
 - **Four near-identical quote/depth mini-scanners** (parser ×2, props ×2) with

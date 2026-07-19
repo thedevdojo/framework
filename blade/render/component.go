@@ -80,13 +80,17 @@ func (r *renderer) renderComponent(node *ast.Component) {
 	}
 
 	path := componentPath(node.Name)
+	// The candidate path joins deps whether or not the file exists: a missing
+	// component is a dependency on the path the resolver LOOKED FOR, so a
+	// render-on-save host diffing deps re-renders this output the moment the
+	// user creates the file. Same normalized form as every resolved dep.
+	r.ctx.deps.add(path)
 	src, ok := r.ctx.fs.Read(path)
 	if !ok {
 		r.sb.WriteString(missingMarker(node.Name))
 		r.diag(node.P, KindError, "component-missing", "component \""+node.Name+"\" not found")
 		return
 	}
-	r.ctx.deps.add(path)
 
 	nodes, pdiags := r.parseFile(path, src)
 	r.diags = append(r.diags, foldParseDiags(pdiags)...)

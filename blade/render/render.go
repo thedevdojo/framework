@@ -63,9 +63,13 @@ type Options struct {
 
 // Result is the output of a Compile: rendered files by output name, the source
 // files each output depended on, and any diagnostics gathered along the way.
+// Deps include paths that were LOOKED FOR but absent (a missing component's
+// candidate file, a missing @vite asset) — a render-on-save host diffing a
+// saved path against deps therefore re-renders when the missing file is
+// created, not only when an existing dep changes.
 type Result struct {
 	Files       map[string]string   // output name → rendered bytes
-	Deps        map[string][]string // output name → source files used
+	Deps        map[string][]string // output name → source files used or looked for
 	Diagnostics []Diagnostic
 }
 
@@ -118,7 +122,8 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 		nodes, pdiags := parser.Parse(entry, tokens)
 		res.Diagnostics = append(res.Diagnostics, foldParseDiags(pdiags)...)
 		// deps is per-output: it starts with the entry and gains every component
-		// file the render resolves (deduped, in encounter order, entry first).
+		// file and @vite asset the render resolves OR looks for and finds absent
+		// (deduped, in encounter order, entry first).
 		deps := newOrderedSet()
 		deps.add(entry)
 		ctx := &renderCtx{fs: fs, deps: deps, cache: parseCache, site: data.site}

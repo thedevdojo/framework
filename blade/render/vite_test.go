@@ -236,14 +236,17 @@ func TestViteMixedEntries(t *testing.T) {
 	}
 }
 
-// TestViteDeps: a successfully inlined CSS file joins the output's deps.
+// TestViteDeps: a successfully inlined CSS file joins the output's deps — and
+// so does a MISSING entry, recorded under the same path it was looked up by,
+// so a render-on-save host re-renders this output when the user later creates
+// the file (creating resources/css/gone.css must overlap these deps).
 func TestViteDeps(t *testing.T) {
 	res := compileMem(t, map[string]string{
 		pageEntry:             `@vite(['resources/css/a.css', 'resources/css/gone.css'])`,
 		"resources/css/a.css": "A{}",
 	}, nil)
 	deps := res.Deps["index.html"]
-	want := []string{pageEntry, "resources/css/a.css"}
+	want := []string{pageEntry, "resources/css/a.css", "resources/css/gone.css"}
 	if len(deps) != len(want) {
 		t.Fatalf("deps = %v; want %v", deps, want)
 	}

@@ -3,5 +3,11 @@
   "oracle": false,
   "diagnostics": [
     {"kind": "error", "construct": "component-missing", "file": "resources/views/pages/index.blade.php", "line": 1}
-  ]
+  ],
+  "deps": {
+    "index.html": [
+      "resources/views/pages/index.blade.php",
+      "resources/views/components/sections/hero.blade.php"
+    ]
+  }
 }
