@@ -196,21 +196,31 @@ func (r *renderer) parseFile(path string, src []byte) ([]ast.Node, []parser.Diag
 //     `site`)
 //  3. passed attributes — they arrive as the component view's PER-VIEW data,
 //     and Factory::gatherData merges shared then view data, so a passed
-//     attribute beats a same-named shared binding
-//  4. @props DEFAULTS, but only where the name is still unset/null — compileProps
+//     attribute beats a same-named shared binding EVEN WHEN ITS VALUE IS NULL
+//  4. @props DEFAULTS, but only where the name is still null — compileProps
 //     emits `$x = $x ?? $default`, so a default can NOT displace a shared
-//     collection (verified against the oracle 2026-07-28; see the note in the
-//     collections-global spec)
+//     collection, yet it DOES fill in behind a passed null
 //  5. $slot and the named slots
+//
+// Steps 3–5 are oracle-verified (2026-07-28); see the correction section of
+// docs/specs/2026-07-28-collections-global-scope-design.md and the
+// component-props-vs-collection / component-props-null-vs-default fixtures.
 //
 // Page-LOCAL data — the protocol's Options.Data keys and any caller locals such
 // as a loop variable — does NOT leak in. Bound attributes are evaluated in the
 // caller's scope at the tag site; a bound-attr eval error is diagnosed and the
-// prop becomes nil. Undeclared attributes are dropped silently.
+// prop becomes nil, and that nil is an error sentinel which (unlike a genuine
+// passed null) does NOT fall through to the prop's default. Undeclared
+// attributes are dropped silently.
 func buildComponentScope(caller *renderer, declared propSet, attrs []scanner.Attr, slot rawHTML, named map[string]rawHTML) componentScope {
 	// Resolve every passed attribute value, keyed by its camelCased name (real
 	// Blade matches foo-bar="…" to the fooBar prop).
 	passed := make(map[string]expr.Value, len(attrs))
+	// failed records attributes whose bound expression could not be evaluated.
+	// Their nil is an ERROR SENTINEL, not the value null, so it must not feed the
+	// `??` defaults pass below — a broken binding that quietly renders its
+	// default would hide the very breakage the diagnostic is reporting.
+	failed := map[string]bool{}
 	for _, a := range attrs {
 		key := camelCase(a.Name)
 		if a.Bound {
@@ -218,6 +228,7 @@ func buildComponentScope(caller *renderer, declared propSet, attrs []scanner.Att
 			if err != nil {
 				caller.diagExprError(err, a.Pos)
 				v = nil
+				failed[key] = true
 			}
 			passed[key] = v
 		} else {
@@ -235,31 +246,40 @@ func buildComponentScope(caller *renderer, declared propSet, attrs []scanner.Att
 	}
 
 	cs := componentScope{}
-	// Collections and content are global: a component reads $links straight from
-	// collections/links.json, no page threading required. Seeded FIRST (lowest
-	// precedence) so both $site and any declared prop can shadow them.
 	if caller.ctx != nil {
+		// Collections and content are global: a component reads $links straight
+		// from collections/links.json, no page threading required. Seeded FIRST
+		// (lowest precedence) so $site and the props passes can override them.
 		for name, v := range caller.ctx.shared {
 			cs[name] = v
 		}
-	}
-	// $site is global too (parity with View::share leaking into anonymous
-	// components), and outranks the shared collections: `site` is shared LAST on
-	// the PHP side, so a collection literally named `site` can never displace
-	// the site object.
-	if caller.ctx != nil && caller.ctx.site != nil {
-		cs["site"] = caller.ctx.site
+		// $site is global too (parity with View::share leaking into anonymous
+		// components), and outranks the shared collections: `site` is shared
+		// LAST on the PHP side, so a collection literally named `site` can never
+		// displace the site object.
+		if caller.ctx.site != nil {
+			cs["site"] = caller.ctx.site
+		}
 	}
 	for name, decl := range declared {
+		// A passed attribute arrives as the component view's PER-VIEW data, which
+		// Factory::gatherData merges OVER the shared data — so it overwrites a
+		// same-named collection even when its value is null.
 		if v, ok := passed[name]; ok {
-			// A passed attribute is per-view data and beats shared data.
 			cs[name] = v
-		} else if decl.hasDefault && cs[name] == nil {
-			// `$x = $x ?? $default`: the default fills in only where nothing
-			// shared already bound the name. A component declaring
-			// @props(['links' => null]) alongside a collections/links.json
-			// therefore renders the COLLECTION, not the default — the shared
-			// binding is not shadowable by a default.
+		}
+		// Only then the defaults pass, which compileProps emits as
+		// `$x = $x ?? $default`: the default fills in wherever the name is still
+		// null — nothing shared bound it, or a passed value was itself null.
+		// Hence @props(['links' => null]) alongside a collections/links.json
+		// renders the COLLECTION (a default cannot shadow shared data), while
+		// <x-nav :links="null"/> renders the DEFAULT (the null overwrote the
+		// collection first, then the default filled the hole). Both verified
+		// against the oracle, 2026-07-28. An attribute whose expression FAILED to
+		// evaluate is excluded: real Blade would have raised rather than reached
+		// this line, so there is no parity to model, and leaving the prop nil
+		// keeps the breakage visible next to its diagnostic.
+		if decl.hasDefault && cs[name] == nil && !failed[name] {
 			cs[name] = decl.def
 		}
 		// bare prop, not passed → whatever shared data bound (often nothing,

@@ -95,11 +95,24 @@ With `site_root` set, the provider registers at boot:
   app's own views win on collision (the host can shadow a site view without
   editing the tree);
 - `resources/views/components` as an anonymous-component path;
-- the data contract (`SiteData`): `$site` from `resources/data/site.json`
-  (shared globally, components see it), one variable per
-  `resources/data/collections/<name>.json` and per
-  `resources/data/content/<dir>/` of markdown files — bound to `pages.*`
-  views only, never overriding data a page was rendered with.
+- the data contract (`SiteData`), **all of it `View::share`d globally** so
+  pages, layouts, and components resolve the same variables: `$site` from
+  `resources/data/site.json`, one variable per
+  `resources/data/collections/<name>.json`, and one per
+  `resources/data/content/<dir>/` of markdown files. Collections and content
+  share first and `site` **last**, so a collection named `site` can never
+  displace the site object. Inside a component, an explicitly **passed**
+  attribute overrides a same-named binding (it is per-view data, which
+  `gatherData` merges over shared data), while a declared `@props` **default**
+  only fills in where the name is still null — a default cannot shadow a
+  collection. Data a page was rendered with (the protocol's `data` map) still
+  wins in that page, so a dynamic page's matched entry shadows its collection
+  there while components keep seeing the full collection.
+
+  *(Global scope since 2026-07-28 — see
+  `docs/specs/2026-07-28-collections-global-scope-design.md`. Collections and
+  content were previously bound to `pages.*` views only, which left a
+  layout-instantiated nav unable to read them.)*
 
 Pages are plain `.blade.php` views rendered by real Blade — this is the mode
 the conformance oracle and the DevDojo platform use.

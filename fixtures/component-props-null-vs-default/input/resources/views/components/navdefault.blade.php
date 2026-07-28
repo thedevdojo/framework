@@ -1,0 +1,2 @@
+@props(['links' => 'DefaultString'])
+[{{ $links }}]

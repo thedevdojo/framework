@@ -1,0 +1,1 @@
+comp:{{ $site->name }}

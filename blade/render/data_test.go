@@ -212,6 +212,45 @@ func TestPassedAttrBeatsCollection(t *testing.T) {
 	}
 }
 
+// TestPassedNullFallsBackToDefault: a passed attribute is per-view data, so it
+// overwrites shared data even when its value is null — and the `??` defaults
+// pass then fills the hole. Passing null is therefore the one way a caller can
+// reach a default that a same-named collection would otherwise occupy. Both
+// halves oracle-verified 2026-07-28.
+func TestPassedNullFallsBackToDefault(t *testing.T) {
+	// No colliding collection: passed null still yields the default.
+	res := compileOne(t, map[string]string{
+		dataEntry:                                `<x-c :label="null"/>`,
+		"resources/views/components/c.blade.php": `@props(['label' => 'Fallback'])[{{ $label }}]`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "[Fallback]" {
+		t.Errorf("passed null did not fall back to the default: output = %q; want %q", got, "[Fallback]")
+	}
+
+	// Colliding collection: the passed null overwrites it, then the default
+	// fills in — the collection does NOT come back.
+	res = compileOne(t, map[string]string{
+		dataEntry:                                `<x-c :links="null"/>`,
+		"resources/views/components/c.blade.php": `@props(['links' => 'DefaultString'])[{{ $links }}]`,
+		collectionsDir + "links.json":            `[{"label":"Global"}]`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "[DefaultString]" {
+		t.Errorf("passed null over a collection: output = %q; want %q", got, "[DefaultString]")
+	}
+}
+
+// TestPassedFalsyKeepsPassedValue: only NULL triggers the defaults pass. An
+// empty string or false is a real value and survives (both echo as "").
+func TestPassedFalsyKeepsPassedValue(t *testing.T) {
+	res := compileOne(t, map[string]string{
+		dataEntry:                                `<x-c :label="''"/>|<x-c :label="false"/>`,
+		"resources/views/components/c.blade.php": `@props(['label' => 'Fallback'])[{{ $label }}]`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "[]|[]" {
+		t.Errorf("a falsy passed value wrongly took the default: output = %q; want %q", got, "[]|[]")
+	}
+}
+
 // TestSiteBeatsCollectionNamedSite: `site` is shared LAST on both tiers, so a
 // collections/site.json can never displace the site object — in a component OR
 // on a page.

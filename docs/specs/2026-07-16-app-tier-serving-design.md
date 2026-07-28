@@ -81,8 +81,10 @@ Shipped in the `devdojo/pocketknife` Laravel package (`laravel/`):
   config addition (`laravel/config/pocketknife.php`, which carries the serving
   docs in comments — the package has no README).
 - **Rendering mechanism** — pages render via `View::make($dotName)` (not
-  `View::file()`), so the `SiteData` `pages.*` composer fires and collections /
-  content bind; the view-relative→dot-name mapping matches the conformance
+  `View::file()`), so the view resolves through the factory and the `SiteData`
+  bindings apply (originally a `pages.*` composer; globally shared since
+  2026-07-28 — see `2026-07-28-collections-global-scope-design.md`); the
+  view-relative→dot-name mapping matches the conformance
   harness's own `str_replace('/', '.', …)`, so serving and the oracle agree
   byte-for-byte. (A page-path segment with a literal `.` is unsupported, the
   same limitation the conformance mapping carries.)

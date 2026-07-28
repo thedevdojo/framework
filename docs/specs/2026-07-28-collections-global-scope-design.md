@@ -27,15 +27,26 @@ Precedence inside a component scope, low → high:
    in a component **or on a page** — see the correction below)
 3. a **passed** attribute (`:links="…"` / `links="…"`), which arrives as the
    component view's per-view data and therefore beats shared data
-4. declared `@props` **defaults**, which fill in only where nothing is already
-   bound — a default can **NOT** shadow a same-named collection
+4. declared `@props` **defaults**, which fill in only where the name is still
+   null — a default can **NOT** shadow a same-named collection, but it DOES
+   fill in behind a passed null
 5. `$slot` / named slots
 
 ### Correction 2026-07-28 (implementation, settled against the oracle)
 
-Two claims in the original draft above were wrong about real Blade. Both were
-probed directly through `php artisan pocketknife:render` and the engine follows
-real Laravel, per the dual-oracle rule:
+The draft's precedence list originally had three ranks, with rank 3 reading:
+
+> declared `@props` (a passed attribute or default **shadows** a same-named
+> collection — this is the footgun the devdojo audit teaches: a component with
+> `@props(['links' => null])` and no binding sees null, not the collection)
+
+and the draft also asserted, in a paragraph now deleted, that "Page scope is
+untouched: `buildSiteData`'s bindings (site → collections → content →
+`Options.Data`, later wins) already model it."
+
+Both claims were wrong about real Blade. Each was probed directly through
+`php artisan pocketknife:render`, and the engine follows real Laravel per the
+dual-oracle rule. The list above (ranks 3–5) is the corrected contract:
 
 - **A declared `@props` default does not shadow a collection.** Blade's
   `compileProps` emits `$x = $x ?? $default` (and the same `??` form for a
@@ -46,18 +57,23 @@ real Laravel, per the dual-oracle rule:
   because a passed attribute is per-view data, which `Factory::gatherData`
   merges *over* shared data. The devdojo-side audit and prompt work must teach
   this shape, not the "default shadows" footgun the draft assumed.
+- **A passed attribute overwrites shared data even when its value is null**,
+  and the default then fills the hole. `<x-nav :links="null"/>` against a
+  component declaring `@props(['links' => 'D'])` renders `D`, not the
+  collection: the per-view merge nulls the binding, then the `??` defaults pass
+  fires. So passing null is the one way a caller *can* get back to the default.
+  Pinned by `fixtures/component-props-null-vs-default`.
 - **Page scope is NOT entirely untouched.** Sharing `site` last means a
   collection named `site` stops shadowing `$site` on pages too (it previously
   did, via the page-only binding order). `buildSiteData` therefore binds
   collections → content → `site` → `Options.Data`, matching
-  `SiteData::share`'s order. `Options.Data` still wins on the page, so the
-  dynamic-page entry override is unaffected.
+  `SiteData::share`'s order. Pinned by
+  `fixtures/data-site-collection-collision`.
 
-Page scope is untouched: `buildSiteData`'s bindings (site → collections →
-content → `Options.Data`, later wins) already model it. Dynamic-page entry
-overrides (`data: {collection: entry}`) therefore still shadow the collection
-**in the page only**; a component reading `$posts` sees the full collection —
-identical to real Blade's share-vs-view-data behavior.
+What the deleted paragraph got right, and still holds: `Options.Data` wins on
+the page, so dynamic-page entry overrides (`data: {collection: entry}`) still
+shadow the collection **in the page only** — a component reading `$posts` sees
+the full collection, identical to real Blade's share-vs-view-data behavior.
 
 ## Both tiers move together (parity by construction)
 
@@ -77,12 +93,15 @@ identical to real Blade's share-vs-view-data behavior.
 - Revise `fixtures/component-scope-isolation`: isolation's remaining meaning
   is "page-local data does not leak" (`Options.Data` keys, loop locals) —
   not collections.
-- New fixture(s) covering: a component reading a collection directly and a
+- New fixtures covering: a component reading a collection directly and a
   content collection (`component-reads-collection`); a layout binding a
   collection into a child component via `:links="$links"`
-  (`layout-binds-collection`); and the props/collection interaction
-  (`component-props-shadow-collection` — a `@props` default losing to the
-  collection, a passed attribute winning).
+  (`layout-binds-collection`); the props/collection interaction
+  (`component-props-vs-collection` — a `@props` default losing to the
+  collection, a passed attribute winning); the passed-null/default interplay
+  (`component-props-null-vs-default`); and `$site` outranking a
+  `collections/site.json` on page and in component
+  (`data-site-collection-collision`).
 - `make conformance` (dual-oracle, byte-identical against real Laravel) must
   pass — the oracle app binds through the same `SiteData`, so both tiers
   change in one commit.

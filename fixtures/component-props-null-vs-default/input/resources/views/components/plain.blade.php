@@ -1,0 +1,2 @@
+@props(['label' => 'Fallback'])
+[{{ $label }}]

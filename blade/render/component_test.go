@@ -198,7 +198,10 @@ func TestComponentBoundAttrCallerScope(t *testing.T) {
 }
 
 // TestComponentBoundAttrEvalError: a bound attr whose expression fails to
-// evaluate is diagnosed (Task 6 mapping) and the prop becomes nil.
+// evaluate is diagnosed (Task 6 mapping) and the prop becomes nil. That nil is
+// an ERROR SENTINEL: unlike a genuine passed null (which falls through to the
+// prop's default — see TestPassedNullFallsBackToDefault), it leaves the prop
+// nil, so `?? 'F'` shows the guard rather than the default masking the break.
 func TestComponentBoundAttrEvalError(t *testing.T) {
 	res := compileMem(t, map[string]string{
 		pageEntry:                                `<x-c :label="$missing"/>`,
