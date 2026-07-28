@@ -1,1 +1,1 @@
-[{{ $secret ?? 'isolated' }}]
+[{{ $secret ?? 'isolated' }}|{{ $item ?? 'no-local' }}]

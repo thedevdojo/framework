@@ -266,8 +266,21 @@ its left-hand operand — `{{ $tagline ?? 'Welcome' }}` is always legal.
 | Source | Binding | Notes |
 |---|---|---|
 | `resources/data/site.json` | `$site` (object) | Available everywhere. Namespaced so it cannot collide with collections. |
-| `resources/data/collections/plans.json` | `$plans` | JSON array; bound in pages and layouts. Components receive data via props only. Order is as authored in the file. |
-| `resources/data/content/post/*.md` | `$post` | Items carry frontmatter fields plus `content` (rendered HTML) and `link` (route). Ordered by filename ascending. Rendered inline via `{!! $item->content !!}`. |
+| `resources/data/collections/plans.json` | `$plans` | JSON array. **Available everywhere** — pages, layouts, and components — shared like `$site`. A **passed** attribute (`:plans="…"`) overrides it inside a component; a declared `@props` default does **not**. Order is as authored in the file. |
+| `resources/data/content/post/*.md` | `$post` | **Available everywhere**, on the same terms as collections. Items carry frontmatter fields plus `content` (rendered HTML) and `link` (route). Ordered by filename ascending. Rendered inline via `{!! $item->content !!}`. |
+
+> **Amendment 2026-07-28 — collections became global.** The collection and content rows
+> above previously read "bound in pages and layouts; components receive data via props
+> only" (the layout half was never actually implemented on either tier, so a
+> layout-instantiated nav backed by `collections/links.json` rendered empty). Both tiers
+> now share collections and content globally, exactly like `$site`; `site` is shared
+> **last** so a collection literally named `site` can never displace the site object.
+> The protocol's `data` map stays **page-only** and still wins there, so a dynamic page's
+> matched entry shadows its collection in the page while a component still reads the full
+> collection. One correction to that spec, settled against the oracle: real Blade's
+> `compileProps` emits `$x = $x ?? $default`, so a declared `@props` **default cannot
+> shadow** a same-named shared collection — only an explicitly passed attribute can.
+> Full rationale: `docs/specs/2026-07-28-collections-global-scope-design.md`.
 
 `$site`, each object **item** inside a collection array, and each content item are
 **stdClass objects** (§3.4) — decoded order-preserving, so `$site->name` reads a member,
@@ -377,8 +390,9 @@ The Laravel-side half of the contract. Its service provider:
    integration direction requires (the host must be able to override a site layout or
    shared component without editing the site tree) — append order is correct, the provider
    must not prepend. Pinned by `laravel/tests/ViewPrecedenceTest.php`.
-3. Binds the data contract (§3.5): `$site`, collections, and content collections shared
-   into views (view composers reading `resources/data/`)
+3. Binds the data contract (§3.5): `$site`, collections, and content collections all
+   `View::share`d globally from `resources/data/` (collections/content first, `site`
+   last — see the 2026-07-28 amendment above)
 4. Swaps in the static-projection `Vite` implementation when the app has no built
    assets (§3.6)
 

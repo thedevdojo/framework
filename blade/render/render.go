@@ -145,7 +145,7 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 		deps.add(entry)
 		// The loop budget is per entry: each output gets the full allowance, so
 		// one pathological page cannot starve its siblings.
-		ctx := &renderCtx{fs: fs, deps: deps, cache: parseCache, site: data.site, loopCap: loopCap}
+		ctx := &renderCtx{fs: fs, deps: deps, cache: parseCache, site: data.site, shared: data.shared, loopCap: loopCap}
 		r := &renderer{scope: scope, ctx: ctx}
 		r.renderNodes(nodes, false)
 		// Real Blade returns ltrim(ob_get_clean()) for every rendered view

@@ -18,45 +18,65 @@ const (
 )
 
 // siteData is the assembled data context for one Compile: the global $site
-// object (as seen by components too) and the page-level bindings (site +
-// collections + content, with Options.Data merged over the top, keys winning).
+// object, the GLOBAL shared bindings (collections + content), and the
+// page-level bindings (site + collections + content, with Options.Data merged
+// over the top, keys winning).
 type siteData struct {
-	site     expr.Value            // $site — the site.json object (empty map if absent)
+	site expr.Value // $site — the site.json object (empty map if absent)
+	// shared holds the collection and content bindings exactly as loaded from
+	// disk — no Options.Data merged over them and no `site` key. Since
+	// 2026-07-28 these bind GLOBALLY (spec
+	// docs/specs/2026-07-28-collections-global-scope-design.md): components and
+	// layouts see them, like $site, mirroring real Blade's View::share. Page
+	// scope keeps using `bindings` so a dynamic page's Options.Data entry
+	// override stays page-local.
+	shared   map[string]expr.Value
 	bindings map[string]expr.Value // page top-level variables
 	diags    []Diagnostic
 }
 
 // buildSiteData reads the three data sources under the site root and folds
-// Options.Data over them. $site is bound first, then each collection, then each
-// content collection, then the caller's data (which overrides collisions — a
-// data key `site` therefore replaces $site for pages). The returned `site` is
-// the ORIGINAL site.json object, unaffected by any data override, because
-// components see the shared $site, not per-page data (parity with real Blade's
-// View::share vs. per-view data).
+// Options.Data over them. Each collection binds first, then each content
+// collection, then $site, then the caller's data (which overrides collisions —
+// a data key `site` therefore replaces $site for pages). The site-after-
+// collections order mirrors SiteData::share, which shares `site` LAST so a
+// collection literally named `site` cannot displace the site object anywhere.
+// The returned `site` is the ORIGINAL site.json object, and `shared` the
+// ORIGINAL collection/content bindings, both unaffected by any data override,
+// because components see the SHARED data, not per-page data (parity with real
+// Blade's View::share vs. per-view data).
 func buildSiteData(fs vfs.FS, data map[string]any) siteData {
 	site, diags := loadSite(fs)
 
-	bindings := map[string]expr.Value{"site": site}
+	bindings := map[string]expr.Value{}
+	shared := map[string]expr.Value{}
 
 	colBindings, colDiags := loadCollections(fs)
 	diags = append(diags, colDiags...)
 	for name, v := range colBindings {
 		bindings[name] = v
+		shared[name] = v
 	}
 
 	contentBindings, conDiags := loadContent(fs)
 	diags = append(diags, conDiags...)
 	for name, v := range contentBindings {
 		bindings[name] = v
+		shared[name] = v
 	}
 
+	bindings["site"] = site
+
 	// Options.Data merges over everything; its keys become top-level variables
-	// and win on collision (including `site`).
+	// and win on collision (including `site`) because real Blade's per-view data
+	// outranks all shared data. It is deliberately NOT folded into `shared`: the
+	// protocol's data map is per-page view data, which never reaches an
+	// anonymous component's isolated scope.
 	for k, v := range data {
 		bindings[k] = toValue(v)
 	}
 
-	return siteData{site: site, bindings: bindings, diags: diags}
+	return siteData{site: site, shared: shared, bindings: bindings, diags: diags}
 }
 
 // loadSite reads resources/data/site.json into the $site object. A missing file

@@ -31,9 +31,15 @@ type renderCtx struct {
 	deps  *orderedSet
 	cache map[string][]ast.Node
 	// site is the global $site object. It is shared into every component scope
-	// (real Blade's View::share leaks $site into anonymous components), unlike
-	// collections/content/Options.Data, which pages see but components do not.
+	// (real Blade's View::share leaks $site into anonymous components).
 	site expr.Value
+	// shared holds the collection and content bindings, which since 2026-07-28
+	// are ALSO global — a component or layout reads $links straight from
+	// collections/links.json without the page threading it through (spec
+	// docs/specs/2026-07-28-collections-global-scope-design.md). Options.Data
+	// stays out of it: the protocol's data map is per-page view data and, like
+	// real Blade's per-view data, never reaches a component's isolated scope.
+	shared map[string]expr.Value
 	// loopCap / loopUsed implement the per-entry @foreach iteration budget
 	// (Options.MaxLoopIterations): every renderer sharing this ctx — the page,
 	// its components, its slots — draws from the same allowance. exceeded
@@ -182,12 +188,25 @@ func (r *renderer) parseFile(path string, src []byte) ([]ast.Node, []parser.Diag
 	return nodes, diags
 }
 
-// buildComponentScope produces the FLAT, isolated scope a component body sees:
-// only its declared props (defaults, overridden by passed attributes) plus $slot
-// and the named slots. Page/caller data does NOT leak in. Bound attributes are
-// evaluated in the caller's scope at the tag site; a bound-attr eval error is
-// diagnosed (Task 6 mapping) and the prop becomes nil. Undeclared attributes are
-// dropped silently.
+// buildComponentScope produces the FLAT, isolated scope a component body sees,
+// seeded low → high exactly as real Blade builds an anonymous component's scope:
+//
+//  1. the GLOBAL shared bindings (collections + content)
+//  2. $site (shared last on the PHP side, so it outranks a collection named
+//     `site`)
+//  3. passed attributes — they arrive as the component view's PER-VIEW data,
+//     and Factory::gatherData merges shared then view data, so a passed
+//     attribute beats a same-named shared binding
+//  4. @props DEFAULTS, but only where the name is still unset/null — compileProps
+//     emits `$x = $x ?? $default`, so a default can NOT displace a shared
+//     collection (verified against the oracle 2026-07-28; see the note in the
+//     collections-global spec)
+//  5. $slot and the named slots
+//
+// Page-LOCAL data — the protocol's Options.Data keys and any caller locals such
+// as a loop variable — does NOT leak in. Bound attributes are evaluated in the
+// caller's scope at the tag site; a bound-attr eval error is diagnosed and the
+// prop becomes nil. Undeclared attributes are dropped silently.
 func buildComponentScope(caller *renderer, declared propSet, attrs []scanner.Attr, slot rawHTML, named map[string]rawHTML) componentScope {
 	// Resolve every passed attribute value, keyed by its camelCased name (real
 	// Blade matches foo-bar="…" to the fooBar prop).
@@ -216,20 +235,35 @@ func buildComponentScope(caller *renderer, declared propSet, attrs []scanner.Att
 	}
 
 	cs := componentScope{}
-	// $site is global: a component sees it (parity with View::share leaking into
-	// anonymous components). Declared props of the same name still win — set site
-	// first so a passed/defaulted `site` prop overrides it, matching PHP where a
-	// component's own data overrides shared data.
+	// Collections and content are global: a component reads $links straight from
+	// collections/links.json, no page threading required. Seeded FIRST (lowest
+	// precedence) so both $site and any declared prop can shadow them.
+	if caller.ctx != nil {
+		for name, v := range caller.ctx.shared {
+			cs[name] = v
+		}
+	}
+	// $site is global too (parity with View::share leaking into anonymous
+	// components), and outranks the shared collections: `site` is shared LAST on
+	// the PHP side, so a collection literally named `site` can never displace
+	// the site object.
 	if caller.ctx != nil && caller.ctx.site != nil {
 		cs["site"] = caller.ctx.site
 	}
 	for name, decl := range declared {
 		if v, ok := passed[name]; ok {
+			// A passed attribute is per-view data and beats shared data.
 			cs[name] = v
-		} else if decl.hasDefault {
+		} else if decl.hasDefault && cs[name] == nil {
+			// `$x = $x ?? $default`: the default fills in only where nothing
+			// shared already bound the name. A component declaring
+			// @props(['links' => null]) alongside a collections/links.json
+			// therefore renders the COLLECTION, not the default — the shared
+			// binding is not shadowable by a default.
 			cs[name] = decl.def
 		}
-		// bare prop, not passed → left undefined (absent from the scope)
+		// bare prop, not passed → whatever shared data bound (often nothing,
+		// leaving the variable undefined)
 	}
 	cs["slot"] = slot
 	for name, val := range named {

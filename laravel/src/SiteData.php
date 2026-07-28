@@ -18,10 +18,11 @@ use League\CommonMark\MarkdownConverter;
  *                    components, and the Go engine mirrors that (components see
  *                    $site). Per-page data still overrides it via gatherData.
  *  - $<collection> — each resources/data/collections/<name>.json (a JSON array),
- *                    bound to PAGES ONLY. Component isolation keeps them out of
- *                    layouts/components, matching the Go engine.
+ *                    shared GLOBALLY too since 2026-07-28 (spec
+ *                    docs/specs/2026-07-28-collections-global-scope-design.md):
+ *                    pages, layouts, and components all read them.
  *  - $<dir>        — each resources/data/content/<dir>/*.md, rendered to items
- *                    (frontmatter fields + `content` HTML + `link`), pages only.
+ *                    (frontmatter fields + `content` HTML + `link`), also global.
  *
  * The frontmatter grammar and markdown configuration are kept byte-identical to
  * the Go tier: scalars only (strings/ints/floats/true/false), goldmark/commonmark
@@ -32,25 +33,27 @@ use League\CommonMark\MarkdownConverter;
 class SiteData
 {
     /**
-     * Bind the three data sources under $root into $factory. Collections and
-     * content bind only to `pages.*` and never override data the page was
-     * rendered with, so an explicit `data` binding (the protocol's data map)
-     * wins on collision — the same precedence the Go engine applies.
+     * Bind the three data sources under $root into $factory as SHARED data, so
+     * pages, layouts, and components resolve them alike.
+     *
+     * Order matters: collections and content share FIRST and `site` LAST, so a
+     * collection literally named `site` can never displace the site object.
+     * Per-view data still outranks all shared data (Factory::gatherData merges
+     * shared then view data), which is exactly the page-scope collision rule —
+     * the protocol's `data` map (a dynamic page's matched entry, say) shadows a
+     * same-named collection in the PAGE, while a component reading that name
+     * still sees the full collection. The Go engine mirrors this split with its
+     * `bindings` (page) / `shared` (global) pair.
      */
     public static function share(Factory $factory, string $root): void
     {
-        $factory->share('site', self::loadSite($root));
-
         $bindings = array_merge(self::loadCollections($root), self::loadContent($root));
 
-        $factory->composer('pages.*', function ($view) use ($bindings) {
-            $existing = $view->getData();
-            foreach ($bindings as $key => $value) {
-                if (! array_key_exists($key, $existing)) {
-                    $view->with($key, $value);
-                }
-            }
-        });
+        foreach ($bindings as $key => $value) {
+            $factory->share($key, $value);
+        }
+
+        $factory->share('site', self::loadSite($root));
     }
 
     /**

@@ -112,7 +112,7 @@ func TestSitePresent(t *testing.T) {
 
 // TestSiteVisibleInComponent probes the visibility rule the oracle pins:
 // components DO see $site (real Blade's View::share leaks into anonymous
-// components), even though they do not see collections/content.
+// components).
 func TestSiteVisibleInComponent(t *testing.T) {
 	res := compileOne(t, map[string]string{
 		dataEntry: "<x-brand/>",
@@ -124,16 +124,138 @@ func TestSiteVisibleInComponent(t *testing.T) {
 	}
 }
 
-// TestCollectionsNotVisibleInComponent: a collection binding is page-only; a
-// component referencing it sees an undefined variable (guarded here with ??).
-func TestCollectionsNotVisibleInComponent(t *testing.T) {
+// TestCollectionsVisibleInComponent pins the 2026-07-28 contract change
+// (docs/specs/2026-07-28-collections-global-scope-design.md): collections bind
+// GLOBALLY, like $site, so a component reads one WITHOUT the page threading it
+// through. This test previously asserted the opposite (collections were
+// page-only), which is exactly the bug the change fixes — a layout-instantiated
+// nav backed by collections/links.json rendered empty.
+func TestCollectionsVisibleInComponent(t *testing.T) {
 	res := compileOne(t, map[string]string{
 		dataEntry: "<x-list/>",
-		"resources/views/components/list.blade.php": "{{ $plans ?? 'no-plans' }}",
+		"resources/views/components/list.blade.php": "@foreach ($plans as $p){{ $p->name }};@endforeach",
+		collectionsDir + "plans.json":               `[{"name":"Free"},{"name":"Pro"}]`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "Free;Pro;" {
+		t.Errorf("component did not see the collection: output = %q; want %q", got, "Free;Pro;")
+	}
+	if len(res.Diagnostics) != 0 {
+		t.Errorf("unexpected diagnostics: %v", res.Diagnostics)
+	}
+}
+
+// TestContentVisibleInComponent: content collections are global on the same
+// terms as collections/*.json.
+func TestContentVisibleInComponent(t *testing.T) {
+	res := compileOne(t, map[string]string{
+		dataEntry: "<x-list/>",
+		"resources/views/components/list.blade.php": "@foreach ($post as $p){{ $p->title }};@endforeach",
+		contentDir + "post/a.md":                    "---\ntitle: A\n---\nbody\n",
+		contentDir + "post/b.md":                    "---\ntitle: B\n---\nbody\n",
+	}, nil)
+	if got := res.Files["index.html"]; got != "A;B;" {
+		t.Errorf("component did not see the content collection: output = %q; want %q", got, "A;B;")
+	}
+}
+
+// TestLayoutSeesCollection: the origin bug. A nav component instantiated from a
+// LAYOUT (itself a component) can bind a collection into a child with
+// :links="$links" — no page involvement.
+func TestLayoutSeesCollection(t *testing.T) {
+	res := compileOne(t, map[string]string{
+		dataEntry: "<x-layouts.main>body</x-layouts.main>",
+		"resources/views/components/layouts/main.blade.php": "<x-nav :links=\"$links\"/>[{{ $slot }}]",
+		"resources/views/components/nav.blade.php":          "@props(['links' => []])@foreach ($links as $l){{ $l->label }};@endforeach",
+		collectionsDir + "links.json":                       `[{"label":"Home"}]`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "Home;[body]" {
+		t.Errorf("layout could not bind the collection: output = %q; want %q", got, "Home;[body]")
+	}
+	if len(res.Diagnostics) != 0 {
+		t.Errorf("unexpected diagnostics: %v", res.Diagnostics)
+	}
+}
+
+// TestPropsDefaultDoesNotShadowCollection: real Blade's compileProps emits
+// `$x = $x ?? $default`, so a declared default fills in only where nothing is
+// already bound — it can NOT displace a shared collection. Verified against the
+// oracle on 2026-07-28; the approved spec had guessed the opposite, and the
+// engine follows real Laravel.
+func TestPropsDefaultDoesNotShadowCollection(t *testing.T) {
+	res := compileOne(t, map[string]string{
+		dataEntry: "<x-nav/>",
+		// A shadowing default (null) would make this @foreach iterate nothing and
+		// raise a foreach diagnostic; seeing the collection is the contract.
+		"resources/views/components/nav.blade.php": "@props(['links' => null])@foreach ($links as $l){{ $l->label }};@endforeach",
+		collectionsDir + "links.json":              `[{"label":"Home"}]`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "Home;" {
+		t.Errorf("a @props default wrongly shadowed the collection: output = %q; want %q", got, "Home;")
+	}
+	if len(res.Diagnostics) != 0 {
+		t.Errorf("unexpected diagnostics: %v", res.Diagnostics)
+	}
+}
+
+// TestPassedAttrBeatsCollection: a PASSED attribute does override a same-named
+// shared collection — it arrives as the component view's per-view data, which
+// Factory::gatherData merges over shared data.
+func TestPassedAttrBeatsCollection(t *testing.T) {
+	res := compileOne(t, map[string]string{
+		dataEntry: `<x-nav :links="$other"/>`,
+		"resources/views/components/nav.blade.php": "@props(['links' => null])@foreach ($links as $l){{ $l->label }};@endforeach",
+		collectionsDir + "links.json":              `[{"label":"Global"}]`,
+		collectionsDir + "other.json":              `[{"label":"Passed"}]`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "Passed;" {
+		t.Errorf("passed attr did not beat the collection: output = %q; want %q", got, "Passed;")
+	}
+}
+
+// TestSiteBeatsCollectionNamedSite: `site` is shared LAST on both tiers, so a
+// collections/site.json can never displace the site object — in a component OR
+// on a page.
+func TestSiteBeatsCollectionNamedSite(t *testing.T) {
+	res := compileOne(t, map[string]string{
+		dataEntry: "page:{{ $site->name }} <x-brand/>",
+		"resources/views/components/brand.blade.php": "comp:{{ $site->name }}",
+		siteDataPath:                 `{"name":"Acme"}`,
+		collectionsDir + "site.json": `[{"name":"Collection"}]`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "page:Acme comp:Acme" {
+		t.Errorf("a collection named site displaced $site: output = %q; want %q", got, "page:Acme comp:Acme")
+	}
+}
+
+// TestOptionsDataStaysPageLocal: the protocol's data map is per-page view data.
+// It still wins in the PAGE (a dynamic page's matched entry shadows its
+// collection there) and still never reaches a component, which reads the full
+// shared collection.
+func TestOptionsDataStaysPageLocal(t *testing.T) {
+	res := compileOne(t, map[string]string{
+		dataEntry: "page:{{ $plans }}|<x-list/>",
+		"resources/views/components/list.blade.php": "comp:@foreach ($plans as $p){{ $p->name }};@endforeach",
+		collectionsDir + "plans.json":               `[{"name":"Free"}]`,
+	}, map[string]any{"plans": "entry"})
+	if got := res.Files["index.html"]; got != "page:entry|comp:Free;" {
+		t.Errorf("output = %q; want %q", got, "page:entry|comp:Free;")
+	}
+}
+
+// TestUnknownVarStillUndefinedInComponent: making collections global must not
+// blunt the undefined-variable diagnostic. A name backed by no collection, no
+// content directory, and no prop is still an error inside a component.
+func TestUnknownVarStillUndefinedInComponent(t *testing.T) {
+	res := compileOne(t, map[string]string{
+		dataEntry: "<x-list/>",
+		"resources/views/components/list.blade.php": "[{{ $nope }}]",
 		collectionsDir + "plans.json":               `[{"name":"Free"}]`,
 	}, nil)
-	if got := res.Files["index.html"]; got != "no-plans" {
-		t.Errorf("collections leaked into component: output = %q", got)
+	if got := res.Files["index.html"]; got != "[]" {
+		t.Errorf("output = %q; want %q", got, "[]")
+	}
+	if !hasDiagKC(res, KindError, "undefined-variable") {
+		t.Errorf("want undefined-variable diagnostic, got %v", res.Diagnostics)
 	}
 }
 
