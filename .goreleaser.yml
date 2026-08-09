@@ -1,0 +1,38 @@
+# Release builds for the pocketknife binary.
+#
+# The @devdojo/sites npm package downloads these on install, expecting
+# assets named `pocketknife_<os>_<arch>.tar.gz` on the `v<version>` release
+# (see sites/src/engine/binary.js — keep the naming in sync).
+#
+# Cut a release: git tag v0.1.0 && git push origin v0.1.0
+version: 2
+
+project_name: pocketknife
+
+builds:
+  - main: ./cmd/pocketknife
+    binary: pocketknife
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  # tar.gz for every platform — bsdtar ships on Windows 10+ too, and the
+  # npm installer extracts all platforms the same way.
+  - formats: [tar.gz]
+    name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  draft: false
