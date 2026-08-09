@@ -106,11 +106,9 @@ func (a *analyzer) checkInstance(c *ast.Component) {
 			if at.Bound {
 				continue // only static attributes are analyzed
 			}
-			key := camelCase(at.Name)
-			if _, isProp := declared[key]; isProp {
-				continue
-			}
-			if _, isBound := bound[key]; isBound {
+			// An attribute is declared/bound under ANY of the names it binds:
+			// logo_text="…" reaches both a logo_text and a logoText prop.
+			if anyKnown(attrBindingNames(at.Name), declared, bound) {
 				continue
 			}
 			a.warnings = append(a.warnings, Diagnostic{
@@ -146,14 +144,32 @@ func declaredProps(nodes []ast.Node) (propSet, bool) {
 	return ps, true
 }
 
-// boundAttrNames collects the camelCased names of an instance's bound
-// (`:name="expr"`) attributes.
+// boundAttrNames collects every name an instance's bound (`:name="expr"`)
+// attributes bind — the camelCased name, plus the literal one where it is a
+// usable variable name (see attrBindingNames).
 func boundAttrNames(attrs []scanner.Attr) map[string]struct{} {
 	out := map[string]struct{}{}
 	for _, at := range attrs {
-		if at.Bound {
-			out[camelCase(at.Name)] = struct{}{}
+		if !at.Bound {
+			continue
+		}
+		for _, name := range attrBindingNames(at.Name) {
+			out[name] = struct{}{}
 		}
 	}
 	return out
+}
+
+// anyKnown reports whether any of names appears in the declared prop set or the
+// bound-attribute set.
+func anyKnown(names []string, declared propSet, bound map[string]struct{}) bool {
+	for _, name := range names {
+		if _, ok := declared[name]; ok {
+			return true
+		}
+		if _, ok := bound[name]; ok {
+			return true
+		}
+	}
+	return false
 }

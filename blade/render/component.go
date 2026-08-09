@@ -213,8 +213,9 @@ func (r *renderer) parseFile(path string, src []byte) ([]ast.Node, []parser.Diag
 // passed null) does NOT fall through to the prop's default. Undeclared
 // attributes are dropped silently.
 func buildComponentScope(caller *renderer, declared propSet, attrs []scanner.Attr, slot rawHTML, named map[string]rawHTML) componentScope {
-	// Resolve every passed attribute value, keyed by its camelCased name (real
-	// Blade matches foo-bar="…" to the fooBar prop).
+	// Resolve every passed attribute value, keyed by each name it binds (real
+	// Blade matches foo-bar="…" to the fooBar prop, and logo_text="…" to BOTH
+	// $logo_text and $logoText — see attrBindingNames).
 	passed := make(map[string]expr.Value, len(attrs))
 	// failed records attributes whose bound expression could not be evaluated.
 	// Their nil is an ERROR SENTINEL, not the value null, so it must not feed the
@@ -222,15 +223,19 @@ func buildComponentScope(caller *renderer, declared propSet, attrs []scanner.Att
 	// default would hide the very breakage the diagnostic is reporting.
 	failed := map[string]bool{}
 	for _, a := range attrs {
-		key := camelCase(a.Name)
+		keys := attrBindingNames(a.Name)
 		if a.Bound {
 			v, err := expr.Eval(a.Value, caller.scope)
 			if err != nil {
 				caller.diagExprError(err, a.Pos)
 				v = nil
-				failed[key] = true
+				for _, key := range keys {
+					failed[key] = true
+				}
 			}
-			passed[key] = v
+			for _, key := range keys {
+				passed[key] = v
+			}
 		} else {
 			// Real Blade interpolates {{ }} / {!! !!} inside a STATIC attribute
 			// value (heading="Hi {{ $name }}"); this engine passes the braces
@@ -241,7 +246,9 @@ func buildComponentScope(caller *renderer, declared propSet, attrs []scanner.Att
 				caller.diag(a.Pos, KindAppTier, "attribute-interpolation",
 					"attribute \""+a.Name+"\" interpolates {{ }} into a static value; requires the PHP app tier")
 			}
-			passed[key] = a.Value // static attr: the verbatim string
+			for _, key := range keys {
+				passed[key] = a.Value // static attr: the verbatim string
+			}
 		}
 	}
 
@@ -327,6 +334,50 @@ func componentPath(name string) string {
 // missingMarker is the byte-stable output marker for an unresolved component.
 func missingMarker(name string) string {
 	return `<!-- pocketknife:missing component "` + name + `" -->`
+}
+
+// attrBindingNames returns every scope name a passed attribute binds, in
+// precedence order (later wins).
+//
+// Real Blade binds an attribute under its camelCased name — foo-bar="…" reaches
+// the fooBar prop — AND, when the name written on the tag is itself a usable PHP
+// variable name, under that literal name too. So logo_text="Hi" fills BOTH
+// $logo_text and $logoText, while logo-text="Hi" fills only $logoText ($logo-text
+// is not a variable). Oracle-verified 2026-08-07.
+//
+// Keying by the camelCase name alone silently dropped every snake_case
+// attribute: @props(['logo_text' => 'Default']) kept rendering its default no
+// matter what the tag passed.
+func attrBindingNames(name string) []string {
+	camel := camelCase(name)
+	if name != camel && isPHPVariableName(name) {
+		return []string{name, camel}
+	}
+	return []string{camel}
+}
+
+// isPHPVariableName reports whether s can appear after a `$` — letters, digits
+// and underscores, not opening with a digit. It is what separates logo_text
+// (a variable real Blade binds) from logo-text (which only binds camelized).
+func isPHPVariableName(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c == '_':
+		case c >= 'a' && c <= 'z':
+		case c >= 'A' && c <= 'Z':
+		case c >= '0' && c <= '9':
+			if i == 0 {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // camelCase mirrors Laravel's Str::camel: split on '-'/'_' word boundaries,

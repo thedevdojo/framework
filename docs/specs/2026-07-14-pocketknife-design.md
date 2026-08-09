@@ -191,12 +191,20 @@ what the oracle exists to police.
   semantics and works identically in both tiers.
 - Static attributes pass strings; **bound attributes** `:plans="$plans"` pass evaluated
   expressions (needed to hand collection data into sections).
+- **Attribute name → prop name.** An attribute binds under *every* name real Blade gives
+  it: always its camelCased name (`logo-text="…"` → the `logoText` prop), plus its literal
+  name whenever that is a usable PHP variable name. `logo_text="Hi"` therefore fills BOTH
+  `$logo_text` and `$logoText`; `logo-text="Hi"` fills only `$logoText`, since `$logo-text`
+  is not a variable. Bound attributes follow the same rule. Oracle-verified 2026-08-07 —
+  see `fixtures/component-snake-case-attrs`. (Before that date the engine keyed passed
+  attributes by the camelCase name *alone*, which silently dropped every `snake_case`
+  attribute and left the component rendering its `@props` default.)
 - **Undeclared attributes are dropped.** Real Blade routes them into `$attributes`; the
   dialect forbids `$attributes`, and a component that never echoes `$attributes`
   produces the same output as one where the attribute was dropped — so *outputs agree*.
   **`pocketknife lint` warns on undeclared attributes** to catch typos: a `warning`-kind
-  diagnostic per **static** attribute whose (camelCased) name is not declared in the
-  target component's `@props`, e.g.
+  diagnostic per **static** attribute none of whose binding names (see above) is declared
+  in the target component's `@props`, e.g.
   `index.blade.php:1:31 [warning] undeclared attribute "subtitle" on <x-sections.hero> (not in @props)`.
   Bound attributes (`:rows="…"`) are exempt (they are the legitimate data-pass), as is a
   static attr that collides with a bound attr of the same name on the same instance. A
