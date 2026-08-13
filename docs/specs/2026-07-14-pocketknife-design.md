@@ -199,8 +199,12 @@ what the oracle exists to police.
   see `fixtures/component-snake-case-attrs`. (Before that date the engine keyed passed
   attributes by the camelCase name *alone*, which silently dropped every `snake_case`
   attribute and left the component rendering its `@props` default.)
-- **Undeclared attributes are dropped.** Real Blade routes them into `$attributes`; the
-  dialect forbids `$attributes`, and a component that never echoes `$attributes`
+- **Undeclared attributes are dropped.** *(Superseded 2026-08-13: the engine now
+  models the `$attributes` bag — undeclared attributes fill it and every passed
+  attribute binds its variables; see
+  `2026-08-13-attribute-bag-conditional-classes-design.md`.)* Real Blade routes
+  them into `$attributes`; the dialect forbade `$attributes` in v1, and a
+  component that never echoes `$attributes`
   produces the same output as one where the attribute was dropped — so *outputs agree*.
   **`pocketknife lint` warns on undeclared attributes** to catch typos: a `warning`-kind
   diagnostic per **static** attribute none of whose binding names (see above) is declared

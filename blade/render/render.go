@@ -241,6 +241,14 @@ func (r *renderer) renderNode(n ast.Node, eat bool) bool {
 		r.renderProps(node)
 		return directiveEatsNewline // the @props line eats one following newline
 
+	case *ast.ClassDir:
+		r.renderCssDir(node.Raw, node.P, false)
+		return directiveEatsNewline
+
+	case *ast.StyleDir:
+		r.renderCssDir(node.Raw, node.P, true)
+		return directiveEatsNewline
+
 	case *ast.Vite:
 		r.renderVite(node)
 		// @vite compiles to the same `<?php echo ...; ?>` close-tag shape as any
@@ -295,6 +303,19 @@ func (r *renderer) renderEcho(node *ast.Echo) {
 		r.sb.WriteString(string(rh))
 		return
 	}
+	// The $attributes bag is Htmlable: e() returns toHtml() untouched, so both
+	// echo forms emit the imploded ` key="value"` string raw (bound values were
+	// escaped when the bag was built). A non-scalar attribute value is PHP's
+	// array-to-string fatal → an expression error here.
+	if bagv, ok := val.(*expr.AttrBag); ok {
+		s, herr := bagv.HTMLString()
+		if herr != nil {
+			r.diag(node.P, KindError, "expression", herr.Error())
+			return
+		}
+		r.sb.WriteString(s)
+		return
+	}
 	s, serr := Stringify(val)
 	if serr != nil {
 		// Non-scalar value (array/map): PHP would not echo it as text.
@@ -305,6 +326,41 @@ func (r *renderer) renderEcho(node *ast.Echo) {
 		s = Escape(s)
 	}
 	r.sb.WriteString(s)
+}
+
+// renderCssDir renders @class / @style: the argument expression (normally an
+// array literal) evaluates in the current scope and compiles through
+// Arr::toCssClasses / Arr::toCssStyles into `class="…"` / `style="…"` —
+// emitted verbatim, no HTML escaping, exactly like CompilesConditionals'
+// compileClass/compileStyle. A bare @class (no argument) is PHP's null →
+// Arr::wrap → the empty list. An argument that fails to evaluate (or holds a
+// value PHP could not cast while imploding) is diagnosed and renders nothing.
+func (r *renderer) renderCssDir(raw string, p scanner.Pos, style bool) {
+	var v expr.Value
+	if strings.TrimSpace(raw) != "" {
+		var err error
+		v, err = expr.Eval(raw, r.scope)
+		if err != nil {
+			r.diagExprError(err, p)
+			return
+		}
+	}
+	var s string
+	var err error
+	if style {
+		s, err = expr.ToCssStyles(v)
+	} else {
+		s, err = expr.ToCssClasses(v)
+	}
+	if err != nil {
+		r.diag(p, KindError, "expression", err.Error())
+		return
+	}
+	if style {
+		r.sb.WriteString(`style="` + s + `"`)
+	} else {
+		r.sb.WriteString(`class="` + s + `"`)
+	}
 }
 
 // renderIf evaluates branches in order, rendering the first truthy one (else the
@@ -330,23 +386,16 @@ func (r *renderer) renderIf(node *ast.If) {
 // an undefined variable is an error/undefined-variable; a valid-but-unsupported
 // PHP expression (SyntaxError with AppTier) is app-tier/expression; anything else
 // (garbage syntax, ordered-array comparison, non-numeric unary) is
-// error/expression. One carve-out (Task 11): `$attributes` is syntactically a
-// plain variable — it evaluates as undefined, exactly like any other unbound
-// var — but semantically it names Blade's dynamic attribute-bag feature, which
-// this engine does not model at all (buildComponentScope never binds it; see
-// component.go). So an undefined `$attributes` specifically is reclassified
-// app-tier/$attributes rather than error/undefined-variable, matching how a
-// real unsupported construct (a function call, `?->`, …) is reported. This
-// covers every call site that routes through diagExprError: echoes, @if/
-// @elseif conditions, @foreach items/@break/@continue conditions, and a bound
-// component attribute (:attr="$attributes").
+// error/expression.
+//
+// History: until the attribute bag was modeled (2026-08-13), an undefined
+// `$attributes` was reclassified app-tier/$attributes, because the engine
+// never bound the bag at all. Now buildComponentScope binds $attributes in
+// every component scope, so the only place it can be undefined is a PAGE —
+// where real Blade raises the same undefined-variable error this reports.
+// The carve-out is gone; error/undefined-variable is the parity answer.
 func (r *renderer) diagExprError(err error, p scanner.Pos) {
 	if errors.Is(err, expr.ErrUndefinedVar) {
-		var uv *expr.UndefinedVarError
-		if errors.As(err, &uv) && uv.Name == "attributes" {
-			r.diag(p, KindAppTier, "$attributes", err.Error())
-			return
-		}
 		r.diag(p, KindError, "undefined-variable", err.Error())
 		return
 	}

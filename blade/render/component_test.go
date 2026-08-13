@@ -458,15 +458,17 @@ func TestPropsOnPage(t *testing.T) {
 	}
 }
 
-// TestMalformedProps: an illegal @props literal diagnoses props and is treated
-// as empty (no declared props → the attr is undeclared/dropped).
+// TestMalformedProps: an illegal @props literal diagnoses props and declares
+// nothing — but the passed attribute still binds, because attributes reach an
+// anonymous component as view data independently of the @props line (real
+// Blade binds $a before compileProps runs; see buildComponentScope).
 func TestMalformedProps(t *testing.T) {
 	res := compileMem(t, map[string]string{
 		pageEntry:                                `<x-c a="x"/>`,
 		"resources/views/components/c.blade.php": `@props('not an array')[{{ $a ?? 'none' }}]`,
 	}, nil)
-	if got := res.Files["index.html"]; got != "[none]" {
-		t.Fatalf("output = %q; want %q", got, "[none]")
+	if got := res.Files["index.html"]; got != "[x]" {
+		t.Fatalf("output = %q; want %q", got, "[x]")
 	}
 	if !hasConstruct(res.Diagnostics, "props") {
 		t.Fatalf("diagnostics = %v; want a props error", res.Diagnostics)

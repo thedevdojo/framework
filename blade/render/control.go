@@ -184,6 +184,15 @@ func iterablePairs(v expr.Value) ([]pair, bool) {
 			pairs[i] = pair{key: k, val: v}
 		}
 		return pairs, true
+	case *expr.Arr:
+		// An ordered array literal (['a', 'k' => $v]) iterates its entries in
+		// insertion order with their PHP keys — exactly PHP's foreach.
+		ps := items.Pairs()
+		pairs := make([]pair, len(ps))
+		for i, p := range ps {
+			pairs[i] = pair{key: p.Key, val: p.Val}
+		}
+		return pairs, true
 	case map[string]expr.Value:
 		keys := make([]string, 0, len(items))
 		for k := range items {

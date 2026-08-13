@@ -100,16 +100,16 @@ func TestUnknownBetweenPairDoesNotSuppressBody(t *testing.T) {
 	}
 }
 
-// --- $attributes carve-out --------------------------------------------------
+// --- $attributes on a page ---------------------------------------------------
 //
-// $attributes is syntactically a plain, valid variable — it evaluates as
-// undefined like any other unbound var — but names a Blade feature
-// (the dynamic attribute bag) this engine does not model. An undefined
-// `$attributes` is reclassified app-tier/$attributes instead of
-// error/undefined-variable, at every call site that routes through
-// diagExprError: echo, @if condition, and a bound component attribute.
+// Since the attribute bag is modeled (2026-08-13), $attributes is bound in
+// every COMPONENT scope; the only place it can be undefined is a page, where
+// real Blade raises the same undefined-variable error. The old app-tier
+// carve-out is gone: these pin error/undefined-variable at each call site
+// that routes through diagExprError — echo, @if condition, and a bound
+// component attribute evaluated in the page's scope.
 
-func TestAttributesEchoAppTier(t *testing.T) {
+func TestAttributesUndefinedOnPageEcho(t *testing.T) {
 	entry := "resources/views/pages/index.blade.php"
 	fs := vfs.Mem{entry: "X{{ $attributes }}Y"}
 	res := Compile(fs, []string{entry}, Options{})
@@ -120,12 +120,12 @@ func TestAttributesEchoAppTier(t *testing.T) {
 		t.Fatalf("diagnostics = %v; want exactly 1", res.Diagnostics)
 	}
 	d := res.Diagnostics[0]
-	if d.Kind != KindAppTier || d.Construct != "$attributes" {
-		t.Fatalf("diag = %+v; want app-tier/$attributes", d)
+	if d.Kind != KindError || d.Construct != "undefined-variable" {
+		t.Fatalf("diag = %+v; want error/undefined-variable", d)
 	}
 }
 
-func TestAttributesIfCondAppTier(t *testing.T) {
+func TestAttributesUndefinedOnPageIfCond(t *testing.T) {
 	entry := "resources/views/pages/index.blade.php"
 	fs := vfs.Mem{entry: "@if ($attributes)yes @else no @endif"}
 	res := Compile(fs, []string{entry}, Options{})
@@ -138,12 +138,12 @@ func TestAttributesIfCondAppTier(t *testing.T) {
 		t.Fatalf("diagnostics = %v; want exactly 1", res.Diagnostics)
 	}
 	d := res.Diagnostics[0]
-	if d.Kind != KindAppTier || d.Construct != "$attributes" {
-		t.Fatalf("diag = %+v; want app-tier/$attributes", d)
+	if d.Kind != KindError || d.Construct != "undefined-variable" {
+		t.Fatalf("diag = %+v; want error/undefined-variable", d)
 	}
 }
 
-func TestAttributesBoundAttrAppTier(t *testing.T) {
+func TestAttributesUndefinedOnPageBoundAttr(t *testing.T) {
 	res := compileMem(t, map[string]string{
 		pageEntry:                                `<x-c :label="$attributes"/>`,
 		"resources/views/components/c.blade.php": `@props(['label' => 'd'])[{{ $label ?? 'F' }}]`,
@@ -155,8 +155,8 @@ func TestAttributesBoundAttrAppTier(t *testing.T) {
 		t.Fatalf("diagnostics = %v; want exactly 1", res.Diagnostics)
 	}
 	d := res.Diagnostics[0]
-	if d.Kind != KindAppTier || d.Construct != "$attributes" {
-		t.Fatalf("diag = %+v; want app-tier/$attributes", d)
+	if d.Kind != KindError || d.Construct != "undefined-variable" {
+		t.Fatalf("diag = %+v; want error/undefined-variable", d)
 	}
 }
 

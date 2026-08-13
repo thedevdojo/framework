@@ -54,10 +54,8 @@ var ErrUndefinedVar = errors.New("undefined variable")
 // UndefinedVarError is the concrete error Eval returns for an undefined
 // variable. It wraps ErrUndefinedVar (Unwrap returns the sentinel, so
 // errors.Is(err, ErrUndefinedVar) keeps working for every existing caller)
-// while also exposing the variable's Name in structured form — a caller that
-// needs to special-case a particular name (the renderer's `$attributes`
-// app-tier carve-out) can errors.As into this type instead of parsing Error()'s
-// text.
+// while also exposing the variable's Name in structured form for callers that
+// need to special-case a particular name.
 type UndefinedVarError struct {
 	Name string
 }
@@ -175,6 +173,21 @@ func collectVars(node exprNode, set map[string]struct{}) {
 		collectVars(n.right, set)
 	case *coalesceNode:
 		collectVars(n.right, set)
+	case *arrayNode:
+		for _, e := range n.entries {
+			if e.key != nil {
+				collectVars(e.key, set)
+			}
+			collectVars(e.val, set)
+		}
+	case *callNode:
+		// An undefined receiver or argument still fails Eval (the receiver
+		// failure surfaces as the app-tier method-call error), so both sides
+		// count as required.
+		collectVars(n.recv, set)
+		for _, a := range n.args {
+			collectVars(a, set)
+		}
 	}
 }
 
@@ -217,6 +230,25 @@ type coalesceNode struct {
 	left, right exprNode
 }
 
+// arrayNode is an array literal: ['a', 'k' => $v, …]. An entry without a key
+// takes the next auto index at evaluation time.
+type arrayNode struct {
+	entries []arrayEntryNode
+}
+
+type arrayEntryNode struct {
+	key exprNode // nil for a keyless entry
+	val exprNode
+}
+
+// callNode is a method call: recv->name(args…). Only the $attributes bag's
+// modeled subset evaluates; every other receiver/method reports app-tier.
+type callNode struct {
+	recv exprNode
+	name string
+	args []exprNode
+}
+
 // ---------------------------------------------------------------------------
 // Tokenizer
 // ---------------------------------------------------------------------------
@@ -249,7 +281,9 @@ const (
 	tOr
 	tNot
 	tMinus
-	tAppTier // an operator/construct that is valid PHP but outside v1's subset
+	tComma
+	tDoubleArrow // => (array key separator)
+	tAppTier     // an operator/construct that is valid PHP but outside v1's subset
 )
 
 type token struct {
@@ -374,7 +408,7 @@ func tokenize(src string) ([]token, error) {
 				toks = append(toks, token{kind: tEq, pos: i})
 				i += 2
 			case i+1 < n && src[i+1] == '>':
-				toks = append(toks, token{kind: tAppTier, text: "array arrow (=>)", pos: i})
+				toks = append(toks, token{kind: tDoubleArrow, pos: i})
 				i += 2
 			default:
 				toks = append(toks, token{kind: tAppTier, text: "assignment (=)", pos: i})
@@ -456,6 +490,9 @@ func tokenize(src string) ([]token, error) {
 			// A leading digit is consumed by scanNumber, so a bare '.' here is
 			// always the concatenation operator (app tier).
 			toks = append(toks, token{kind: tAppTier, text: "concatenation (.)", pos: i})
+			i++
+		case c == ',':
+			toks = append(toks, token{kind: tComma, pos: i})
 			i++
 		case c == ':':
 			if i+1 < n && src[i+1] == ':' {
@@ -580,7 +617,7 @@ func parse(src string) (exprNode, error) {
 // expression indicates valid-PHP-beyond-v1 (arithmetic/word operators) rather
 // than plain garbage (a stray bracket).
 func isAppTierTrailing(k tokKind) bool {
-	return k == tMinus || k == tAppTier || k == tIdent
+	return k == tMinus || k == tAppTier || k == tIdent || k == tDoubleArrow
 }
 
 func (p *parser) parseCoalesce() (exprNode, error) {
@@ -707,7 +744,12 @@ func (p *parser) parsePostfix() (exprNode, error) {
 			}
 			p.next()
 			if p.peek().kind == tLParen {
-				return nil, &SyntaxError{Msg: "method call (->" + nt.text + "())", AppTier: true}
+				args, err := p.parseCallArgs()
+				if err != nil {
+					return nil, err
+				}
+				node = &callNode{recv: node, name: nt.text, args: args}
+				continue
 			}
 			node = &propNode{recv: node, name: nt.text}
 		case tLBracket:
@@ -727,9 +769,73 @@ func (p *parser) parsePostfix() (exprNode, error) {
 	}
 }
 
+// parseCallArgs parses a method call's parenthesized argument list, cursor on
+// the '('. Arguments are full expressions; a trailing comma is tolerated
+// (valid PHP since 7.3).
+func (p *parser) parseCallArgs() ([]exprNode, error) {
+	p.next() // '('
+	var args []exprNode
+	for p.peek().kind != tRParen {
+		a, err := p.parseCoalesce()
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, a)
+		if p.peek().kind == tComma {
+			p.next()
+			continue
+		}
+		break
+	}
+	if p.peek().kind != tRParen {
+		return nil, &SyntaxError{Msg: "expected ')' in argument list", AppTier: false}
+	}
+	p.next()
+	return args, nil
+}
+
+// parseArrayLiteral parses ['a', 'k' => $v, …], cursor on the '['. Entries
+// are full expressions with an optional `key =>` prefix; a trailing comma is
+// tolerated.
+func (p *parser) parseArrayLiteral() (exprNode, error) {
+	p.next() // '['
+	node := &arrayNode{}
+	for p.peek().kind != tRBracket {
+		first, err := p.parseCoalesce()
+		if err != nil {
+			return nil, err
+		}
+		entry := arrayEntryNode{val: first}
+		if p.peek().kind == tDoubleArrow {
+			p.next()
+			val, err := p.parseCoalesce()
+			if err != nil {
+				return nil, err
+			}
+			entry = arrayEntryNode{key: first, val: val}
+		}
+		node.entries = append(node.entries, entry)
+		if p.peek().kind == tComma {
+			p.next()
+			continue
+		}
+		break
+	}
+	if p.peek().kind != tRBracket {
+		return nil, &SyntaxError{Msg: "expected ']' in array literal", AppTier: false}
+	}
+	p.next()
+	return node, nil
+}
+
 func (p *parser) parsePrimary() (exprNode, error) {
 	t := p.peek()
 	switch t.kind {
+	case tLBracket:
+		return p.parseArrayLiteral()
+	case tDoubleArrow:
+		p.next()
+		return nil, &SyntaxError{Msg: "array arrow (=>)", AppTier: true}
 	case tVar:
 		p.next()
 		return &varNode{name: t.text}, nil
@@ -808,6 +914,53 @@ func evalNode(node exprNode, scope Scope) (Value, error) {
 			return nil, err
 		}
 		return indexAccess(recv, idx)
+	case *arrayNode:
+		arr := NewArr()
+		for _, e := range n.entries {
+			v, err := evalNode(e.val, scope)
+			if err != nil {
+				return nil, err
+			}
+			if e.key == nil {
+				arr.Push(v)
+				continue
+			}
+			k, err := evalNode(e.key, scope)
+			if err != nil {
+				return nil, err
+			}
+			switch k.(type) {
+			case nil, bool, int64, float64, string:
+				arr.SetKey(k, v)
+			default:
+				// PHP: "Illegal offset type" TypeError for an array/object key.
+				return nil, errors.New("illegal array key type")
+			}
+		}
+		return arr, nil
+	case *callNode:
+		recv, err := evalNode(n.recv, scope)
+		if err != nil {
+			// A failing receiver folds into the same app-tier classification a
+			// method call reported before calls were modeled at all: whatever
+			// the receiver is, ->name() on it is real PHP the engine either
+			// runs (a bag) or hands to the app tier — a broken receiver never
+			// downgrades that to a hard template error.
+			return nil, &SyntaxError{Msg: "method call (->" + n.name + "())", AppTier: true}
+		}
+		bag, ok := recv.(*AttrBag)
+		if !ok {
+			return nil, &SyntaxError{Msg: "method call (->" + n.name + "())", AppTier: true}
+		}
+		args := make([]Value, len(n.args))
+		for i, a := range n.args {
+			v, err := evalNode(a, scope)
+			if err != nil {
+				return nil, err
+			}
+			args[i] = v
+		}
+		return callBagMethod(bag, n.name, args)
 	case *unaryNode:
 		return evalUnary(n, scope)
 	case *compareNode:
@@ -863,6 +1016,16 @@ func indexAccess(recv, idx Value) (Value, error) {
 	switch r := recv.(type) {
 	case *Object:
 		return nil, ErrObjectAsArray
+	case *Arr:
+		v, _ := r.Lookup(idx) // missing key → nil, like a map read
+		return v, nil
+	case *AttrBag:
+		// The bag implements ArrayAccess: $attributes['class'] reads get().
+		if s, ok := idx.(string); ok {
+			v, _ := r.Get(s)
+			return v, nil
+		}
+		return nil, nil
 	case []Value:
 		i, ok := toArrayIndex(idx)
 		if !ok || i < 0 || i >= len(r) {
@@ -988,8 +1151,8 @@ func evalCompare(n *compareNode, scope Scope) (Value, error) {
 	// An object compared with a number fatals in PHP ("Object of class stdClass
 	// could not be converted to int/float"), so surface an error rather than
 	// silently succeed. Object-vs-null/bool/string/array/object are non-fatal and
-	// handled by LooseEq below.
-	if (isObject(lv) && isNumber(rv)) || (isNumber(lv) && isObject(rv)) {
+	// handled by LooseEq below. The $attributes bag is an object too.
+	if (isObjecty(lv) && isNumber(rv)) || (isNumber(lv) && isObjecty(rv)) {
 		return nil, errObjectNumber
 	}
 	switch n.op {
@@ -1037,10 +1200,14 @@ func Truthy(v Value) bool {
 		return len(x) != 0
 	case map[string]Value:
 		return len(x) != 0
+	case *Arr:
+		return x.Len() != 0
 	case *Object:
 		// A PHP object is ALWAYS truthy, even an empty stdClass — unlike an empty
 		// array/map. This is the flip that gives `@if ($site)` with `{}` parity.
 		return true
+	case *AttrBag:
+		return true // an object, hence always truthy
 	default:
 		return true
 	}
@@ -1086,8 +1253,10 @@ func LooseEq(a, b Value) bool {
 		return as == bs
 	case isObject(a) && isObject(b):
 		return objectEq(a.(*Object), b.(*Object))
+	case isBag(a) && isBag(b):
+		return bagEq(a.(*AttrBag), b.(*AttrBag))
 	case isArrayish(a) && isArrayish(b):
-		return arrayEq(a, b)
+		return arrEq(asArr(a), asArr(b))
 	default:
 		// Object vs array/string (and array vs scalar) are unequal in PHP 8 with
 		// no fatal. Object vs a number DOES fatal in PHP; evalCompare intercepts
@@ -1123,7 +1292,7 @@ func compareOrder(a, b Value) (int, error) {
 	if isArrayish(a) || isArrayish(b) {
 		return 0, errArrayOrder
 	}
-	if isObject(a) || isObject(b) {
+	if isObjecty(a) || isObjecty(b) {
 		return 0, errObjectOrder
 	}
 	if isBool(a) || isBool(b) {
@@ -1161,33 +1330,42 @@ func numEqual(a, b Value) bool {
 	return toFloat(a) == toFloat(b)
 }
 
-func arrayEq(a, b Value) bool {
-	switch av := a.(type) {
+// asArr views any arrayish value as an ordered *Arr for key-wise comparison
+// (PHP == on arrays is key-based and order-insensitive, so the map's
+// undefined iteration order does not matter here).
+func asArr(v Value) *Arr {
+	switch x := v.(type) {
+	case *Arr:
+		return x
 	case []Value:
-		bv, ok := b.([]Value)
-		if !ok || len(av) != len(bv) {
-			return false
+		a := NewArr()
+		for _, e := range x {
+			a.Push(e)
 		}
-		for i := range av {
-			if !LooseEq(av[i], bv[i]) {
-				return false
-			}
-		}
-		return true
+		return a
 	case map[string]Value:
-		bv, ok := b.(map[string]Value)
-		if !ok || len(av) != len(bv) {
+		a := NewArr()
+		for k, val := range x {
+			a.SetKey(k, val)
+		}
+		return a
+	}
+	return NewArr()
+}
+
+// bagEq is PHP `==` on two ComponentAttributeBag objects: same class, so equal
+// iff their attribute arrays are loosely equal.
+func bagEq(a, b *AttrBag) bool {
+	if len(a.entries) != len(b.entries) {
+		return false
+	}
+	for _, en := range a.entries {
+		bv, ok := b.Get(en.Name)
+		if !ok || !LooseEq(en.Val, bv) {
 			return false
 		}
-		for k, val := range av {
-			bval, ok := bv[k]
-			if !ok || !LooseEq(val, bval) {
-				return false
-			}
-		}
-		return true
 	}
-	return false
+	return true
 }
 
 // emptyForNull reports whether v equals PHP null under ==. bool and nil are
@@ -1204,8 +1382,10 @@ func emptyForNull(v Value) bool {
 		return len(x) == 0
 	case map[string]Value:
 		return len(x) == 0
-	case *Object:
-		// A stdClass never equals null under `==` (probed: `$obj == null` false),
+	case *Arr:
+		return x.Len() == 0
+	case *Object, *AttrBag:
+		// An object never equals null under `==` (probed: `$obj == null` false),
 		// even when empty — the object/array truthiness asymmetry again.
 		return false
 	default:
@@ -1329,7 +1509,7 @@ func isNumber(v Value) bool {
 
 func isArrayish(v Value) bool {
 	switch v.(type) {
-	case []Value, map[string]Value:
+	case []Value, map[string]Value, *Arr:
 		return true
 	}
 	return false
@@ -1338,4 +1518,15 @@ func isArrayish(v Value) bool {
 func isObject(v Value) bool {
 	_, ok := v.(*Object)
 	return ok
+}
+
+func isBag(v Value) bool {
+	_, ok := v.(*AttrBag)
+	return ok
+}
+
+// isObjecty groups every value PHP treats as an object for the fatal
+// object-vs-number comparison paths: stdClass and the $attributes bag.
+func isObjecty(v Value) bool {
+	return isObject(v) || isBag(v)
 }

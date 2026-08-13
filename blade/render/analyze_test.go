@@ -150,3 +150,17 @@ func TestAnalyzeSelfRecursiveComponentTerminates(t *testing.T) {
 	}
 	_ = Analyze(fs, []string{"resources/views/pages/index.blade.php"})
 }
+
+// A component that reads $attributes legitimately takes arbitrary extra
+// attributes (they land in the bag), so undeclared-attribute warnings would
+// be false positives there — the analyzer stays silent for that component.
+func TestAnalyzeAttributesBagSuppressesUndeclaredWarnings(t *testing.T) {
+	ws := warningsFor(map[string]string{
+		"resources/views/pages/index.blade.php":       `<x-button type="submit" class="wide"/>`,
+		"resources/views/components/button.blade.php": "@props(['type' => 'button'])\n<button {{ $attributes->merge(['type' => $type]) }}>{{ $slot }}</button>",
+		"resources/views/pages/other.blade.php":       ``,
+	})
+	if len(ws) != 0 {
+		t.Fatalf("want 0 warnings for a bag-consuming component, got %v", ws)
+	}
+}

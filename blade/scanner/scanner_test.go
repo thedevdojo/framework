@@ -38,7 +38,7 @@ func attrsEqual(a, b []Attr) bool {
 		return false
 	}
 	for i := range a {
-		if a[i].Name != b[i].Name || a[i].Value != b[i].Value || a[i].Bound != b[i].Bound {
+		if a[i].Name != b[i].Name || a[i].Value != b[i].Value || a[i].Bound != b[i].Bound || a[i].Valueless != b[i].Valueless {
 			return false
 		}
 	}
@@ -54,7 +54,7 @@ func fmtAttrs(as []Attr) string {
 		if i > 0 {
 			out += " "
 		}
-		out += fmt.Sprintf("{n=%q v=%q bound=%v}", a.Name, a.Value, a.Bound)
+		out += fmt.Sprintf("{n=%q v=%q bound=%v valueless=%v}", a.Name, a.Value, a.Bound, a.Valueless)
 	}
 	return out + "]"
 }
@@ -125,7 +125,18 @@ func TestScanGolden(t *testing.T) {
 			{Kind: TagOpen, Name: "sections.hero", SelfClose: true, Pos: at(1, 1), Attrs: []Attr{
 				{Name: "heading", Value: "Big &amp; bold"},
 				{Name: "plans", Value: "$plans", Bound: true},
-				{Name: "wide", Value: ""},
+				{Name: "wide", Value: "", Valueless: true},
+			}},
+		}},
+		{"xtag_valueless_vs_empty", `<x-btn disabled data-x="" />`, []Token{
+			{Kind: TagOpen, Name: "btn", SelfClose: true, Pos: at(1, 1), Attrs: []Attr{
+				{Name: "disabled", Value: "", Valueless: true},
+				{Name: "data-x", Value: ""},
+			}},
+		}},
+		{"xtag_double_colon_escape", `<x-btn ::class="{ open: true }" />`, []Token{
+			{Kind: TagOpen, Name: "btn", SelfClose: true, Pos: at(1, 1), Attrs: []Attr{
+				{Name: ":class", Value: "{ open: true }"},
 			}},
 		}},
 		{"xtag_gt_in_attr", `<x-btn label="a > b">go</x-btn>`, []Token{

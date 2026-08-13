@@ -88,6 +88,20 @@ type Vite struct {
 	P   scanner.Pos
 }
 
+// ClassDir is a @class([...]) directive; Raw is the literal argument
+// expression (an array literal, evaluated at render).
+type ClassDir struct {
+	Raw string
+	P   scanner.Pos
+}
+
+// StyleDir is a @style([...]) directive; Raw is the literal argument
+// expression.
+type StyleDir struct {
+	Raw string
+	P   scanner.Pos
+}
+
 // Unknown is any directive the parser does not structurally handle (e.g.
 // @auth, @php, @csrf). Name is the lowercased directive name, Raw its args, and
 // Src the byte-faithful original source slice ('@' through the last consumed
@@ -109,4 +123,6 @@ func (n *LoopJump) Pos() scanner.Pos  { return n.P }
 func (n *Component) Pos() scanner.Pos { return n.P }
 func (n *Props) Pos() scanner.Pos     { return n.P }
 func (n *Vite) Pos() scanner.Pos      { return n.P }
+func (n *ClassDir) Pos() scanner.Pos  { return n.P }
+func (n *StyleDir) Pos() scanner.Pos  { return n.P }
 func (n *Unknown) Pos() scanner.Pos   { return n.P }

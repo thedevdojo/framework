@@ -43,7 +43,12 @@ type Pos struct {
 type Attr struct {
 	Name, Value string
 	Bound       bool
-	Pos         Pos
+	// Valueless marks an attribute written with no `=` at all (<x-btn wide/>).
+	// Real Blade's tag compiler gives such an attribute the value bool TRUE,
+	// which is distinct from an explicit empty value (wide="") — the renderer
+	// needs the difference to build props and the $attributes bag faithfully.
+	Valueless bool
+	Pos       Pos
 }
 
 // Token is one lexical unit.
@@ -437,12 +442,21 @@ func (s *scanState) lexAttrs() (attrs []Attr, selfClose, ok bool) {
 		}
 		bound := false
 		name := raw
-		if strings.HasPrefix(raw, ":") {
+		switch {
+		case strings.HasPrefix(raw, "::"):
+			// `::foo` is real Blade's escape for a literal `:foo` attribute (an
+			// Alpine/Vue binding): the tag compiler strips one colon and treats
+			// the attribute as STATIC (ComponentTagCompiler, "attributes that
+			// start with :: are compiled with a single :").
+			name = raw[1:]
+		case strings.HasPrefix(raw, ":"):
 			bound = true
 			name = raw[1:]
 		}
 		value := ""
+		valueless := true
 		if !s.eof() && s.src[s.pos] == '=' {
+			valueless = false
 			s.adv() // '='
 			if s.eof() {
 				return nil, false, false
@@ -467,7 +481,7 @@ func (s *scanState) lexAttrs() (attrs []Attr, selfClose, ok bool) {
 				value = string(s.src[vStart:s.pos])
 			}
 		}
-		attrs = append(attrs, Attr{Name: name, Value: value, Bound: bound, Pos: aPos})
+		attrs = append(attrs, Attr{Name: name, Value: value, Bound: bound, Valueless: valueless, Pos: aPos})
 	}
 }
 

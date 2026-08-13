@@ -48,8 +48,8 @@ func FuzzEval(f *testing.F) {
 		v, err := Eval(src, scope) // must not panic
 		if err == nil {
 			switch v.(type) {
-			case nil, bool, int64, float64, string, []Value, map[string]Value, *Object:
-				// in-domain
+			case nil, bool, int64, float64, string, []Value, map[string]Value, *Object, *Arr, *AttrBag:
+				// in-domain (Arr = array literals; AttrBag = bag method results)
 			default:
 				t.Fatalf("Eval(%q) returned out-of-domain value %T", src, v)
 			}

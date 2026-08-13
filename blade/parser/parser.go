@@ -201,6 +201,12 @@ func (p *parser) parseDirective(ctx bodyCtx) []ast.Node {
 	case "vite":
 		p.next()
 		return one(&ast.Vite{Raw: tok.Text, P: tok.Pos})
+	case "class":
+		p.next()
+		return one(&ast.ClassDir{Raw: tok.Text, P: tok.Pos})
+	case "style":
+		p.next()
+		return one(&ast.StyleDir{Raw: tok.Text, P: tok.Pos})
 	case "endif", "elseif", "else", "endforeach":
 		// Reaching here means no open construct wants this closer.
 		p.next()

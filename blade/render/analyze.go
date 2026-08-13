@@ -1,6 +1,8 @@
 package render
 
 import (
+	"strings"
+
 	"github.com/thedevdojo/pocketknife/blade/ast"
 	"github.com/thedevdojo/pocketknife/blade/parser"
 	"github.com/thedevdojo/pocketknife/blade/scanner"
@@ -98,6 +100,14 @@ func (a *analyzer) checkInstance(c *ast.Component) {
 	nodes := a.parse(path, src)
 
 	declared, known := declaredProps(nodes)
+	// A component that reads $attributes accepts arbitrary extra attributes by
+	// design (undeclared ones fill the bag), so warning on them would flag the
+	// exact usage the feature exists for. A plain byte scan is deliberate: the
+	// bag can be reached from any expression position (echo, @if, a bound
+	// attribute), and a false "mention" merely silences a lint hint.
+	if known && strings.Contains(string(src), "$attributes") {
+		known = false
+	}
 	if known {
 		// Names bound as `:name="expr"` on this instance are the legitimate data
 		// pass; a static attr of the same name is a fallback, not a typo.

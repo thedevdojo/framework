@@ -210,8 +210,21 @@ func (r *renderer) parseFile(path string, src []byte) ([]ast.Node, []parser.Diag
 // as a loop variable — does NOT leak in. Bound attributes are evaluated in the
 // caller's scope at the tag site; a bound-attr eval error is diagnosed and the
 // prop becomes nil, and that nil is an error sentinel which (unlike a genuine
-// passed null) does NOT fall through to the prop's default. Undeclared
-// attributes are dropped silently.
+// passed null) does NOT fall through to the prop's default; the attribute is
+// also left out of the bag so the breakage stays visible.
+//
+// $attributes (2026-08-13): every attribute the @props declaration does not
+// claim — the claim set is each declared name plus its kebab form, real
+// Blade's extractPropNames — lands in the component's $attributes bag, in tag
+// order, mirroring compileProps. Values enter the bag SANITIZED the way the
+// compiled tag calls BladeCompiler::sanitizeComponentAttribute: a bound
+// attribute whose value is a string is e()-escaped; everything else passes
+// through. A prop's camelCase variable still receives the RAW value (it comes
+// from the anonymous component's data array, compiled with escapeBound=false),
+// while a snake_case attribute's literal-name variable receives the SANITIZED
+// value (it reaches the scope through the bag; view data merges the bag's
+// original keys first). A valueless attribute (<x-btn wide/>) is bool TRUE in
+// both props and bag, exactly as the tag compiler builds it.
 func buildComponentScope(caller *renderer, declared propSet, attrs []scanner.Attr, slot rawHTML, named map[string]rawHTML) componentScope {
 	// Resolve every passed attribute value, keyed by each name it binds (real
 	// Blade matches foo-bar="…" to the fooBar prop, and logo_text="…" to BOTH
@@ -222,21 +235,39 @@ func buildComponentScope(caller *renderer, declared propSet, attrs []scanner.Att
 	// `??` defaults pass below — a broken binding that quietly renders its
 	// default would hide the very breakage the diagnostic is reporting.
 	failed := map[string]bool{}
+	// claimed is extractPropNames over the @props declaration: each declared
+	// name plus its kebab form. Attributes under a claimed name are consumed
+	// as props; the rest fill the $attributes bag.
+	claimed := map[string]bool{}
+	for name := range declared {
+		claimed[name] = true
+		claimed[kebabCase(name)] = true
+	}
+	var bagEntries []expr.AttrEntry
 	for _, a := range attrs {
 		keys := attrBindingNames(a.Name)
-		if a.Bound {
+		var raw, sanitized expr.Value
+		evalFailed := false
+		switch {
+		case a.Valueless:
+			raw, sanitized = true, true
+		case a.Bound:
 			v, err := expr.Eval(a.Value, caller.scope)
 			if err != nil {
 				caller.diagExprError(err, a.Pos)
 				v = nil
+				evalFailed = true
 				for _, key := range keys {
 					failed[key] = true
 				}
 			}
-			for _, key := range keys {
-				passed[key] = v
+			raw, sanitized = v, v
+			// sanitizeComponentAttribute: a bound STRING value is e()-escaped on
+			// its way into the attribute array; other types pass through.
+			if s, ok := v.(string); ok {
+				sanitized = Escape(s)
 			}
-		} else {
+		default:
 			// Real Blade interpolates {{ }} / {!! !!} inside a STATIC attribute
 			// value (heading="Hi {{ $name }}"); this engine passes the braces
 			// through literally — a silent byte divergence on an otherwise clean
@@ -246,9 +277,22 @@ func buildComponentScope(caller *renderer, declared propSet, attrs []scanner.Att
 				caller.diag(a.Pos, KindAppTier, "attribute-interpolation",
 					"attribute \""+a.Name+"\" interpolates {{ }} into a static value; requires the PHP app tier")
 			}
-			for _, key := range keys {
-				passed[key] = a.Value // static attr: the verbatim string
+			raw, sanitized = a.Value, a.Value // static attr: the verbatim string
+		}
+		camel := camelCase(a.Name)
+		for _, key := range keys {
+			if key == camel {
+				// The camelCase binding is the anonymous component's data array,
+				// compiled with escapeBound=false — the raw value.
+				passed[key] = raw
+			} else {
+				// The literal (snake_case) binding reaches the scope through the
+				// bag's original keys — the sanitized value.
+				passed[key] = sanitized
 			}
+		}
+		if !evalFailed && !claimed[a.Name] {
+			bagEntries = append(bagEntries, expr.AttrEntry{Name: a.Name, Val: sanitized})
 		}
 	}
 
@@ -268,18 +312,25 @@ func buildComponentScope(caller *renderer, declared propSet, attrs []scanner.Att
 			cs["site"] = caller.ctx.site
 		}
 	}
+	// EVERY passed attribute binds in the component scope — not just the
+	// declared ones. Real Blade's anonymous-component view data carries ALL
+	// tag attributes (partitionDataAndAttributes returns everything as data
+	// for a classless component), camelized and raw, plus the bag's original
+	// keys — so an undeclared foo_bar="…" still defines $fooBar (and
+	// $foo_bar) inside the component. Oracle-verified 2026-08-13
+	// (attribute-bag-escaping fixture: $logoText renders with only logo_text
+	// declared). Passed attributes arrive as PER-VIEW data, which
+	// Factory::gatherData merges OVER the shared data — so they overwrite a
+	// same-named collection even when their value is null.
+	for name, v := range passed {
+		cs[name] = v
+	}
 	for name, decl := range declared {
-		// A passed attribute arrives as the component view's PER-VIEW data, which
-		// Factory::gatherData merges OVER the shared data — so it overwrites a
-		// same-named collection even when its value is null.
-		if v, ok := passed[name]; ok {
-			cs[name] = v
-		}
-		// Only then the defaults pass, which compileProps emits as
-		// `$x = $x ?? $default`: the default fills in wherever the name is still
-		// null — nothing shared bound it, or a passed value was itself null.
-		// Hence @props(['links' => null]) alongside a collections/links.json
-		// renders the COLLECTION (a default cannot shadow shared data), while
+		// The defaults pass, which compileProps emits as `$x = $x ?? $default`:
+		// the default fills in wherever the name is still null — nothing shared
+		// bound it, or a passed value was itself null. Hence
+		// @props(['links' => null]) alongside a collections/links.json renders
+		// the COLLECTION (a default cannot shadow shared data), while
 		// <x-nav :links="null"/> renders the DEFAULT (the null overwrote the
 		// collection first, then the default filled the hole). Both verified
 		// against the oracle, 2026-07-28. An attribute whose expression FAILED to
@@ -292,6 +343,11 @@ func buildComponentScope(caller *renderer, declared propSet, attrs []scanner.Att
 		// bare prop, not passed → whatever shared data bound (often nothing,
 		// leaving the variable undefined)
 	}
+	// $attributes is always bound in a component scope (an empty bag when every
+	// attribute was consumed by @props). Set after the props passes — the
+	// compiled view data merges ['attributes' => $bag] last — and before the
+	// slots, whose names the factory injects on top.
+	cs["attributes"] = expr.NewAttrBag(bagEntries)
 	cs["slot"] = slot
 	for name, val := range named {
 		cs[name] = val
@@ -405,6 +461,28 @@ func camelCase(s string) string {
 		default:
 			b.WriteByte(c)
 		}
+	}
+	return b.String()
+}
+
+// kebabCase mirrors Laravel's Str::kebab (Str::snake with '-'): a '-' lands
+// before every non-leading uppercase letter, then everything lowercases. So
+// logoText → logo-text, FooBar → foo-bar, and an already-lowercase name
+// (logo_text) is unchanged. It is how extractPropNames derives the second
+// claimed form of each declared prop.
+func kebabCase(s string) string {
+	var b strings.Builder
+	b.Grow(len(s) + 2)
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			if i > 0 {
+				b.WriteByte('-')
+			}
+			b.WriteByte(lower(c))
+			continue
+		}
+		b.WriteByte(c)
 	}
 	return b.String()
 }
