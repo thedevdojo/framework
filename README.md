@@ -50,12 +50,7 @@ So a Pocketknife site is literally a slice of a Laravel app. Toggle it into a re
 </section>
 ```
 
-**Data comes from JSON and markdown files**, bound the way Laravel would bind them: `resources/data/site.json` → `$site`, `resources/data/collections/plans.json` → `$plans`, `resources/data/content/post/*.md` → `$post`. All available everywhere — pages, layouts, components.
-
-**Anything outside the subset is not an error — it's a signal.** `@auth`, method calls, `@php`: all valid Blade, just constructs that need a running app. The engine reports them as structured `app-tier` diagnostics instead of crashing or silently dropping them:
-
-```
-index.blade.php:2:1 [app-tier] directive @auth is outside the Pocketknife subset; requires the PHP app tier
+**Data comes from JSON and markdown files**, bound the way Laravel would bind them: `resources/data/site.json` → `$site`, `resources/data/collections/plans.json` → `$plans`, `resources/data/content/post/*.md` → `$post`.
 ```
 
 ## The subset
