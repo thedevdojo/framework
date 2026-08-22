@@ -21,7 +21,7 @@
 
 ## Why
 
-Blade is a great templating language, but running it requires PHP executing arbitrary code. This makes it not a viable option for static site templating until now. Pocketknife renders a **closed subset of Blade** with absolutely no code execution, and guarantees the output is nearly identical to what real Laravel produces from the same files.
+Blade is a great templating language, but running it requires PHP executing arbitrary code. If you wanted to give your users the option to edit templates, there is not safe way to gaurantee that they will not run any malicious code, until now. Pocketknife renders a **subset of Blade** and the output is nearly identical to what a real Laravel app produces from the same files.
 
 So a Pocketknife site is literally a slice of a Laravel app. Toggle it into a real app and zero files move.
 
