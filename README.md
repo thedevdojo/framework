@@ -51,7 +51,6 @@ So a Pocketknife site is literally a slice of a Laravel app. Toggle it into a re
 ```
 
 **Data comes from JSON and markdown files**, bound the way Laravel would bind them: `resources/data/site.json` → `$site`, `resources/data/collections/plans.json` → `$plans`, `resources/data/content/post/*.md` → `$post`.
-```
 
 ## The subset
 
