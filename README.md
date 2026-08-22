@@ -2,7 +2,7 @@
 
 <img src="https://cdn.devdojo.com/images/august2026/pocketknife-banner.jpg" style="height:auto; width:100%">
 
-**The portable Blade.** A Go engine that renders Laravel Blade templates — no PHP, no `eval`, no runtime. Write real Blade, get static HTML. If you need a real Laravel app, plug-in those same files and you're good to go.
+**The portable Blade.** A Go engine that renders Laravel Blade templates — no PHP, no `eval`, no runtime. Write real Blade, get static HTML. Need a full application, move the files into a Laravel app and you're good to go.
 
 ```blade
 <h1>{{ $site->name }}</h1>
