@@ -21,7 +21,7 @@
 
 ## Why
 
-Blade is a great templating language, but running it requires PHP executing arbitrary code — a non-starter for shared, multi-tenant static hosting. Pocketknife renders a **closed subset of Blade** with zero code execution, and guarantees the output is **byte-identical** to what real Laravel produces from the same files. That guarantee isn't aspirational: every supported construct is pinned by a conformance suite (`fixtures/`) rendered through both the Go engine *and* genuine Blade (`oracle/`), and diffed byte-for-byte in CI.
+Blade is a great templating language, but running it requires PHP executing arbitrary code. This makes it not a viable option for static site templating until now. Pocketknife renders a **closed subset of Blade** with absolutely no code execution, and guarantees the output is nearly identical to what real Laravel produces from the same files.
 
 So a Pocketknife site is literally a slice of a Laravel app. Toggle it into a real app and zero files move.
 
@@ -108,7 +108,7 @@ The [`example/`](example/) directory is the smallest useful site — a page, a l
 |---|---|
 | `blade/` | The Go engine: scanner, parser, renderer, expression evaluator. Stdlib-only, never panics on user input. |
 | `laravel/` | The `devdojo/pocketknife` Composer package that makes the same files render in a real Laravel app. |
-| `fixtures/` | The contract — conformance cases rendered by both engines and byte-diffed. |
+| `fixtures/` | The contract — conformance cases rendered by both engines. |
 | `oracle/` | A minimal Laravel app that runs the fixtures through genuine Blade in CI. |
 | `cmd/pocketknife/` | The CLI: `compile`, `lint`, `version`. |
 
