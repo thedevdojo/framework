@@ -27,16 +27,6 @@ So a Pocketknife site is literally a slice of a Laravel app. Toggle it into a re
 
 ## Quick taste
 
-**Echoes are escaped exactly like Laravel's `e()`:**
-
-```blade
-<p>{{ $comment }}</p>   {{-- $comment = "<script>alert('hi')</script>" --}}
-```
-
-```html
-<p>&lt;script&gt;alert(&#039;hi&#039;)&lt;/script&gt;</p>
-```
-
 **Components work like real Blade components** — `@props` defaults, attributes, slots:
 
 ```blade
