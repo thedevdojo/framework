@@ -1,6 +1,7 @@
 package render
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/thedevdojo/pocketknife/vfs"
@@ -397,5 +398,210 @@ func TestDataOverridesCollection(t *testing.T) {
 	}, map[string]any{"plans": "overridden"})
 	if got := res.Files["index.html"]; got != "overridden" {
 		t.Errorf("output = %q; want overridden", got)
+	}
+}
+
+// TestCollectionFolder: a folder of one JSON object per entry binds $<name>
+// exactly like the single-file form, ordered by `date` descending and then by
+// file name ascending; an entry without a date sorts last.
+func TestCollectionFolder(t *testing.T) {
+	res := compileOne(t, map[string]string{
+		dataEntry:                             "@foreach ($posts as $p){{ $p->slug }}={{ $p->title }};@endforeach",
+		collectionsDir + "posts/zeta.json":    `{"slug":"zeta","title":"Zeta","date":"2026-01-05"}`,
+		collectionsDir + "posts/alpha.json":   `{"slug":"alpha","title":"Alpha","date":"2026-01-05"}`,
+		collectionsDir + "posts/newest.json":  `{"slug":"newest","title":"Newest","date":"2026-03-01"}`,
+		collectionsDir + "posts/undated.json": `{"slug":"undated","title":"Undated"}`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "newest=Newest;alpha=Alpha;zeta=Zeta;undated=Undated;" {
+		t.Errorf("output = %q", got)
+	}
+	if len(res.Diagnostics) != 0 {
+		t.Errorf("unexpected diagnostics: %v", res.Diagnostics)
+	}
+}
+
+// TestCollectionFolderMatchesFile: the same entries in either storage form
+// render byte-identically once the file form is in the folder's order.
+func TestCollectionFolderMatchesFile(t *testing.T) {
+	page := "@foreach ($posts as $p){{ $p->title }}:{!! $p->content !!}|@endforeach"
+	folder := compileOne(t, map[string]string{
+		dataEntry:                                page,
+		collectionsDir + "posts/a.json":          `{"slug":"a","title":"A","date":"2026-02-01","content":"<p>a</p>"}`,
+		collectionsDir + "posts/b.json":          `{"slug":"b","title":"B","date":"2026-01-01","content":"<p>b</p>"}`,
+		"resources/views/components/x.blade.php": "",
+	}, nil)
+	file := compileOne(t, map[string]string{
+		dataEntry:                     page,
+		collectionsDir + "posts.json": `[{"slug":"a","title":"A","date":"2026-02-01","content":"<p>a</p>"},{"slug":"b","title":"B","date":"2026-01-01","content":"<p>b</p>"}]`,
+	}, nil)
+	if folder.Files["index.html"] != file.Files["index.html"] {
+		t.Errorf("folder = %q, file = %q", folder.Files["index.html"], file.Files["index.html"])
+	}
+	if folder.Files["index.html"] != "A:<p>a</p>|B:<p>b</p>|" {
+		t.Errorf("output = %q", folder.Files["index.html"])
+	}
+}
+
+// TestCollectionFolderVisibleInComponent: the folder form is shared globally
+// like every collection, so a component sees it without a passed attribute.
+func TestCollectionFolderVisibleInComponent(t *testing.T) {
+	res := compileOne(t, map[string]string{
+		dataEntry: "<x-list/>",
+		"resources/views/components/list.blade.php": "@foreach ($posts as $p){{ $p->slug }};@endforeach",
+		collectionsDir + "posts/one.json":           `{"slug":"one","date":"2026-01-01"}`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "one;" {
+		t.Errorf("output = %q", got)
+	}
+}
+
+// TestCollectionBothForms: a name stored both as a file and as a folder binds
+// the FOLDER only — never a merge — and reports one collection error naming
+// both paths so the author removes one.
+func TestCollectionBothForms(t *testing.T) {
+	res := compileOne(t, map[string]string{
+		dataEntry:                     "@foreach ($posts as $p){{ $p->slug }};@endforeach",
+		collectionsDir + "posts.json": `[{"slug":"from-file"}]`,
+		collectionsDir + "posts/from-folder.json": `{"slug":"from-folder"}`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "from-folder;" {
+		t.Errorf("output = %q; want the folder's entries only", got)
+	}
+	if len(res.Diagnostics) != 1 {
+		t.Fatalf("diagnostics = %v; want exactly one", res.Diagnostics)
+	}
+	d := res.Diagnostics[0]
+	if d.Kind != KindError || d.Construct != "collection" || d.File != collectionsDir+"posts.json" {
+		t.Errorf("diagnostic = %#v", d)
+	}
+	for _, want := range []string{collectionsDir + "posts.json", collectionsDir + "posts/", "remove one"} {
+		if !strings.Contains(d.Message, want) {
+			t.Errorf("message %q does not mention %q", d.Message, want)
+		}
+	}
+}
+
+// TestCollectionFolderNonObject: a folder file that is not a JSON object is a
+// collection error and only that entry is skipped.
+func TestCollectionFolderNonObject(t *testing.T) {
+	res := compileOne(t, map[string]string{
+		dataEntry:                          "@foreach ($posts as $p){{ $p->slug }};@endforeach",
+		collectionsDir + "posts/good.json": `{"slug":"good"}`,
+		collectionsDir + "posts/list.json": `[{"slug":"list"}]`,
+		collectionsDir + "posts/bad.json":  `not json`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "good;" {
+		t.Errorf("output = %q", got)
+	}
+	if n := len(res.Diagnostics); n != 2 {
+		t.Fatalf("diagnostics = %v; want two", res.Diagnostics)
+	}
+	for _, d := range res.Diagnostics {
+		if d.Kind != KindError || d.Construct != "collection" || !strings.Contains(d.Message, "must be a JSON object") {
+			t.Errorf("diagnostic = %#v", d)
+		}
+	}
+}
+
+// TestCollectionFolderSlugMismatch: a file whose entry carries a different
+// slug still binds (the data is the data) but is reported, because the file
+// name is the entry's address for every host tool.
+func TestCollectionFolderSlugMismatch(t *testing.T) {
+	res := compileOne(t, map[string]string{
+		dataEntry:                             "@foreach ($posts as $p){{ $p->slug ?? 'none' }};@endforeach",
+		collectionsDir + "posts/renamed.json": `{"slug":"original"}`,
+		collectionsDir + "posts/noslug.json":  `{"title":"No slug at all"}`,
+	}, nil)
+	if got := res.Files["index.html"]; !strings.Contains(got, "original;") {
+		t.Errorf("output = %q; the mismatched entry should still bind", got)
+	}
+	if len(res.Diagnostics) != 1 || res.Diagnostics[0].File != collectionsDir+"posts/renamed.json" {
+		t.Fatalf("diagnostics = %v; want one for renamed.json only", res.Diagnostics)
+	}
+	if !strings.Contains(res.Diagnostics[0].Message, `slug "original"`) {
+		t.Errorf("message = %q", res.Diagnostics[0].Message)
+	}
+}
+
+// TestCollectionFolderIgnoresDeeperFiles: only direct children of the folder
+// are entries; a nested directory is invisible, as it always was.
+func TestCollectionFolderIgnoresDeeperFiles(t *testing.T) {
+	res := compileOne(t, map[string]string{
+		dataEntry:                                "@foreach ($posts as $p){{ $p->slug }};@endforeach",
+		collectionsDir + "posts/one.json":        `{"slug":"one"}`,
+		collectionsDir + "posts/nested/two.json": `{"slug":"two"}`,
+		collectionsDir + "posts/readme.txt":      `not an entry`,
+	}, nil)
+	if got := res.Files["index.html"]; got != "one;" {
+		t.Errorf("output = %q", got)
+	}
+	if len(res.Diagnostics) != 0 {
+		t.Errorf("unexpected diagnostics: %v", res.Diagnostics)
+	}
+}
+
+// TestCollectionFolderInvalidName: a folder whose name is not a variable name
+// is reported on the folder path and skipped.
+func TestCollectionFolderInvalidName(t *testing.T) {
+	res := compileOne(t, map[string]string{
+		dataEntry:                             "ok",
+		collectionsDir + "2bad-name/one.json": `{"slug":"one"}`,
+	}, nil)
+	if !hasDiagKC(res, KindError, "collection") || res.Diagnostics[0].File != collectionsDir+"2bad-name" {
+		t.Errorf("want collection diagnostic on the folder, got %v", res.Diagnostics)
+	}
+}
+
+// TestCompileVariants: one entry rendered many times, each variant's data
+// bound over the shared bindings and written to its own output — a dynamic
+// page's fan-out — with the collection loaded once and left untouched.
+func TestCompileVariants(t *testing.T) {
+	fs := vfs.Mem(map[string]string{
+		"resources/views/pages/post/[post.slug].blade.php": "{{ $post->title }} of @foreach ($entries as $e){{ $e->slug }}@endforeach",
+		collectionsDir + "post/a.json":                     `{"slug":"a","title":"A","date":"2026-01-02"}`,
+		collectionsDir + "post/b.json":                     `{"slug":"b","title":"B","date":"2026-01-01"}`,
+	})
+	entries := []any{
+		map[string]any{"slug": "a", "title": "A"},
+		map[string]any{"slug": "b", "title": "B"},
+	}
+	res := CompileVariants(fs, []Variant{
+		{Entry: "resources/views/pages/post/[post.slug].blade.php", Data: map[string]any{"post": entries[0]}, Output: "post/a/index.html"},
+		{Entry: "resources/views/pages/post/[post.slug].blade.php", Data: map[string]any{"post": entries[1]}, Output: "post/b/index.html"},
+	}, Options{Data: map[string]any{"entries": entries}})
+	if got := res.Files["post/a/index.html"]; got != "A of ab" {
+		t.Errorf("a = %q", got)
+	}
+	if got := res.Files["post/b/index.html"]; got != "B of ab" {
+		t.Errorf("b = %q", got)
+	}
+	if len(res.Files) != 2 {
+		t.Errorf("files = %v; want the two variant outputs only", res.Files)
+	}
+	if len(res.Diagnostics) != 0 {
+		t.Errorf("unexpected diagnostics: %v", res.Diagnostics)
+	}
+	if deps := res.Deps["post/a/index.html"]; len(deps) == 0 || deps[0] != "resources/views/pages/post/[post.slug].blade.php" {
+		t.Errorf("deps = %v", deps)
+	}
+}
+
+// TestCompileVariantDefaultOutput: a variant without an output name lands at
+// the entry's usual output, and one without data is the plain render.
+func TestCompileVariantDefaultOutput(t *testing.T) {
+	fs := vfs.Mem(map[string]string{dataEntry: "{{ $greeting ?? 'hi' }}"})
+	res := CompileVariants(fs, []Variant{{Entry: dataEntry}}, Options{})
+	if got := res.Files["index.html"]; got != "hi" {
+		t.Errorf("output = %q", got)
+	}
+}
+
+// TestCompileVariantEscapingOutput: a variant whose given output walks above
+// the root is refused like an escaping entry.
+func TestCompileVariantEscapingOutput(t *testing.T) {
+	fs := vfs.Mem(map[string]string{dataEntry: "x"})
+	res := CompileVariants(fs, []Variant{{Entry: dataEntry, Output: "../escape.html"}}, Options{})
+	if len(res.Files) != 0 || !hasDiagKC(res, KindError, "entry-invalid") {
+		t.Errorf("files = %v, diagnostics = %v", res.Files, res.Diagnostics)
 	}
 }

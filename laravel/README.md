@@ -97,9 +97,12 @@ With `site_root` set, the provider registers at boot:
 - `resources/views/components` as an anonymous-component path;
 - the data contract (`SiteData`), **all of it `View::share`d globally** so
   pages, layouts, and components resolve the same variables: `$site` from
-  `resources/data/site.json`, one variable per
-  `resources/data/collections/<name>.json`, and one per
-  `resources/data/content/<dir>/` of markdown files. Collections and content
+  `resources/data/site.json`, one variable per collection — a
+  `resources/data/collections/<name>.json` array, or a
+  `resources/data/collections/<name>/<slug>.json` folder of one object per
+  entry, ordered by `date` descending then file name (the folder wins when a
+  name has both) — and one per `resources/data/content/<dir>/` of markdown
+  files. Collections and content
   share first and `site` **last**, so a collection named `site` can never
   displace the site object. Inside a component, an explicitly **passed**
   attribute overrides a same-named binding (it is per-view data, which

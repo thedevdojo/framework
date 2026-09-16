@@ -279,6 +279,7 @@ its left-hand operand — `{{ $tagline ?? 'Welcome' }}` is always legal.
 |---|---|---|
 | `resources/data/site.json` | `$site` (object) | Available everywhere. Namespaced so it cannot collide with collections. |
 | `resources/data/collections/plans.json` | `$plans` | JSON array. **Available everywhere** — pages, layouts, and components — shared like `$site`. A **passed** attribute (`:plans="…"`) overrides it inside a component; a declared `@props` default does **not**. Order is as authored in the file. |
+| `resources/data/collections/posts/<slug>.json` | `$posts` | The **folder form** of a collection (engine 0.2.1): one JSON **object** per entry, the file name equal to the entry's `slug`, bound by `date` descending then file name ascending. Same binding, same scope, same rules as the file form. When a name has both, the folder wins and one collection error names both paths. `docs/specs/2026-09-16-folder-collections-design.md`. |
 | `resources/data/content/post/*.md` | `$post` | **Available everywhere**, on the same terms as collections. Items carry frontmatter fields plus `content` (rendered HTML) and `link` (route). Ordered by filename ascending. Rendered inline via `{!! $item->content !!}`. |
 
 > **Amendment 2026-07-28 — collections became global.** The collection and content rows
@@ -431,7 +432,12 @@ sitebuilder's protocol so host wrappers transfer directly:
 {
   "files":   { "resources/views/pages/index.blade.php": "…", "resources/data/site.json": "…" },
   "data":    { "site_name": "My Site" },        // optional; merged over $site
-  "entries": ["resources/views/pages/index.blade.php"],   // omitted → all pages
+  "entries": ["resources/views/pages/index.blade.php"],   // omitted (and no variants) → all pages
+  "variants": [                                            // optional (engine 0.2.1): one entry, many renders
+    { "entry": "resources/views/pages/post/[post.slug].blade.php",
+      "data": { "post": { "slug": "hello", "title": "Hello" } },   // merged over `data` for this render only
+      "output": "post/hello/index.html" }                          // default: the entry's usual output name
+  ],
   "options": { "url": "relative" }
 }
 

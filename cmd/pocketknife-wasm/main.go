@@ -9,7 +9,7 @@
 // The host loads the module with Go's wasm_exec.js, runs it, and then calls
 //
 //	globalThis.__pocketknife.compile(inputJSON) → outputJSON
-//	globalThis.__pocketknife.version()          → "0.2.0"
+//	globalThis.__pocketknife.version()          → "0.2.1"
 //
 // compile never throws for a bad INPUT: exactly like protocol.Run, malformed
 // JSON or a render-time problem is folded into the output document's

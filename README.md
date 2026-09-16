@@ -52,6 +52,8 @@ So a Pocketknife site is literally a slice of a Laravel app. Toggle it into a re
 
 **Data comes from JSON and markdown files**, bound the way Laravel would bind them: `resources/data/site.json` → `$site`, `resources/data/collections/plans.json` → `$plans`, `resources/data/content/post/*.md` → `$post`.
 
+A collection can also be a **folder of entry files** — `resources/data/collections/posts/<slug>.json`, one JSON object per entry, bound as `$posts` ordered by `date` descending then file name — for a blog too large to keep in one array file. The two forms bind identically; when a site has both for one name, the folder wins and the compile reports a collection error naming both paths.
+
 ## The subset
 
 Output `{{ }}` / `{!! !!}` / `{{-- --}}` · `@if` / `@elseif` / `@else` · `@foreach` with the full `$loop` object, `@break` / `@continue` · components with `@props`, bound attributes (`:items="$plans"`), `$attributes`, default and named slots · expressions with `->` / `[]` access, `??`, comparisons, booleans — all with PHP semantics (truthiness, loose equality, stringification) · `@vite` rendered as its static projection (Tailwind Play CDN + inlined CSS).
@@ -75,6 +77,14 @@ pocketknife lint example
 ```bash
 echo '{"files": {"resources/views/pages/index.blade.php": "<h1>{{ $title }}</h1>", "resources/data/site.json": "{}"}, "data": {"title": "Hi"}}' \
   | pocketknife compile | jq -r '.files["index.html"]'
+# <h1>Hi</h1>
+```
+
+A dynamic page — one template, one document per collection entry — renders in one request through `variants`: each variant names the entry, the data bound for that render alone (merged over `data`), and the output path, so the site's files are sent and parsed once rather than once per document:
+
+```bash
+echo '{"files": {"resources/views/pages/post/[post.slug].blade.php": "<h1>{{ $post->title }}</h1>"}, "variants": [{"entry": "resources/views/pages/post/[post.slug].blade.php", "data": {"post": {"title": "Hi"}}, "output": "post/hi/index.html"}]}' \
+  | pocketknife compile | jq -r '.files["post/hi/index.html"]'
 # <h1>Hi</h1>
 ```
 

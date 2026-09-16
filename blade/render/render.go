@@ -97,10 +97,36 @@ const (
 	directiveEatsNewline = true
 )
 
+// Variant is one render of an entry: the page at Entry, with Data merged over
+// Options.Data for this render only, written to Output (the entry's usual
+// output name when empty). A host renders a Folio-style dynamic page — one
+// template, one document per collection entry — as a list of variants that
+// differ only in the entry bound over the collection's name, so the site's
+// sources and data are loaded and parsed once for the whole list rather than
+// once per document.
+type Variant struct {
+	Entry  string
+	Data   map[string]any
+	Output string
+}
+
 // Compile renders each entry through the scanner → parser → renderer pipeline
 // and returns the collected files, deps, and diagnostics. Missing entries are
 // skipped. Compile never panics.
 func Compile(fs vfs.FS, entries []string, opts Options) Result {
+	variants := make([]Variant, len(entries))
+	for i, entry := range entries {
+		variants[i] = Variant{Entry: entry}
+	}
+	return CompileVariants(fs, variants, opts)
+}
+
+// CompileVariants renders each variant — an entry plus the data bound for that
+// one render — over ONE load of the site's data sources and ONE parse cache.
+// Two variants may share an entry as long as their outputs differ; a later
+// variant writing the same output as an earlier one replaces it. Missing
+// entries are skipped. CompileVariants never panics.
+func CompileVariants(fs vfs.FS, variants []Variant, opts Options) Result {
 	res := Result{
 		Files: map[string]string{},
 		Deps:  map[string][]string{},
@@ -110,7 +136,6 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 	// about the data files, not any one entry, so they attach once here.
 	data := buildSiteData(fs, opts.Data)
 	res.Diagnostics = append(res.Diagnostics, data.diags...)
-	scope := dataScope(data.bindings)
 	// parseCache is shared across every entry AND every component render in this
 	// Compile: a component file resolved more than once (siblings, recursion) is
 	// scanned+parsed only once.
@@ -119,13 +144,19 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 	if loopCap <= 0 {
 		loopCap = DefaultMaxLoopIterations
 	}
-	for _, entry := range entries {
+	for _, v := range variants {
+		entry := v.Entry
+		out := v.Output
+		if out == "" {
+			out = outputName(entry)
+		}
 		// Refuse an entry that escapes the site root — either the entry path
-		// itself or the output name it would derive (the pages/views prefix
-		// strip can turn an in-root "../"-laden entry into an escaping output
-		// name). Checked before any read/write so a crafted entry can neither
-		// read outside the tree nor write above the destination directory.
-		if escapesRoot(entry) || escapesRoot(outputName(entry)) {
+		// itself or the output name it would derive or was given (the
+		// pages/views prefix strip can turn an in-root "../"-laden entry into
+		// an escaping output name). Checked before any read/write so a crafted
+		// entry can neither read outside the tree nor write above the
+		// destination directory.
+		if escapesRoot(entry) || escapesRoot(out) {
 			res.Diagnostics = append(res.Diagnostics, entryInvalidDiagnostic(entry))
 			continue
 		}
@@ -134,7 +165,6 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 			res.Diagnostics = append(res.Diagnostics, entryMissingDiagnostic(entry))
 			continue
 		}
-		out := outputName(entry)
 		tokens := scanner.Scan(entry, src)
 		nodes, pdiags := parser.Parse(entry, tokens)
 		res.Diagnostics = append(res.Diagnostics, foldParseDiags(pdiags)...)
@@ -146,7 +176,7 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 		// The loop budget is per entry: each output gets the full allowance, so
 		// one pathological page cannot starve its siblings.
 		ctx := &renderCtx{fs: fs, deps: deps, cache: parseCache, site: data.site, shared: data.shared, loopCap: loopCap}
-		r := &renderer{scope: scope, ctx: ctx}
+		r := &renderer{scope: dataScope(variantBindings(data.bindings, v.Data)), ctx: ctx}
 		r.renderNodes(nodes, false)
 		// Real Blade returns ltrim(ob_get_clean()) for every rendered view
 		// (PhpEngine::evaluatePath), so an entry page's leading whitespace is
@@ -162,6 +192,25 @@ func Compile(fs vfs.FS, entries []string, opts Options) Result {
 	// global rather than per-source.
 	res.Diagnostics = dedupeDiagnostics(res.Diagnostics)
 	return res
+}
+
+// variantBindings is the page scope for one variant: the shared page bindings
+// (site, collections, content, Options.Data) with the variant's own data laid
+// over them, its keys winning on collision exactly as Options.Data does. The
+// shared map is never mutated — every variant starts from the same base — and
+// a variant without data reuses it outright.
+func variantBindings(base map[string]expr.Value, data map[string]any) map[string]expr.Value {
+	if len(data) == 0 {
+		return base
+	}
+	bindings := make(map[string]expr.Value, len(base)+len(data))
+	for k, v := range base {
+		bindings[k] = v
+	}
+	for k, v := range data {
+		bindings[k] = toValue(v)
+	}
+	return bindings
 }
 
 // renderer walks an entry's nodes, accumulating output and diagnostics. The

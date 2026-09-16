@@ -66,8 +66,14 @@ const pagesPrefix = "resources/views/pages/"
 type Input struct {
 	Files   map[string]string `json:"files"`
 	Data    map[string]any    `json:"data,omitempty"`
-	Entries []string          `json:"entries,omitempty"` // empty → every resources/views/pages/**.blade.php, sorted
-	Options struct {
+	Entries []string          `json:"entries,omitempty"` // empty (and no variants) → every resources/views/pages/**.blade.php, sorted
+	// Variants renders one entry many times — a Folio-style dynamic page, one
+	// document per collection entry — in ONE request: each variant's data is
+	// merged over `data` for that render alone, and its output lands at
+	// `output` (the entry's usual output name when omitted). Entries and
+	// variants may be combined; every entry renders first.
+	Variants []Variant `json:"variants,omitempty"`
+	Options  struct {
 		URL string `json:"url,omitempty"` // accepted but UNUSED in v1; reserved for canonical-URL rendering — see package doc
 		// MaxLoopIterations caps the total @foreach iterations one entry's
 		// render may run before it aborts with an error/render-budget
@@ -80,6 +86,14 @@ type Input struct {
 // Output is the stdout document. All four keys are always present: Files and
 // Deps marshal as `{}` (never `null`) when empty, and Diagnostics marshals
 // as `[]` — a host iterates these without a nil-check.
+// Variant is one render of `entry` with `data` bound over the request's data,
+// written to `output`. See Input.Variants.
+type Variant struct {
+	Entry  string         `json:"entry"`
+	Data   map[string]any `json:"data,omitempty"`
+	Output string         `json:"output,omitempty"`
+}
+
 type Output struct {
 	Engine      string              `json:"engine"`
 	Files       map[string]string   `json:"files"`
@@ -123,11 +137,18 @@ func Run(in io.Reader, out io.Writer) error {
 		fs = vfs.Mem{}
 	}
 	entries := input.Entries
-	if len(entries) == 0 {
+	if len(entries) == 0 && len(input.Variants) == 0 {
 		entries = DiscoverPages(fs)
 	}
+	variants := make([]render.Variant, 0, len(entries)+len(input.Variants))
+	for _, entry := range entries {
+		variants = append(variants, render.Variant{Entry: entry})
+	}
+	for _, v := range input.Variants {
+		variants = append(variants, render.Variant{Entry: v.Entry, Data: v.Data, Output: v.Output})
+	}
 
-	result := render.Compile(fs, entries, render.Options{
+	result := render.CompileVariants(fs, variants, render.Options{
 		Data:              input.Data,
 		MaxLoopIterations: input.Options.MaxLoopIterations,
 	})

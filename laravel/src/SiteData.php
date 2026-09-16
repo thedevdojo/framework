@@ -17,7 +17,9 @@ use League\CommonMark\MarkdownConverter;
  *                    Blade's View::share leaks shared data into anonymous
  *                    components, and the Go engine mirrors that (components see
  *                    $site). Per-page data still overrides it via gatherData.
- *  - $<collection> — each resources/data/collections/<name>.json (a JSON array),
+ *  - $<collection> — each resources/data/collections/<name>.json (a JSON array)
+ *                    or resources/data/collections/<name>/<slug>.json folder (one
+ *                    JSON object per entry, `date` desc then file name asc),
  *                    shared GLOBALLY too since 2026-07-28 (spec
  *                    docs/specs/2026-07-28-collections-global-scope-design.md):
  *                    pages, layouts, and components all read them.
@@ -73,9 +75,15 @@ class SiteData
     }
 
     /**
-     * Load every collections/<name>.json into a $<name> array. The basename must
-     * be a valid variable name and the file must decode to a JSON array; either
-     * failure skips the binding (the Go engine additionally emits a diagnostic).
+     * Load every collection under collections/ into a $<name> array. A
+     * collection is either one file, collections/<name>.json (a JSON array,
+     * bound in file order), or a folder, collections/<name>/<slug>.json (one
+     * JSON object per entry, bound by `date` descending then file name
+     * ascending). Both bind the same variable. When a name has both, the
+     * folder wins and the file is ignored, never merged. The name must be a
+     * valid variable name; a file that does not decode to the expected shape
+     * is skipped (the Go engine additionally emits a diagnostic for each of
+     * these cases).
      *
      * @return array<string, array<int, mixed>>
      */
@@ -96,6 +104,23 @@ class SiteData
                 continue;
             }
             $out[$name] = $decoded;
+        }
+        foreach (self::sortedDirs($dir) as $folder) {
+            $name = basename($folder);
+            if (! self::isValidVarName($name)) {
+                continue;
+            }
+            $entries = [];
+            foreach (self::sortedFiles($folder, 'json') as $path) {
+                $decoded = json_decode((string) file_get_contents($path));
+                if (! is_object($decoded)) {
+                    continue;
+                }
+                $date = isset($decoded->date) && is_string($decoded->date) ? $decoded->date : '';
+                $entries[] = [$date, basename($path, '.json'), $decoded];
+            }
+            usort($entries, static fn (array $a, array $b): int => strcmp($b[0], $a[0]) ?: strcmp($a[1], $b[1]));
+            $out[$name] = array_map(static fn (array $entry): object => $entry[2], $entries);
         }
 
         return $out;

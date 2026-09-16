@@ -1,6 +1,7 @@
 package render
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/thedevdojo/pocketknife/blade/expr"
@@ -9,8 +10,9 @@ import (
 )
 
 // Data-source layout under the site root. site.json is a global object; every
-// *.json under collections/ is a named array binding; every <dir>/*.md under
-// content/ is a named collection of rendered markdown items.
+// <name>.json under collections/ — or every <name>/ folder of one JSON object
+// per entry — is a named array binding; every <dir>/*.md under content/ is a
+// named collection of rendered markdown items.
 const (
 	siteDataPath   = "resources/data/site.json"
 	collectionsDir = "resources/data/collections/"
@@ -100,43 +102,168 @@ func loadSite(fs vfs.FS) (expr.Value, []Diagnostic) {
 	return obj, nil
 }
 
-// loadCollections reads every resources/data/collections/<name>.json into a
-// $<name> array binding. The basename (minus .json) must be a valid PHP variable
-// name and the file must decode to a JSON array; either failure is a collection
-// error and the binding is skipped.
+// collectionSource is everything found under collections/ for one name: the
+// single-file form, the folder form, or (an authoring mistake) both.
+type collectionSource struct {
+	single string   // collections/<name>.json, "" when absent
+	folder []string // collections/<name>/<file>.json, sorted by path
+}
+
+// loadCollections reads every collection under resources/data/collections/
+// into a $<name> array binding. A collection takes one of two storage forms:
+//
+//   - a single file, collections/<name>.json — a JSON array, bound in file
+//     order (the default);
+//   - a folder, collections/<name>/<slug>.json — one JSON OBJECT per entry,
+//     the file name equal to the entry's slug, bound by `date` descending and
+//     then file name ascending. The form for a collection past a hundred
+//     entries, where one array file would outgrow a host's per-file limit.
+//
+// Both bind the same $<name>; templates cannot tell the forms apart. When a
+// site carries both for one name the folder wins, the single file is ignored
+// entirely (never merged), and a collection error names both paths so the
+// author removes one. The name must be a valid PHP variable name; a single
+// file must decode to a JSON array, a folder entry to a JSON object — either
+// failure is a collection error and that file is skipped. A folder entry
+// whose `slug` differs from its file name still binds, with a collection
+// error, because the file name is the entry's address for every host tool.
+// Only direct children are read: a deeper collections/<name>/<dir>/x.json is
+// ignored, as before.
 func loadCollections(fs vfs.FS) (map[string]expr.Value, []Diagnostic) {
+	sources := map[string]*collectionSource{}
+	var names []string
+	for _, path := range fs.List(collectionsDir) {
+		if !strings.HasPrefix(path, collectionsDir) || !strings.HasSuffix(path, ".json") {
+			continue
+		}
+		parts := strings.Split(path[len(collectionsDir):], "/")
+		var name string
+		switch len(parts) {
+		case 1:
+			name = strings.TrimSuffix(parts[0], ".json")
+		case 2:
+			name = parts[0]
+		default:
+			continue
+		}
+		src, seen := sources[name]
+		if !seen {
+			src = &collectionSource{}
+			sources[name] = src
+			names = append(names, name)
+		}
+		if len(parts) == 1 {
+			src.single = path
+		} else {
+			src.folder = append(src.folder, path)
+		}
+	}
+	sort.Strings(names)
+
 	out := map[string]expr.Value{}
 	var diags []Diagnostic
-	for _, path := range fs.List(collectionsDir) {
-		rest, ok := directChild(collectionsDir, path)
-		if !ok || !strings.HasSuffix(rest, ".json") {
-			continue
-		}
-		name := strings.TrimSuffix(rest, ".json")
+	for _, name := range names {
+		src := sources[name]
 		if !isValidVarName(name) {
-			diags = append(diags, dataDiag(path, "collection", "collection name \""+name+"\" is not a valid variable name"))
+			file := src.single
+			if file == "" {
+				file = collectionsDir + name
+			}
+			diags = append(diags, dataDiag(file, "collection", "collection name \""+name+"\" is not a valid variable name"))
 			continue
 		}
+		if len(src.folder) == 0 {
+			if arr, ok := loadCollectionFile(fs, name, src.single, &diags); ok {
+				out[name] = arr
+			}
+			continue
+		}
+		if src.single != "" {
+			diags = append(diags, dataDiag(src.single, "collection", "collection \""+name+"\" is stored twice: "+src.single+" and "+collectionsDir+name+"/ — the folder is used and the file is ignored; remove one of them"))
+		}
+		out[name] = loadCollectionFolder(fs, name, src.folder, &diags)
+	}
+	return out, diags
+}
+
+// loadCollectionFile decodes the single-file form: the file must be a JSON
+// array, whose object ITEMS the order-preserving decoder turns into *Object
+// values (stdClass semantics), nested objects too, while the array itself
+// stays an ordered []Value.
+func loadCollectionFile(fs vfs.FS, name, path string, diags *[]Diagnostic) ([]expr.Value, bool) {
+	raw, ok := fs.Read(path)
+	if !ok {
+		return nil, false
+	}
+	val, err := expr.DecodeJSON(raw)
+	if err != nil {
+		*diags = append(*diags, dataDiag(path, "collection", "collection \""+name+"\" must be a JSON array"))
+		return nil, false
+	}
+	arr, ok := val.([]expr.Value)
+	if !ok {
+		*diags = append(*diags, dataDiag(path, "collection", "collection \""+name+"\" must be a JSON array"))
+		return nil, false
+	}
+	return arr, true
+}
+
+// folderEntry is one decoded file of the folder form, with the keys its
+// position in the binding is decided by.
+type folderEntry struct {
+	file  string // the file name minus .json — the entry's slug
+	date  string // the entry's `date` when it is a string, "" otherwise
+	value *expr.Object
+}
+
+// loadCollectionFolder decodes the folder form: every direct collections/
+// <name>/<file>.json must be a JSON object (anything else is a collection
+// error and that file is skipped). Entries bind by `date` descending — the
+// newest first, the way a listing wants them — and then file name ascending,
+// so two entries on one day keep a stable order; an entry without a string
+// `date` sorts after every dated one.
+func loadCollectionFolder(fs vfs.FS, name string, paths []string, diags *[]Diagnostic) []expr.Value {
+	entries := make([]folderEntry, 0, len(paths))
+	for _, path := range paths {
 		raw, ok := fs.Read(path)
 		if !ok {
 			continue
 		}
-		// The order-preserving decoder turns every object ITEM inside the array
-		// into an *Object (stdClass semantics), nested objects too, while the
-		// array itself stays an ordered []Value.
+		file := strings.TrimSuffix(path[strings.LastIndex(path, "/")+1:], ".json")
 		val, err := expr.DecodeJSON(raw)
 		if err != nil {
-			diags = append(diags, dataDiag(path, "collection", "collection \""+name+"\" must be a JSON array"))
+			*diags = append(*diags, dataDiag(path, "collection", "collection \""+name+"\" entry "+file+".json must be a JSON object"))
 			continue
 		}
-		arr, ok := val.([]expr.Value)
+		obj, ok := val.(*expr.Object)
 		if !ok {
-			diags = append(diags, dataDiag(path, "collection", "collection \""+name+"\" must be a JSON array"))
+			*diags = append(*diags, dataDiag(path, "collection", "collection \""+name+"\" entry "+file+".json must be a JSON object"))
 			continue
 		}
-		out[name] = arr
+		if slug, ok := obj.Get("slug"); ok {
+			if s, isString := slug.(string); isString && s != file {
+				*diags = append(*diags, dataDiag(path, "collection", "collection \""+name+"\" entry "+file+".json has slug \""+s+"\" — name the file after the entry's slug"))
+			}
+		}
+		entry := folderEntry{file: file, value: obj}
+		if date, ok := obj.Get("date"); ok {
+			if s, isString := date.(string); isString {
+				entry.date = s
+			}
+		}
+		entries = append(entries, entry)
 	}
-	return out, diags
+	sort.SliceStable(entries, func(i, j int) bool {
+		if entries[i].date != entries[j].date {
+			return entries[i].date > entries[j].date
+		}
+		return entries[i].file < entries[j].file
+	})
+	out := make([]expr.Value, len(entries))
+	for i, e := range entries {
+		out[i] = e.value
+	}
+	return out
 }
 
 // loadContent reads every resources/data/content/<dir>/*.md into a $<dir> array

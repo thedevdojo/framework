@@ -270,3 +270,70 @@ func TestOutputTrailingNewline(t *testing.T) {
 		t.Fatalf("output has more than one trailing newline: %q", raw)
 	}
 }
+
+// TestRunVariants: the wire form of a dynamic page's fan-out — one entry, one
+// variant per collection entry, each output named by the host — over one load
+// of the site's files, alongside plain entries in the same request.
+func TestRunVariants(t *testing.T) {
+	input := `{
+		"files": {
+			"resources/views/pages/index.blade.php": "home",
+			"resources/views/pages/post/[post.slug].blade.php": "{{ $post->title }}/{{ $shared }}",
+			"resources/data/collections/post/a.json": "{\"slug\":\"a\",\"title\":\"A\"}"
+		},
+		"data": { "shared": "s" },
+		"entries": ["resources/views/pages/index.blade.php"],
+		"variants": [
+			{ "entry": "resources/views/pages/post/[post.slug].blade.php", "data": { "post": { "title": "A" } }, "output": "post/a/index.html" },
+			{ "entry": "resources/views/pages/post/[post.slug].blade.php", "data": { "post": { "title": "B" } }, "output": "post/b/index.html" }
+		]
+	}`
+
+	var out bytes.Buffer
+	if err := Run(strings.NewReader(input), &out); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	var got Output
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("output is not valid JSON: %v\n%s", err, out.String())
+	}
+	want := map[string]string{
+		"index.html":        "home",
+		"post/a/index.html": "A/s",
+		"post/b/index.html": "B/s",
+	}
+	if len(got.Files) != len(want) {
+		t.Fatalf("files = %#v, want %#v", got.Files, want)
+	}
+	for name, body := range want {
+		if got.Files[name] != body {
+			t.Errorf("files[%q] = %q, want %q", name, got.Files[name], body)
+		}
+	}
+	if len(got.Diagnostics) != 0 {
+		t.Errorf("diagnostics = %#v", got.Diagnostics)
+	}
+}
+
+// TestRunVariantsOnlySkipDiscovery: a request carrying variants and no entries
+// renders the variants alone — page discovery is for a request naming neither.
+func TestRunVariantsOnlySkipDiscovery(t *testing.T) {
+	input := `{
+		"files": {
+			"resources/views/pages/index.blade.php": "home",
+			"resources/views/pages/about.blade.php": "about"
+		},
+		"variants": [{ "entry": "resources/views/pages/about.blade.php", "output": "about/index.html" }]
+	}`
+	var out bytes.Buffer
+	if err := Run(strings.NewReader(input), &out); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	var got Output
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if len(got.Files) != 1 || got.Files["about/index.html"] != "about" {
+		t.Errorf("files = %#v", got.Files)
+	}
+}
