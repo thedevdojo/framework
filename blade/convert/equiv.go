@@ -50,7 +50,7 @@ func tokenAt(origin []scanner.Token, at mismatch, originIsBlade bool) (scanner.T
 	return origin[i], true
 }
 
-// equivalent reports whether a Blade token stream and an HTML-syntax one say
+// equivalent reports whether a Blade token stream and a Studio-syntax one say
 // the same thing, and where they first part if not.
 //
 // foldUnknown says what a directive outside the engine's subset means on the
@@ -202,7 +202,7 @@ func resolve(cands []string, exists func(string) bool) string {
 // dotted is a component path as Blade names it: sections/hero → sections.hero.
 func dotted(base string) string { return strings.ReplaceAll(base, "/", ".") }
 
-// loopLimit returns the limit an HTML-syntax <Foreach limit="…"> carries.
+// loopLimit returns the limit a Studio-syntax <Foreach limit="…"> carries.
 func loopLimit(tok scanner.Token) (string, bool) {
 	for _, a := range tok.Attrs {
 		if a.Name == "limit" {
@@ -257,7 +257,13 @@ func loopParts(text string) (items, key, val string, ok bool) {
 	items = strings.TrimSpace(text[:i])
 	right := text[i+4:]
 	if j := strscan.Index(right, "=>"); j >= 0 {
-		return items, strings.TrimSpace(right[:j]), strings.TrimSpace(right[j+2:]), true
+		// An arrow with nothing before it ("as => $post") is not the no-key
+		// form: the parser rejects that loop, so it is not a loop here either.
+		key = strings.TrimSpace(right[:j])
+		if key == "" {
+			return "", "", "", false
+		}
+		return items, key, strings.TrimSpace(right[j+2:]), true
 	}
 	return items, "", strings.TrimSpace(right), true
 }
@@ -318,7 +324,7 @@ func propList(raw string) ([]prop, bool) {
 // spacing, line breaks and quotes were.
 //
 // A bare entry is levelled with "=> null". They are not the same thing in
-// Blade — bare means required — but the HTML syntax has only the optional
+// Blade — bare means required — but the Studio syntax has only the optional
 // kind (<Props badge /> is 'badge' => null), so a required prop becomes an
 // optional one on its way to HTML. Nothing rendered changes: a prop that was
 // passed is still passed, and a required prop that was not passed was an

@@ -1,7 +1,7 @@
-// Package htmlscan is the scanner for Pocketknife's HTML syntax — the second
-// spelling of the template language, used by .html files.
+// Package htmlscan is the scanner for the DevDojo Studio syntax — Pocketknife's
+// second spelling of the template language, used by .html files.
 //
-// The HTML syntax is Blade written as tags. A capitalized tag is either one of
+// The Studio syntax is Blade written as tags. A capitalized tag is either one of
 // the built-in tags (<If>, <Foreach>, <Layout>, <Include>, <Slot>, <Props>, …)
 // or a component (<Button>, <SectionsHero>); expressions drop the PHP sigils
 // (post.title instead of $post->title). Nothing else changes: this package

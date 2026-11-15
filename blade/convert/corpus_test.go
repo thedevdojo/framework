@@ -13,7 +13,7 @@ import (
 
 // TestCorpus runs the converter over real sites. Point POCKETKNIFE_CORPUS at a
 // folder of them — each site either the folder itself or its files/ subfolder —
-// and every one is converted to the HTML syntax, back to Blade, and round
+// and every one is converted to the Studio syntax, back to Blade, and round
 // again, in memory; nothing on disk is touched.
 //
 // Each conversion is refused unless the site renders byte for byte as before,
@@ -70,7 +70,7 @@ func TestCorpus(t *testing.T) {
 			}
 			return apply(site, res), true
 		}
-		h1, ok := step(b0, HTML, "→ html", false)
+		h1, ok := step(b0, Studio, "→ html", false)
 		if !ok {
 			continue
 		}
@@ -78,7 +78,7 @@ func TestCorpus(t *testing.T) {
 		if !ok {
 			continue
 		}
-		h2, ok := step(b1, HTML, "→ html → blade → html", true)
+		h2, ok := step(b1, Studio, "→ html → blade → html", true)
 		if !ok {
 			continue
 		}
@@ -86,7 +86,7 @@ func TestCorpus(t *testing.T) {
 		if !ok {
 			continue
 		}
-		settled := sameSite(t, d.Name()+" (HTML, second trip)", h1, h2) && sameSite(t, d.Name()+" (Blade, second trip)", b1, b2)
+		settled := sameSite(t, d.Name()+" (Studio, second trip)", h1, h2) && sameSite(t, d.Name()+" (Blade, second trip)", b1, b2)
 		if settled {
 			converted++
 		}
@@ -100,7 +100,7 @@ func TestCorpus(t *testing.T) {
 			untouched++
 		}
 	}
-	t.Logf("%d of %d sites convert to the HTML syntax and back, rendering the same (%d files)", converted, sites, files)
+	t.Logf("%d of %d sites convert to the Studio syntax and back, rendering the same (%d files)", converted, sites, files)
 	t.Logf("%d of those come back to the very same Blade bytes on the first trip", untouched)
 	var keys []string
 	for k := range reasons {

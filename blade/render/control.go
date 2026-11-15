@@ -80,7 +80,7 @@ func (r *renderer) renderForeach(node *ast.Foreach) {
 	r.scope = parent
 }
 
-// loopLimit evaluates the HTML syntax's <Foreach limit="…">: how many items the
+// loopLimit evaluates the Studio syntax's <Foreach limit="…">: how many items the
 // loop runs over at most. It must come to a whole number, zero or more — a
 // number, or a numeric string such as a JSON "3". Anything else is diagnosed
 // and ok is false, so the loop runs in full rather than silently showing

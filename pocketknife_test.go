@@ -58,8 +58,8 @@ func TestFacadeDiagnosticKinds(t *testing.T) {
 	}
 }
 
-// TestExamplesRenderAlike: example/ and example-html/ are the same site
-// written in the two syntaxes — Blade and HTML. They must lint clean and
+// TestExamplesRenderAlike: example/ and example-studio/ are the same site
+// written in the two syntaxes — Blade and DevDojo Studio. They must lint clean and
 // render the same bytes, and those bytes are the ones committed in
 // example/_out (which real Laravel Blade also produces; see example/README).
 func TestExamplesRenderAlike(t *testing.T) {
@@ -80,9 +80,9 @@ func TestExamplesRenderAlike(t *testing.T) {
 		return out
 	}
 	bladeOut := render("example", "resources/views/pages/index.blade.php")
-	htmlOut := render("example-html", "resources/views/pages/index.html")
+	htmlOut := render("example-studio", "resources/views/pages/index.html")
 	if htmlOut != bladeOut {
-		t.Errorf("the HTML-syntax example renders differently:\n--- blade ---\n%s\n--- html ---\n%s", bladeOut, htmlOut)
+		t.Errorf("the Studio-syntax example renders differently:\n--- blade ---\n%s\n--- studio ---\n%s", bladeOut, htmlOut)
 	}
 	// _out/ is render.sh's output and is not in git: on a fresh checkout there
 	// is nothing to compare with, and nothing to be stale.
@@ -98,11 +98,11 @@ func TestExamplesRenderAlike(t *testing.T) {
 	}
 }
 
-// TestExampleHTMLIsTheConversion: example-html/ is not a hand-kept copy. Its
-// views are exactly what `pocketknife convert example --to html` writes, so
+// TestExampleStudioIsTheConversion: example-studio/ is not a hand-kept copy. Its
+// views are exactly what `pocketknife convert example --to studio` writes, so
 // the pair doubles as the converter's worked example.
-func TestExampleHTMLIsTheConversion(t *testing.T) {
-	res := convert.Site(vfs.Dir("example"), convert.HTML, pocketknife.Options{})
+func TestExampleStudioIsTheConversion(t *testing.T) {
+	res := convert.Site(vfs.Dir("example"), convert.Studio, pocketknife.Options{})
 	if len(res.Problems) != 0 {
 		t.Fatalf("example/ did not convert: %+v", res.Problems)
 	}
@@ -110,13 +110,13 @@ func TestExampleHTMLIsTheConversion(t *testing.T) {
 		t.Fatal("example/ converted to no files")
 	}
 	for path, got := range res.Files {
-		want, err := os.ReadFile("example-html/" + path)
+		want, err := os.ReadFile("example-studio/" + path)
 		if err != nil {
-			t.Errorf("example-html/ is missing %s", path)
+			t.Errorf("example-studio/ is missing %s", path)
 			continue
 		}
 		if got != string(want) {
-			t.Errorf("example-html/%s is not the conversion of example/:\n--- converted ---\n%s\n--- committed ---\n%s", path, got, want)
+			t.Errorf("example-studio/%s is not the conversion of example/:\n--- converted ---\n%s\n--- committed ---\n%s", path, got, want)
 		}
 	}
 }

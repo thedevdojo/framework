@@ -20,9 +20,11 @@ example/
             └── sections/feature-list.blade.php
 ```
 
-The same site written in the HTML syntax (`<Layout>`, `<Foreach>`, `<If>`,
-`<SectionsFeatureList />`) is in [`../example-html/`](../example-html/); it
-renders the same bytes.
+The same site written in the DevDojo Studio syntax (`<Layout>`, `<Foreach>`,
+`<If>`, `<SectionsFeatureList />`) is in
+[`../example-studio/`](../example-studio/); it renders the same bytes. Every
+directive used here is explained in the
+[Blade syntax guide](../docs/blade-syntax.md).
 
 ## 1. Build the binary
 

@@ -8,7 +8,7 @@ import (
 	"github.com/thedevdojo/pocketknife/blade/scanner"
 )
 
-// printBlade writes an HTML-syntax file's tokens as Blade.
+// printBlade writes a Studio-syntax file's tokens as Blade.
 //
 // The tokens are already Blade's (that is what the HTML scanner emits), so the
 // tags are the easy half. The care goes into the text between them. An .html
@@ -18,7 +18,7 @@ import (
 // Laravel, not only this engine: the reason to convert to Blade is to run the
 // site there. Where the two differ the comments below say so.
 //
-// tidy first turns each hatch — a character the HTML syntax printed through a
+// tidy first turns each hatch — a character the Studio syntax printed through a
 // raw echo, {!! '<' !!}!-- — back into text. The text printer hatches it again
 // where Blade needs that too, and writes it plainly where Blade does not. File
 // falls back to the untidied print if the tidy one does not read back the same.
@@ -419,7 +419,7 @@ func loopLength(e string) (string, bool) {
 	return "", false
 }
 
-// componentName is the Blade name of the component an HTML-syntax tag means:
+// componentName is the Blade name of the component a Studio-syntax tag means:
 // the first of its candidate files that exists, as the renderer picks it.
 func (p *bladePrinter) componentName(tok scanner.Token) string {
 	cands := tok.Candidates

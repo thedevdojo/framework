@@ -31,7 +31,7 @@ const (
 	SlotOpen              // <x-slot:name>
 	SlotClose             // </x-slot>
 	// Error is a construct the scanner recognized but could not turn into a
-	// token the parser can act on (an HTML-syntax <Layout> with no src, an
+	// token the parser can act on (a Studio-syntax <Layout> with no src, an
 	// <If> with no condition). Name holds the construct's label, Text the
 	// message; the parser reports it and moves on. The Blade scanner never
 	// emits one — malformed Blade degrades to Text.
@@ -78,12 +78,12 @@ type Token struct {
 	Attrs     []Attr
 	SelfClose bool
 	Pos       Pos
-	// Tag is set ONLY by the HTML-syntax scanner (blade/htmlscan): the tag name
+	// Tag is set ONLY by the Studio-syntax scanner (blade/htmlscan): the tag name
 	// exactly as the author wrote it (If, ForEach, SectionsHero, layout). It is
 	// "" for every Blade-syntax token. Label uses it so a diagnostic names the
 	// construct the way the file spells it.
 	Tag string
-	// Candidates is set ONLY by the HTML-syntax scanner, on a TagOpen: the
+	// Candidates is set ONLY by the Studio-syntax scanner, on a TagOpen: the
 	// component files the tag may name, as paths relative to
 	// resources/views/components without an extension, in the order to try
 	// them. A Blade <x-name> has exactly one path, derived from Name.
@@ -91,7 +91,7 @@ type Token struct {
 }
 
 // Label is the construct's spelling for diagnostics: "@if" or "<x-hero>" for a
-// Blade-syntax token, "<If>" or "</SectionsHero>" for an HTML-syntax one.
+// Blade-syntax token, "<If>" or "</SectionsHero>" for a Studio-syntax one.
 func (t Token) Label() string {
 	if t.Tag != "" {
 		switch {

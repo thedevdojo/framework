@@ -23,7 +23,7 @@ type caseSpec struct {
 	// The oracle ignores this key: deps are a Go-engine contract, not a Blade
 	// output.
 	Deps map[string][]string `json:"deps"`
-	// Twin names the Blade fixture this one is the HTML-syntax port of. The
+	// Twin names the Blade fixture this one is the Studio-syntax port of. The
 	// PHP oracle cannot render an .html view, so an HTML fixture borrows its
 	// proof: its expected/ tree must be byte-identical to its twin's, and the
 	// twin's is what real Laravel Blade produced. The same page written in the
@@ -110,9 +110,9 @@ func TestFixtures(t *testing.T) {
 	}
 }
 
-// checkHTMLCase holds an HTML-syntax fixture to the two rules that keep it
+// checkHTMLCase holds a Studio-syntax fixture to the two rules that keep it
 // honest. A case with an .html entry must opt out of the PHP oracle (real
-// Blade cannot read the HTML syntax, so the oracle would fail on it), and a
+// Blade cannot read the Studio syntax, so the oracle would fail on it), and a
 // case that names a twin must expect exactly what its twin expects.
 func checkHTMLCase(t *testing.T, name string, spec caseSpec) {
 	t.Helper()
@@ -129,7 +129,7 @@ func checkHTMLCase(t *testing.T, name string, spec caseSpec) {
 		return
 	}
 	if !html {
-		t.Errorf(`"twin" is for HTML-syntax fixtures; this case has no .html entry`)
+		t.Errorf(`"twin" is for Studio-syntax fixtures; this case has no .html entry`)
 	}
 	want, err := readTree(filepath.Join(spec.Twin, "expected"))
 	if err != nil || len(want) == 0 {

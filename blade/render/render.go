@@ -30,7 +30,7 @@ import (
 // Blade that needs real PHP and so falls to the app tier; KindWarning marks a
 // non-fatal lint hint (an undeclared component attribute).
 //
-// KindAppTier is BLADE-ONLY. An .html (HTML-syntax) file cannot be handed to
+// KindAppTier is BLADE-ONLY. An .html (Studio-syntax) file cannot be handed to
 // real Laravel, so it has no app tier: the same constructs are KindError there.
 //
 // KindWarning is LINT-ONLY: it is produced solely by Analyze (surfaced through
@@ -459,7 +459,7 @@ func (r *renderer) renderIf(node *ast.If) {
 // where real Blade raises the same undefined-variable error this reports.
 // The carve-out is gone; error/undefined-variable is the parity answer.
 func (r *renderer) diagExprError(err error, p scanner.Pos) {
-	// In an HTML-syntax file the variable was written without its "$" (title,
+	// In a Studio-syntax file the variable was written without its "$" (title,
 	// post.title), so the message names it the same way.
 	if errors.Is(err, expr.ErrUndefinedVar) {
 		msg := err.Error()
@@ -537,7 +537,7 @@ func escapesRoot(p string) bool {
 
 // outputName maps an entry path to its output file name. Pages lose the
 // resources/views/pages/ prefix; any other view keeps its path relative to
-// resources/views/. A Blade page's .blade.php becomes .html; an HTML-syntax
+// resources/views/. A Blade page's .blade.php becomes .html; a Studio-syntax
 // page already ends in .html and keeps it, so pages/about.blade.php and
 // pages/about.html both render to about.html.
 func outputName(entry string) string {

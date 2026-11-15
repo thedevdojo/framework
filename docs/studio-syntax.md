@@ -1,15 +1,19 @@
-# The HTML syntax (engine 0.3.0)
+# The DevDojo Studio syntax
 
-**Date:** 2026-11-14
-**Status:** Implemented in the Go engine, with a converter both ways
-(`pocketknife convert`, see "Converting between the two"). The Laravel tier
-reads Blade only; an `.html` site gets there by converting.
+Pocketknife compiles templates to HTML. It reads two syntaxes, and this is the
+guide to the second: the **DevDojo Studio syntax**, in files ending `.html`.
+(The other is [Blade](blade-syntax.md), in `.blade.php` files.)
 
-Pocketknife now reads two syntaxes. **Blade** is unchanged. The **HTML syntax**
-says the same things with tags instead of directives, in the spirit of DevDojo
-Static: `<Foreach posts="post">` for `@foreach ($posts as $post)`,
-`{{ post.title }}` for `{{ $post->title }}`, `<SectionsHero />` for
-`<x-sections.hero />`. It exists for people who know HTML and nothing else.
+The Studio syntax says what Blade says with tags instead of directives:
+`<Foreach posts="post">` for `@foreach ($posts as $post)`, `{{ post.title }}`
+for `{{ $post->title }}`, `<SectionsHero />` for `<x-sections.hero />`. It is
+for people who know HTML and nothing else — a template is HTML with a few
+extra tags. The tags follow DevDojo Static's (`<Layout>`, `<Include>`,
+`<Foreach>`).
+
+The two syntaxes are one language. They share a parser and a renderer, print
+the same bytes from the same data, and a site can be
+[converted](#converting-between-the-two) from either one to the other.
 
 ```html
 <Layout src="main.html" title="Blog">
@@ -31,7 +35,11 @@ The file's extension decides, one file at a time:
 | Extension | Syntax |
 |---|---|
 | `.blade.php` | Blade |
-| `.html` | HTML |
+| `.html` | DevDojo Studio |
+
+The site's folders, its data files and its addresses are the same in both —
+see ["A site"](blade-syntax.md#a-site) and ["Data"](blade-syntax.md#data) in
+the Blade guide, reading `.html` for `.blade.php` and `site` for `$site`.
 
 Pages are discovered under `resources/views/pages/` in both (`about.html` and
 `about.blade.php` both serve `/about`; having both is a `page-collision`
@@ -41,7 +49,7 @@ component. The reverse is not true — a Blade `<x-card>` finds only
 
 ## Cheat sheet
 
-| HTML syntax | Blade |
+| DevDojo Studio | Blade |
 |---|---|
 | `{{ post.title }}` | `{{ $post->title }}` |
 | `{!! post.body !!}` | `{!! $post->body !!}` |
@@ -170,7 +178,7 @@ quotes writes one of them as `&quot;` or `&#39;` (and a literal `&quot;` as
 `&amp;quot;`): `<Props say="can't say &quot;no&quot;" />`.
 
 A bare name (`badge`) is **optional**: leave it off the tag and it is empty
-(`null`), so `<If badge>` is simply false. This is the one place the HTML
+(`null`), so `<If badge>` is simply false. This is the one place the Studio
 syntax does not mirror Blade word for word — Blade's bare `@props(['badge'])`
 makes the prop required and a tag without it fails on an undefined variable.
 `<Props badge />` is `@props(['badge' => null])`.
@@ -217,10 +225,12 @@ syntaxes byte-identical; in HTML output it is invisible.
 ## Converting between the two
 
 ```bash
-pocketknife convert my-site --to html             # Blade → HTML syntax
-pocketknife convert my-site --to blade            # HTML syntax → Blade
+pocketknife convert my-site --to studio           # Blade → DevDojo Studio
+pocketknife convert my-site --to blade            # DevDojo Studio → Blade
 pocketknife convert my-site --to blade --dry-run  # say what would change, touch nothing
 ```
+
+(`--to html` is the Studio syntax's older name and still works.)
 
 Every view under `resources/views/` written in the other syntax is rewritten
 in place — `about.blade.php` becomes `about.html`, or the reverse. Data, CSS
@@ -228,9 +238,9 @@ and everything else stay as they are. With no directory the same thing speaks
 JSON, for a host that keeps its files elsewhere:
 
 ```bash
-echo '{"to": "html", "files": {"resources/views/pages/index.blade.php": "@if ($on) yes @endif"}, "data": {"on": true}}' \
+echo '{"to": "studio", "files": {"resources/views/pages/index.blade.php": "@if ($on) yes @endif"}, "data": {"on": true}}' \
   | pocketknife convert
-# {"engine":"0.3.0","files":{"resources/views/pages/index.html":"<If on> yes </If>"},"removed":["resources/views/pages/index.blade.php"],"diagnostics":[]}
+# {"engine":"1.0.0","files":{"resources/views/pages/index.html":"<If on> yes </If>"},"removed":["resources/views/pages/index.blade.php"],"diagnostics":[]}
 ```
 
 **Exact, or not at all.** The two syntaxes are two spellings of one token
@@ -241,21 +251,21 @@ evaluated and nothing is guessed, and three checks stand behind the result:
    original's.
 2. The site is rendered before and after with the same data. Every page must
    come out byte for byte the same.
-3. Blade that needs real Laravel is refused on its way to the HTML syntax,
+3. Blade that needs real Laravel is refused on its way to the Studio syntax,
    which has no Laravel behind it.
 
 One problem anywhere and **no file is written**: a site left half in each
 syntax would have pages looking for components that moved. Each problem is
 printed as `file:line:col message` and the exit code is 1.
 
-**Blade → HTML** picks the shortest spelling that reads back the same:
+**Blade → Studio** picks the shortest spelling that reads back the same:
 `<If post.featured>` over `<If condition="post.featured">`, `<SectionsHero>`
 over `<Include src="…">`, `title="Hi {{ name }}"` over
 `:title="'Hi ' . name"`, `<Foreach posts="post" limit="3">` over a leading
 `<Break>`. Text that only Blade had to escape goes back to plain: `@@click` is
 `@click` again.
 
-**HTML → Blade** writes Blade that real Laravel prints the same way — that is
+**Studio → Blade** writes Blade that real Laravel prints the same way — that is
 the reason to convert. An `.html` file has no directives, so its text can hold
 things Blade would act on. Each is defused:
 
@@ -270,13 +280,13 @@ things Blade would act on. Each is defused:
 | `<Props badge />` | `@props(['badge' => null])` | an optional prop |
 | `{{ class() }}` | `@class` | Laravel fails on `@class()` |
 
-Converting back to the HTML syntax takes all of that out again, so
-HTML → Blade → HTML returns the file as it was written — bar an escape the
+Converting back to the Studio syntax takes all of that out again, so
+Studio → Blade → Studio returns the file as it was written — bar an escape the
 file never needed (`&amp;` in a `<Props>` default comes back as `&`).
 
 **What is refused**, with the file and line:
 
-- *To HTML:* a directive Laravel compiles and this engine does not (`@auth`,
+- *To Studio:* a directive Laravel compiles and this engine does not (`@auth`,
   `@include`, `@php`, …), a function call (`route('home')`), a nested `@props`
   default. A directive nobody compiles (`@media`, `@handle`) is plain text and
   converts.
@@ -290,9 +300,9 @@ file never needed (`&amp;` in a `<Props>` default comes back as `&`).
 A mistake that both syntaxes can spell is carried across as it is: an unclosed
 `<If>` becomes an unclosed `@if`. Run `pocketknife lint` first.
 
-**What a round trip changes.** Nothing that renders. Blade → HTML → Blade
+**What a round trip changes.** Nothing that renders. Blade → Studio → Blade
 tidies spelling (`@if($a)` → `@if ($a)`, `@vite('a.css')` →
-`@vite(['a.css'])`, blank lines inside `@props`), and one thing has no HTML
+`@vite(['a.css'])`, blank lines inside `@props`), and one thing has no Studio
 spelling: Blade's *required* prop. `@props(['items'])` becomes
 `<Props items />`, which is optional, and comes back as
 `@props(['items' => null])`. Every page that passed the prop renders the same;
@@ -319,12 +329,12 @@ Proof, since the PHP oracle cannot read an `.html` view:
 
 - `htmlscan.TestScanMatchesBlade` — each construct scans to the tokens of its
   Blade twin.
-- `fixtures/html-*` with a `"twin"` — the HTML port of an oracle-verified
+- `fixtures/html-*` with a `"twin"` — the Studio port of an oracle-verified
   Blade fixture must expect that fixture's exact bytes (enforced by the
   harness).
-- `example-html/` renders byte-identical to `example/`, and is exactly what
-  `pocketknife convert example --to html` writes
-  (`TestExampleHTMLIsTheConversion`).
+- `example-studio/` renders byte-identical to `example/`, and is exactly what
+  `pocketknife convert example --to studio` writes
+  (`TestExampleStudioIsTheConversion`).
 - Fuzzers: `FuzzScan` (plain HTML comes back unchanged), `FuzzExpr`,
   `FuzzParseHTML`, `FuzzCompileHTML`.
 
@@ -333,11 +343,11 @@ The converter (`blade/convert`) has its own:
 - `fixtures.TestFixturesConvert` — every fixture is converted to the other
   syntax and back, and must still render its `expected/` bytes.
 - `fixtures/convert-hazards` — a page of text Blade would act on (`@click`,
-  `@media (…)`, `<x-card>`, `@{{ }}`, an empty class list), written in the HTML
-  syntax, converted, and rendered by **real Laravel**: it prints what the
+  `@media (…)`, `<x-card>`, `@{{ }}`, an empty class list), written in the
+  Studio syntax, converted, and rendered by **real Laravel**: it prints what the
   author wrote.
 - `convert.TestCorpus` (opt-in, `POCKETKNIFE_CORPUS=<dir of sites>`) — converts
-  each site to the HTML syntax and back twice over, requiring identical
+  each site to the Studio syntax and back twice over, requiring identical
   renders and a second trip that changes nothing.
 - `convert.FuzzFile` — on arbitrary input the converter may refuse, but what
   it converts must render the same bytes.
@@ -351,3 +361,11 @@ The converter (`blade/convert`) has its own:
   "fail if this is missing".
 - **DevDojo Static's single-brace `{title}` tokens.** Double braces were kept:
   single braces collide with CSS, JavaScript and Alpine in the same file.
+
+## More
+
+- [The Blade syntax](blade-syntax.md) — the same templates, written as Blade,
+  and the guide to a site's folders and data.
+- [`example-studio/`](../example-studio/) — a small complete site in this
+  syntax.
+- [`docs/specs/`](specs/) — the engine's design documents.

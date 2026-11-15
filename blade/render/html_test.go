@@ -34,7 +34,7 @@ func requireClean(t *testing.T, diags []Diagnostic) {
 	}
 }
 
-// TestHTMLRendersLikeBlade is the promise of the HTML syntax: a site written
+// TestHTMLRendersLikeBlade is the promise of the Studio syntax: a site written
 // with tags renders the very same bytes as the same site written in Blade.
 // Each case is one site, twice.
 func TestHTMLRendersLikeBlade(t *testing.T) {
@@ -42,7 +42,7 @@ func TestHTMLRendersLikeBlade(t *testing.T) {
 	cases := []struct {
 		name  string
 		data  map[string]string // shared by both: resources/data/**, css
-		html  map[string]string // resources/views/** in the HTML syntax
+		html  map[string]string // resources/views/** in the Studio syntax
 		blade map[string]string // resources/views/** in Blade
 	}{
 		{
@@ -322,7 +322,7 @@ func TestHTMLComponentMissing(t *testing.T) {
 
 // TestBladeTagsStayBlade: a Blade <x-tag> names exactly one .blade.php file,
 // as it does in real Laravel — it never falls back to an .html component, and
-// its deps are unchanged by the HTML syntax existing.
+// its deps are unchanged by the Studio syntax existing.
 func TestBladeTagsStayBlade(t *testing.T) {
 	res := Compile(vfs.Mem{
 		bladeEntry:                               `<x-button />`,
@@ -563,7 +563,7 @@ func TestPageCollision(t *testing.T) {
 // TestHTMLHasNoAppTier: "app-tier" means valid Blade that real Laravel could
 // run instead. Real Laravel cannot run an .html view, so there is no tier to
 // fall to — in an .html file the same constructs are errors, and the message
-// says what the HTML syntax can do rather than naming a PHP tier.
+// says what the Studio syntax can do rather than naming a PHP tier.
 func TestHTMLHasNoAppTier(t *testing.T) {
 	site := map[string]string{"resources/data/site.json": `{"n": 2, "a": true, "list": [1]}`}
 	pages := map[string]string{
@@ -599,7 +599,7 @@ func TestHTMLHasNoAppTier(t *testing.T) {
 		}
 	}
 
-	// An expression the HTML syntax cannot evaluate says what it can.
+	// An expression the Studio syntax cannot evaluate says what it can.
 	_, diags := htmlPage(t, map[string]string{htmlEntry: `{{ route('home') }}`})
 	want := "function call route() — a template can read values and compare them (==, !=, <, >, and, or, not), nothing more"
 	if len(diags) != 1 || diags[0].Message != want || diags[0].Construct != "expression" {

@@ -185,7 +185,7 @@ func (p *parser) parseNode(ctx bodyCtx) []ast.Node {
 		return nil
 	case scanner.Error:
 		// The scanner read a construct it could not turn into a token (an
-		// HTML-syntax <Layout> with no src). It carries its own label and
+		// Studio-syntax <Layout> with no src). It carries its own label and
 		// message; report it and carry on with whatever follows.
 		p.diag(tok.Pos, tok.Name, tok.Text)
 		p.next()
@@ -320,7 +320,7 @@ func (p *parser) parseForeach(ctx bodyCtx) []ast.Node {
 	if !argsOK {
 		return body // loop dropped; its body surfaces where the loop would have been
 	}
-	// The HTML syntax's <Foreach limit="3"> arrives as an attribute on the loop
+	// The Studio syntax's <Foreach limit="3"> arrives as an attribute on the loop
 	// token; a Blade @foreach carries none.
 	for _, a := range open.Attrs {
 		if a.Name == "limit" {
@@ -463,7 +463,7 @@ var reLoopVar = regexp.MustCompile(`^\$[a-zA-Z_][a-zA-Z0-9_]*$`)
 // the last top-level " as " and then on "=>". It returns false (with a Diag)
 // when the grammar or variable names are invalid.
 func (p *parser) parseForeachArgs(open scanner.Token, node *ast.Foreach) bool {
-	// An HTML-syntax <Foreach> reaches here already assembled by its scanner,
+	// A Studio-syntax <Foreach> reaches here already assembled by its scanner,
 	// so the one thing left to get wrong is the name given to each item.
 	label := open.Label()
 	badVar, badVars := "invalid loop variable", "invalid loop variable(s)"
@@ -528,7 +528,7 @@ func splitArrow(s string) (key, val string, found bool) {
 
 func one(n ast.Node) []ast.Node { return []ast.Node{n} }
 
-// isHTML reports whether tok came from the HTML-syntax scanner. The grammar is
+// isHTML reports whether tok came from the Studio-syntax scanner. The grammar is
 // the same for both syntaxes; this only chooses how a diagnostic is worded, so
 // it names the construct the way the file spells it (<If>, not @if).
 func isHTML(tok scanner.Token) bool { return tok.Tag != "" }

@@ -25,7 +25,7 @@ func File(path string, src []byte, to Syntax, exists func(base string) bool) (st
 	var out string
 	var problems []render.Diagnostic
 	var bladeToks, htmlToks []scanner.Token
-	if to == HTML {
+	if to == Studio {
 		bladeToks = scanner.Scan(path, src)
 		// The tidy print first: it is the one a person would have written.
 		// It is kept only if it stands up to the same proof as any other.
@@ -52,19 +52,19 @@ func File(path string, src []byte, to Syntax, exists func(base string) bool) (st
 	// say what the original said, the construct at that spot has no exact
 	// spelling in the other syntax (or the printer is wrong — either way the
 	// file is not converted).
-	if at, same := equivalent(bladeToks, htmlToks, to == HTML, exists); !same {
+	if at, same := equivalent(bladeToks, htmlToks, to == Studio, exists); !same {
 		origin := htmlToks
-		if to == HTML {
+		if to == Studio {
 			origin = bladeToks
 		}
 		pos := scanner.Pos{File: path, Line: 1, Col: 1}
 		label := ""
 		if at.ok {
-			if tok, found := tokenAt(origin, at, to == HTML); found {
+			if tok, found := tokenAt(origin, at, to == Studio); found {
 				pos, label = tok.Pos, tok.Label()
 			}
 		}
-		target := map[Syntax]string{Blade: "Blade", HTML: "the HTML syntax"}[to]
+		target := to.Name()
 		msg := "cannot be written in " + target + " exactly"
 		if label != "" {
 			msg = label + " " + msg

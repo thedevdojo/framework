@@ -8,7 +8,7 @@ import (
 	"github.com/thedevdojo/pocketknife/blade/scanner"
 )
 
-// printHTML writes a Blade file's tokens in the HTML syntax.
+// printHTML writes a Blade file's tokens in the Studio syntax.
 //
 // Where a construct has several HTML spellings the shortest one that scans
 // back to the same token wins — <If post.featured> over
@@ -18,7 +18,7 @@ import (
 // tidy also takes out what only Blade needed: a character printed through a
 // raw echo to keep Laravel from reading it ({!! '@' !!}media), an empty echo
 // holding two things apart, and the @break that stands in for a loop's limit.
-// Those are what a page converted from the HTML syntax picks up on the way to
+// Those are what a page converted from the Studio syntax picks up on the way to
 // Blade, so tidying is what returns it as it was written. File falls back to
 // the untidied print if the tidy one does not read back the same.
 func printHTML(path string, src []byte, toks []scanner.Token, exists func(string) bool, tidy bool) (string, []render.Diagnostic) {
@@ -105,14 +105,14 @@ var engineDirectives = map[string]bool{
 // joins the text around it so an HTML comment spanning it stays in one piece.
 //
 // When tidying, a hatch becomes the character it prints — text like any other,
-// which Literal hatches again if the HTML syntax needs it too — and a separator
+// which Literal hatches again if the Studio syntax needs it too — and a separator
 // is dropped wherever it only held two things apart.
 func (p *htmlPrinter) settle(toks []scanner.Token) []scanner.Token {
 	out := make([]scanner.Token, 0, len(toks))
 	for i, tok := range toks {
 		if tok.Kind == scanner.Directive && !engineDirectives[tok.Name] {
 			if laravelDirectives[tok.Name] {
-				p.problem(tok.Pos, "@"+tok.Name+" needs real Laravel, which the HTML syntax does not have")
+				p.problem(tok.Pos, "@"+tok.Name+" needs real Laravel, which "+Studio.Name()+" does not have")
 			}
 			tok = scanner.Token{Kind: scanner.Text, Text: tok.Src, Pos: tok.Pos}
 		}
@@ -373,7 +373,7 @@ func (p *htmlPrinter) vite(tok scanner.Token) {
 	p.out.write(`<Vite src="` + strings.Join(entries, ", ") + `" />`)
 }
 
-// tagForm is how a component is written as an HTML-syntax tag: what follows
+// tagForm is how a component is written as a Studio-syntax tag: what follows
 // the '<' of the opening tag, and the name of the closing one.
 type tagForm struct {
 	open, close string
@@ -446,7 +446,7 @@ func pascal(path, sep string) string {
 func (p *htmlPrinter) tagOpen(tok scanner.Token) {
 	form, ok := p.form(tok.Name)
 	if !ok {
-		p.problem(tok.Pos, tok.Label()+" has a name the HTML syntax cannot write")
+		p.problem(tok.Pos, tok.Label()+" has a name "+Studio.Name()+" cannot write")
 	}
 	p.out.write("<" + form.open)
 

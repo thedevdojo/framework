@@ -8,7 +8,7 @@ import (
 	"github.com/thedevdojo/pocketknife/blade/htmlscan"
 )
 
-// parseHTML runs an HTML-syntax source through its scanner and this parser.
+// parseHTML runs a Studio-syntax source through its scanner and this parser.
 func parseHTML(src string) ([]ast.Node, []Diag) {
 	return Parse("page.html", htmlscan.Scan("page.html", []byte(src)))
 }

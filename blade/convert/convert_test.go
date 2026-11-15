@@ -38,10 +38,10 @@ func runPairs(t *testing.T, to Syntax, path string, pairs []pair) {
 	}
 }
 
-// TestBladeToHTML: each Blade construct comes out as the HTML syntax's own
+// TestBladeToHTML: each Blade construct comes out as the Studio syntax's own
 // spelling of it, in the shortest form that means exactly the same thing.
 func TestBladeToHTML(t *testing.T) {
-	runPairs(t, HTML, "resources/views/pages/index.blade.php", []pair{
+	runPairs(t, Studio, "resources/views/pages/index.blade.php", []pair{
 		{name: "echo", in: `{{ $post->title }}`, want: `{{ post.title }}`},
 		{name: "echo unspaced", in: `{{$post->title}}`, want: `{{ post.title }}`},
 		{name: "raw echo", in: `{!! $post->body !!}`, want: `{!! post.body !!}`},
@@ -74,7 +74,7 @@ func TestBladeToHTML(t *testing.T) {
 			want: `<Foreach a="b"><Continue loop.first /><Break condition="loop.index >= 3" /> <Break /> </Foreach>`},
 
 		// The escapes only Blade needs are taken back out, so a page that came
-		// from the HTML syntax returns to it as it was written.
+		// from the Studio syntax returns to it as it was written.
 		{name: "hatched at-sign", in: "<style>\n{!! '@' !!}media (min-width: 1px) { a { b: c } }\n</style>",
 			want: "<style>\n@media (min-width: 1px) { a { b: c } }\n</style>"},
 		{name: "hatched tag", in: `{!! '<' !!}x-card> and {!! '<' !!}Button> and {!! '<' !!}?xml ?>`,
@@ -201,7 +201,7 @@ func TestHTMLToBlade(t *testing.T) {
 		// for that and stops with an error on @class().
 		{name: "empty class", in: `<a {{ class() }}>x</a> {{ style() }}(y) {{ class() }}z`,
 			want: `<a @class>x</a> @style{{ '' }}(y) @class{{ '' }}z`},
-		// A character the HTML syntax had to print through a raw echo goes
+		// A character the Studio syntax had to print through a raw echo goes
 		// back to being text where Blade reads it as text anyway.
 		{name: "hatch Blade does not need", in: "{!! '<' !!}!-- a {{ class(['b']) }} -->{!! '<' !!}If>",
 			want: "<!-- a @class(['b']) --><If>"},
@@ -291,10 +291,14 @@ func TestProblems(t *testing.T) {
 		wantMsg        string
 		line, col      int
 	}{
-		{name: "laravel directive", path: "p.blade.php", to: HTML, in: "a\n  @auth\nb\n@endauth",
+		{name: "laravel directive", path: "p.blade.php", to: Studio, in: "a\n  @auth\nb\n@endauth",
 			wantMsg: "@auth needs real Laravel", line: 2, col: 3},
-		{name: "both quote kinds", path: "p.blade.php", to: HTML, in: `@if ($a == "x" || $b == 'y') z @endif`,
+		{name: "both quote kinds", path: "p.blade.php", to: Studio, in: `@if ($a == "x" || $b == 'y') z @endif`,
 			wantMsg: "both kinds of quotes", line: 1, col: 1},
+		// "as => $x" has an arrow and no key. Blade rejects the loop; dropping
+		// the arrow would quietly turn it into a loop that runs.
+		{name: "foreach with an arrow and no key", path: "p.blade.php", to: Studio, in: "a\n@foreach ($items as => $x) y @endforeach",
+			wantMsg: `@foreach is not in the form "$list as $item"`, line: 2, col: 1},
 		{name: "tag missing its src", path: "p.html", to: Blade, in: "x\n<Layout>y</Layout>",
 			wantMsg: "<Layout> needs a src", line: 2, col: 1},
 		{name: "limit with loop.last", path: "p.html", to: Blade,
@@ -363,7 +367,7 @@ func bladeSite() vfs.Mem {
 	}
 }
 
-// TestSiteRoundTrip: a whole site goes to the HTML syntax and back. Each
+// TestSiteRoundTrip: a whole site goes to the Studio syntax and back. Each
 // direction renders the same bytes as the site it started from (Site itself
 // refuses to answer otherwise), and coming back lands on the original files.
 func TestSiteRoundTrip(t *testing.T) {
@@ -374,7 +378,7 @@ func TestSiteRoundTrip(t *testing.T) {
 		t.Fatalf("the test site should be clean: %+v", want.Diagnostics)
 	}
 
-	toHTML := Site(src, HTML, render.Options{})
+	toHTML := Site(src, Studio, render.Options{})
 	if len(toHTML.Problems) != 0 {
 		t.Fatalf("to html: %+v", toHTML.Problems)
 	}
@@ -406,7 +410,7 @@ func TestSiteRoundTrip(t *testing.T) {
 	got := render.Compile(htmlSite, []string{"resources/views/pages/about.html", "resources/views/pages/index.html"}, render.Options{})
 	for name, body := range want.Files {
 		if got.Files[name] != body {
-			t.Errorf("%s renders differently as HTML syntax:\n%s\n--- want ---\n%s", name, got.Files[name], body)
+			t.Errorf("%s renders differently as Studio syntax:\n%s\n--- want ---\n%s", name, got.Files[name], body)
 		}
 	}
 
@@ -443,7 +447,7 @@ func apply(site vfs.Mem, res Result) vfs.Mem {
 func TestSiteIsAllOrNothing(t *testing.T) {
 	src := bladeSite()
 	src["resources/views/components/gate.blade.php"] = "@auth\nsecret\n@endauth\n"
-	res := Site(src, HTML, render.Options{})
+	res := Site(src, Studio, render.Options{})
 	if len(res.Problems) == 0 {
 		t.Fatal("want a problem")
 	}
@@ -456,10 +460,10 @@ func TestSiteIsAllOrNothing(t *testing.T) {
 }
 
 // TestSiteNeedsLaravel: a Blade page that leans on real Laravel (a function
-// call, here) cannot become HTML syntax, which has no Laravel behind it.
+// call, here) cannot become Studio syntax, which has no Laravel behind it.
 func TestSiteNeedsLaravel(t *testing.T) {
 	src := vfs.Mem{"resources/views/pages/index.blade.php": "<a href=\"{{ route('home') }}\">Home</a>\n"}
-	res := Site(src, HTML, render.Options{})
+	res := Site(src, Studio, render.Options{})
 	if len(res.Problems) != 1 || !strings.Contains(res.Problems[0].Message, "needs real Laravel") {
 		t.Fatalf("problems = %+v", res.Problems)
 	}
@@ -475,7 +479,7 @@ func TestSiteCollision(t *testing.T) {
 		"resources/views/pages/index.blade.php": "a",
 		"resources/views/pages/index.html":      "b",
 	}
-	res := Site(src, HTML, render.Options{})
+	res := Site(src, Studio, render.Options{})
 	if len(res.Problems) != 1 || res.Problems[0].File != "resources/views/pages/index.html" || !strings.Contains(res.Problems[0].Message, "already exists") {
 		t.Fatalf("problems = %+v", res.Problems)
 	}
@@ -484,7 +488,7 @@ func TestSiteCollision(t *testing.T) {
 // TestSiteNothingToDo: a site already in the target syntax converts to nothing,
 // without complaint.
 func TestSiteNothingToDo(t *testing.T) {
-	res := Site(vfs.Mem{"resources/views/pages/index.html": "<p>hi</p>"}, HTML, render.Options{})
+	res := Site(vfs.Mem{"resources/views/pages/index.html": "<p>hi</p>"}, Studio, render.Options{})
 	if len(res.Problems) != 0 || len(res.Files) != 0 || len(res.Removed) != 0 {
 		t.Errorf("result = %+v", res)
 	}
@@ -510,5 +514,46 @@ func TestSiteMixed(t *testing.T) {
 	}
 	if len(res.Removed) != 2 {
 		t.Errorf("removed = %v", res.Removed)
+	}
+}
+
+// TestParseSyntax: a syntax is asked for by name, in any case. "html" is the
+// Studio syntax's older name — and its file extension — and stays accepted.
+func TestParseSyntax(t *testing.T) {
+	for name, want := range map[string]Syntax{
+		"blade": Blade, "Blade": Blade, "BLADE": Blade,
+		"studio": Studio, "Studio": Studio, "html": Studio, "HTML": Studio,
+	} {
+		if got, ok := ParseSyntax(name); !ok || got != want {
+			t.Errorf("ParseSyntax(%q) = %q, %v; want %q", name, got, ok, want)
+		}
+	}
+	for _, name := range []string{"", "twig", "static", " studio"} {
+		if got, ok := ParseSyntax(name); ok {
+			t.Errorf("ParseSyntax(%q) = %q; want it refused", name, got)
+		}
+	}
+}
+
+// TestSyntaxNames: what each syntax is called in a message, and the extension
+// its files carry.
+func TestSyntaxNames(t *testing.T) {
+	if got := Blade.Name(); got != "Blade" {
+		t.Errorf("Blade.Name() = %q", got)
+	}
+	if got := Studio.Name(); got != "the DevDojo Studio syntax" {
+		t.Errorf("Studio.Name() = %q", got)
+	}
+	if Blade.Ext() != ".blade.php" || Studio.Ext() != ".html" || Syntax("html").Ext() != "" {
+		t.Errorf("extensions: %q, %q, %q", Blade.Ext(), Studio.Ext(), Syntax("html").Ext())
+	}
+}
+
+// TestSiteUnknownSyntax: a syntax nobody has heard of converts nothing and
+// says which two exist.
+func TestSiteUnknownSyntax(t *testing.T) {
+	res := Site(vfs.Mem{"resources/views/pages/index.blade.php": "x"}, Syntax("twig"), render.Options{})
+	if len(res.Problems) != 1 || res.Problems[0].Message != `unknown syntax "twig": convert to "blade" or "studio"` {
+		t.Fatalf("problems = %+v", res.Problems)
 	}
 }

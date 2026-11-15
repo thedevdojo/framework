@@ -1,15 +1,15 @@
-# Pocketknife example — HTML syntax
+# Pocketknife example — DevDojo Studio syntax
 
 [`../example/`](../example/) again, written with tags instead of Blade
 directives. Same data, same CSS, **the same rendered bytes** — a test
 (`TestExamplesRenderAlike`) holds the two outputs identical.
 
-Nobody typed these views: they are what `pocketknife convert example --to html`
-writes, and a second test (`TestExampleHTMLIsTheConversion`) keeps them that
+Nobody typed these views: they are what `pocketknife convert example --to studio`
+writes, and a second test (`TestExampleStudioIsTheConversion`) keeps them that
 way. Run it the other way (`--to blade`) and you are back at `../example/`.
 
 ```
-example-html/
+example-studio/
 └── resources/
     ├── css/site.css               # inlined by <Vite src="resources/css/site.css" />
     ├── data/
@@ -39,19 +39,19 @@ Side by side:
 
 ```bash
 go build -o /usr/local/bin/pocketknife ./cmd/pocketknife   # from the repo root
-pocketknife lint example-html                              # silence = clean
-example/render.sh example-html                             # writes example-html/_out/index.html
+pocketknife lint example-studio                            # silence = clean
+example/render.sh example-studio                           # writes example-studio/_out/index.html
 ```
 
 The file extension picks the syntax, so nothing else changes: the same
-`compile` protocol, the same `lint`, the same data files. The full tag
-reference is [`../docs/specs/2026-11-14-html-syntax-design.md`](../docs/specs/2026-11-14-html-syntax-design.md).
+`compile` protocol, the same `lint`, the same data files. Every tag is
+explained in the [DevDojo Studio syntax guide](../docs/studio-syntax.md).
 
 One difference from the Blade example: step 4 there (rendering the same files
 in real Laravel) does not apply here — the Laravel package reads Blade only.
 To take this site to Laravel, convert it first:
 
 ```bash
-pocketknife convert example-html --to blade --dry-run   # show what would change
-pocketknife convert example-html --to blade             # rewrite the views in place
+pocketknife convert example-studio --to blade --dry-run   # show what would change
+pocketknife convert example-studio --to blade             # rewrite the views in place
 ```

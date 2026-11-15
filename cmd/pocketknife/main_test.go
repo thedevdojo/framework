@@ -328,7 +328,7 @@ func TestLintNotADirectoryExitsTwo(t *testing.T) {
 	}
 }
 
-// TestCompileHTMLSyntax: a page ending in .html is written in the HTML syntax,
+// TestCompileHTMLSyntax: a page ending in .html is written in the Studio syntax,
 // and compiles through the same protocol with nothing extra in the request.
 func TestCompileHTMLSyntax(t *testing.T) {
 	input := `{"files":{` +
@@ -377,7 +377,7 @@ func TestLintHTMLSyntax(t *testing.T) {
 		}
 	}
 	if strings.Contains(stdout, "@") || strings.Contains(stdout, "$") {
-		t.Errorf("an HTML-syntax report should not speak Blade:\n%s", stdout)
+		t.Errorf("a Studio-syntax report should not speak Blade:\n%s", stdout)
 	}
 }
 
@@ -410,12 +410,12 @@ var convertSite = map[string]string{
 	"resources/data/site.json":                          `{"items": ["a", "b"]}`,
 }
 
-// TestConvertOnDisk: `convert <dir> --to html` rewrites a site in place — the
+// TestConvertOnDisk: `convert <dir> --to studio` rewrites a site in place — the
 // new files appear, the old ones go, everything else is left alone — and
 // `--to blade` brings it back byte for byte.
 func TestConvertOnDisk(t *testing.T) {
 	dir := tempSite(t, convertSite)
-	stdout, stderr, code := runCLI(t, "", "convert", dir, "--to", "html")
+	stdout, stderr, code := runCLI(t, "", "convert", dir, "--to", "studio")
 	if code != 0 {
 		t.Fatalf("exit code = %d (stdout: %s, stderr: %s)", code, stdout, stderr)
 	}
@@ -427,7 +427,7 @@ func TestConvertOnDisk(t *testing.T) {
 	if want := "<Layout src=\"main.html\">\n<Foreach site.items=\"item\">\n<Card :title=\"item\" />\n</Foreach>\n</Layout>\n"; string(page) != want {
 		t.Errorf("index.html = %q\nwant %q", page, want)
 	}
-	if !strings.Contains(stdout, "Converted 3 files to the HTML syntax") {
+	if !strings.Contains(stdout, "Converted 3 files to the DevDojo Studio syntax") {
 		t.Errorf("stdout = %q", stdout)
 	}
 
@@ -447,6 +447,7 @@ func TestConvertOnDisk(t *testing.T) {
 }
 
 // TestConvertDryRun: --dry-run says what would happen and touches nothing.
+// It asks with `--to html`, the Studio syntax's older name, which still works.
 func TestConvertDryRun(t *testing.T) {
 	dir := tempSite(t, convertSite)
 	before := tree(t, dir)
@@ -459,7 +460,7 @@ func TestConvertDryRun(t *testing.T) {
 	}
 	for _, want := range []string{
 		"resources/views/pages/index.blade.php → resources/views/pages/index.html",
-		"Would convert 3 files to the HTML syntax",
+		"Would convert 3 files to the DevDojo Studio syntax",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout is missing %q:\n%s", want, stdout)
@@ -485,7 +486,7 @@ func TestConvertRefusedTouchesNothing(t *testing.T) {
 		t.Errorf("a refused conversion changed the site:\n%s", got)
 	}
 	for _, want := range []string{
-		"resources/views/components/gate.blade.php:2:1 @auth needs real Laravel",
+		"resources/views/components/gate.blade.php:2:1 @auth needs real Laravel, which the DevDojo Studio syntax does not have",
 		"Nothing was converted",
 	} {
 		if !strings.Contains(stdout, want) {
@@ -518,6 +519,26 @@ func TestConvertUsage(t *testing.T) {
 		_, stderr, code := runCLI(t, "", args...)
 		if code != 2 || stderr == "" {
 			t.Errorf("%v: exit code = %d, stderr = %q; want 2 and a message", args[1:], code, stderr)
+		}
+	}
+	_, stderr, _ := runCLI(t, "", "convert", dir, "--to", "twig")
+	for _, want := range []string{`unknown syntax "twig"`, "--to studio or --to blade", "--to studio|blade"} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("an unknown syntax should name the two it can use; stderr is missing %q:\n%s", want, stderr)
+		}
+	}
+}
+
+// TestUsageNamesBothSyntaxes: the help says which syntax each extension is
+// read in, by the names the docs use.
+func TestUsageNamesBothSyntaxes(t *testing.T) {
+	_, stderr, code := runCLI(t, "")
+	if code != 2 {
+		t.Fatalf("exit code = %d, want 2", code)
+	}
+	for _, want := range []string{"convert <dir> --to studio|blade", ".blade.php     Blade ", ".html          DevDojo Studio "} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("usage is missing %q:\n%s", want, stderr)
 		}
 	}
 }

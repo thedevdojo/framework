@@ -63,7 +63,7 @@ func FuzzCompile(f *testing.F) {
 	})
 }
 
-// FuzzCompileHTML is FuzzCompile for the HTML syntax: the same full pipeline,
+// FuzzCompileHTML is FuzzCompile for the Studio syntax: the same full pipeline,
 // entered through an .html page, with one .html and one .blade.php component on
 // disk so capitalized tags resolve down both paths. One more invariant holds
 // here that Blade cannot offer: an .html page never reports a Blade directive,

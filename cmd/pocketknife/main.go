@@ -54,15 +54,15 @@ func usage() {
 Commands:
   compile        Compile a site from the JSON protocol on stdin, write the result to stdout
   lint <dir>     Compile every page under <dir> and print diagnostics
-  convert <dir> --to html|blade [--dry-run]
+  convert <dir> --to studio|blade [--dry-run]
                  Rewrite every view under <dir> in the other syntax, in place.
                  The site must render exactly as before or nothing is changed.
                  With no <dir>: the same over the JSON protocol on stdin/stdout
   version        Print the engine version
 
 A file is read in the syntax its extension names:
-  .blade.php     Blade   @if, {{ $post->title }}, <x-sections.hero />
-  .html          HTML    <If>, {{ post.title }}, <SectionsHero />`)
+  .blade.php     Blade            @if, {{ $post->title }}, <x-sections.hero />
+  .html          DevDojo Studio   <If>, {{ post.title }}, <SectionsHero />`)
 }
 
 // cmdCompile speaks the protocol over stdin/stdout. Per the protocol
@@ -144,7 +144,7 @@ func cmdLint(args []string) int {
 	return 0
 }
 
-const convertUsage = "usage: pocketknife convert <dir> --to html|blade [--dry-run]"
+const convertUsage = "usage: pocketknife convert <dir> --to studio|blade [--dry-run]"
 
 // cmdConvert rewrites a site's views from one syntax into the other.
 //
@@ -175,7 +175,7 @@ func cmdConvert(args []string) int {
 			dryRun = true
 		case arg == "--to":
 			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "pocketknife convert: --to needs a syntax, html or blade\n"+convertUsage)
+				fmt.Fprintln(os.Stderr, "pocketknife convert: --to needs a syntax, studio or blade\n"+convertUsage)
 				return 2
 			}
 			i++
@@ -192,10 +192,11 @@ func cmdConvert(args []string) int {
 			return 2
 		}
 	}
-	syntax := convert.Syntax(strings.ToLower(to))
-	if dir == "" || syntax.Ext() == "" {
-		if to != "" && syntax.Ext() == "" {
-			fmt.Fprintf(os.Stderr, "pocketknife convert: unknown syntax %q — use --to html or --to blade\n", to)
+	// "html" is the Studio syntax's older name; ParseSyntax still takes it.
+	syntax, known := convert.ParseSyntax(to)
+	if dir == "" || !known {
+		if to != "" && !known {
+			fmt.Fprintf(os.Stderr, "pocketknife convert: unknown syntax %q — use --to studio or --to blade\n", to)
 		}
 		fmt.Fprintln(os.Stderr, convertUsage)
 		return 2
@@ -210,7 +211,7 @@ func cmdConvert(args []string) int {
 		return 2
 	}
 
-	name := map[convert.Syntax]string{convert.HTML: "the HTML syntax", convert.Blade: "Blade"}[syntax]
+	name := syntax.Name()
 	res := convert.Site(vfs.Dir(dir), syntax, render.Options{})
 
 	if len(res.Problems) > 0 {
@@ -290,7 +291,7 @@ func cmdConvert(args []string) int {
 // other is the syntax a conversion to s starts from.
 func other(s convert.Syntax) convert.Syntax {
 	if s == convert.Blade {
-		return convert.HTML
+		return convert.Studio
 	}
 	return convert.Blade
 }

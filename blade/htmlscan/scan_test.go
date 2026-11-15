@@ -24,7 +24,7 @@ func shape(toks []scanner.Token) string {
 	return b.String()
 }
 
-// TestScanMatchesBlade is the heart of the HTML syntax: every tag is another
+// TestScanMatchesBlade is the heart of the Studio syntax: every tag is another
 // spelling of a Blade construct, so scanning the HTML form must yield exactly
 // the tokens the Blade scanner yields for the Blade form.
 func TestScanMatchesBlade(t *testing.T) {

@@ -102,7 +102,7 @@ type Output struct {
 }
 
 // pageExts are the extensions a page file may have, one per syntax: Blade
-// (.blade.php) and HTML (.html). The order is the precedence when a route has
+// (.blade.php) and Studio (.html). The order is the precedence when a route has
 // both — the Blade page serves it — and matches the order the renderer names
 // the two files in its page-collision diagnostic.
 var pageExts = []string{".blade.php", ".html"}
@@ -118,7 +118,7 @@ func isPage(p string) bool {
 }
 
 // DiscoverPages returns every page under resources/views/pages/ in fs — each
-// **.blade.php (Blade syntax) and **.html (HTML syntax) path — sorted. This is
+// **.blade.php (Blade syntax) and **.html (Studio syntax) path — sorted. This is
 // the default entry set when a protocol Input omits entries, and it is what
 // `pocketknife lint <dir>` compiles — both callers share it so "what counts as
 // a page" has one definition.

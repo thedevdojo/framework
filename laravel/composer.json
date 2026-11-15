@@ -1,6 +1,6 @@
 {
     "name": "devdojo/pocketknife",
-    "description": "Run Pocketknife (portable Blade) sites in a real Laravel application",
+    "description": "Run Pocketknife sites written in Blade in a real Laravel application",
     "type": "library",
     "license": "MIT",
     "require": {

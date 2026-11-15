@@ -55,9 +55,9 @@ func FuzzFile(f *testing.F) {
 	exists := func(base string) bool { _, ok := fuzzComponents[base]; return ok }
 
 	f.Fuzz(func(t *testing.T, src string, toHTML bool) {
-		from, to := HTML, Blade
+		from, to := Studio, Blade
 		if toHTML {
-			from, to = Blade, HTML
+			from, to = Blade, Studio
 		}
 		path := "resources/views/pages/index" + from.Ext()
 		out, problems := File(path, []byte(src), to, exists)
@@ -67,7 +67,7 @@ func FuzzFile(f *testing.F) {
 
 		newPath := "resources/views/pages/index" + to.Ext()
 		var toks []scanner.Token
-		if to == HTML {
+		if to == Studio {
 			toks = htmlscan.Scan(newPath, []byte(out))
 		} else {
 			toks = scanner.Scan(newPath, []byte(out))
@@ -92,7 +92,7 @@ func fuzzRender(path, src string, syntax Syntax) string {
 	site := vfs.Mem{path: src}
 	for base, bodies := range fuzzComponents {
 		body := bodies[0]
-		if syntax == HTML {
+		if syntax == Studio {
 			body = bodies[1]
 		}
 		site["resources/views/components/"+base+syntax.Ext()] = body

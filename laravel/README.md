@@ -1,6 +1,6 @@
 # devdojo/pocketknife (Laravel package)
 
-Run Pocketknife (portable Blade) sites from a real Laravel application. The
+Run Pocketknife sites written in Blade from a real Laravel application. The
 package has two independent roles:
 
 1. **Protocol client** — `Devdojo\Pocketknife\Engine\Engine`, a thin, typed

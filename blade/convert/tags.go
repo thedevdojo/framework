@@ -103,7 +103,7 @@ func isTagNameChar(b byte) bool {
 }
 
 // tagSource reads the tag a TagOpen token came from. prefix is what stands
-// between the '<' and the name ("x-" in Blade, nothing in the HTML syntax).
+// between the '<' and the name ("x-" in Blade, nothing in the Studio syntax).
 func (o offsets) tagSource(pos scanner.Pos, prefix string) (rawTag, bool) {
 	start := o.at(pos)
 	at := start + 1 + len(prefix)

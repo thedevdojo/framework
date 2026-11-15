@@ -11,7 +11,8 @@ import (
 )
 
 // ConvertInput is the stdin document of `pocketknife convert`: a site's files
-// and the syntax to convert its views to, "blade" or "html". Data and options
+// and the syntax to convert its views to, "blade" or "studio" ("html", the
+// Studio syntax's older name, means the same). Data and options
 // mean what they mean to compile — they are what the site is rendered with,
 // before and after, to prove the conversion changed nothing.
 type ConvertInput struct {
@@ -50,7 +51,13 @@ func RunConvert(in io.Reader, out io.Writer) error {
 		if fs == nil {
 			fs = vfs.Mem{}
 		}
-		res := convert.Site(fs, convert.Syntax(input.To), render.Options{
+		// A name ParseSyntax does not know is handed on as it came, so Site
+		// refuses it by that name.
+		to, known := convert.ParseSyntax(input.To)
+		if !known {
+			to = convert.Syntax(input.To)
+		}
+		res := convert.Site(fs, to, render.Options{
 			Data:              input.Data,
 			MaxLoopIterations: input.Options.MaxLoopIterations,
 		})

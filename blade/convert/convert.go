@@ -1,5 +1,5 @@
 // Package convert rewrites a site from one of Pocketknife's two syntaxes into
-// the other: Blade (.blade.php) to the HTML syntax (.html), and back.
+// the other: Blade (.blade.php) to the DevDojo Studio syntax (.html), and back.
 //
 // The two syntaxes are two spellings of one language — blade/htmlscan emits
 // the very tokens blade/scanner does — so converting a file is printing its
@@ -14,7 +14,7 @@
 //  2. The site is rendered before and after, with the same data, and every
 //     page must come out byte for byte the same.
 //  3. Blade that leans on real Laravel (@auth, a function call) is refused
-//     outright on its way to the HTML syntax, which has no Laravel behind it.
+//     outright on its way to the Studio syntax, which has no Laravel behind it.
 //
 // A site converts whole or not at all. A Blade <x-card> only ever finds
 // card.blade.php, so a site left half in each syntax could have pages looking
@@ -34,25 +34,49 @@ import (
 type Syntax string
 
 const (
-	Blade Syntax = "blade" // .blade.php
-	HTML  Syntax = "html"  // .html
+	Blade  Syntax = "blade"  // .blade.php
+	Studio Syntax = "studio" // .html — the DevDojo Studio syntax
 )
+
+// ParseSyntax reads a syntax by its name, in any case: "blade" or "studio".
+// "html" is the Studio syntax's older name, and the extension its files carry,
+// so it stays accepted.
+func ParseSyntax(name string) (Syntax, bool) {
+	switch strings.ToLower(name) {
+	case "blade":
+		return Blade, true
+	case "studio", "html":
+		return Studio, true
+	}
+	return "", false
+}
 
 // Ext is the file extension a syntax's views carry, or "" for an unknown one.
 func (s Syntax) Ext() string {
 	switch s {
 	case Blade:
 		return ".blade.php"
-	case HTML:
+	case Studio:
 		return ".html"
 	}
 	return ""
 }
 
+// Name is what a syntax is called in a message to a person.
+func (s Syntax) Name() string {
+	switch s {
+	case Blade:
+		return "Blade"
+	case Studio:
+		return "the DevDojo Studio syntax"
+	}
+	return string(s)
+}
+
 // other returns the syntax s is converted from.
 func (s Syntax) other() Syntax {
 	if s == Blade {
-		return HTML
+		return Studio
 	}
 	return Blade
 }
@@ -80,7 +104,7 @@ type Result struct {
 func Site(fs vfs.FS, to Syntax, opts render.Options) Result {
 	res := Result{Files: map[string]string{}}
 	if to.Ext() == "" {
-		res.Problems = append(res.Problems, problem("", 0, 0, `unknown syntax "`+string(to)+`": convert to "blade" or "html"`))
+		res.Problems = append(res.Problems, problem("", 0, 0, `unknown syntax "`+string(to)+`": convert to "blade" or "studio"`))
 		return res
 	}
 	from := to.other()
@@ -106,7 +130,7 @@ func Site(fs vfs.FS, to Syntax, opts render.Options) Result {
 
 	pages := discoverPages(fs)
 	before := compilePages(fs, pages, nil, opts)
-	if to == HTML {
+	if to == Studio {
 		res.Problems = append(res.Problems, needsLaravel(before.Diagnostics)...)
 	}
 
@@ -151,7 +175,7 @@ func Site(fs vfs.FS, to Syntax, opts render.Options) Result {
 func discoverPages(fs vfs.FS) []string {
 	var out []string
 	for _, p := range fs.List(pagesRoot) {
-		if strings.HasSuffix(p, Blade.Ext()) || strings.HasSuffix(p, HTML.Ext()) {
+		if strings.HasSuffix(p, Blade.Ext()) || strings.HasSuffix(p, Studio.Ext()) {
 			out = append(out, p)
 		}
 	}
@@ -185,8 +209,8 @@ func componentIndex(fs vfs.FS) func(base string) bool {
 		switch {
 		case strings.HasSuffix(rel, Blade.Ext()):
 			set[strings.TrimSuffix(rel, Blade.Ext())] = true
-		case strings.HasSuffix(rel, HTML.Ext()):
-			set[strings.TrimSuffix(rel, HTML.Ext())] = true
+		case strings.HasSuffix(rel, Studio.Ext()):
+			set[strings.TrimSuffix(rel, Studio.Ext())] = true
 		}
 	}
 	return func(base string) bool { return set[base] }
@@ -210,7 +234,7 @@ func needsLaravel(diags []render.Diagnostic) []render.Diagnostic {
 			continue
 		}
 		what := strings.TrimSuffix(strings.TrimSuffix(d.Message, "; requires the PHP app tier"), " requires the PHP app tier")
-		out = append(out, problem(d.File, d.Line, d.Col, "needs real Laravel, which the HTML syntax does not have: "+what))
+		out = append(out, problem(d.File, d.Line, d.Col, "needs real Laravel, which "+Studio.Name()+" does not have: "+what))
 	}
 	return out
 }

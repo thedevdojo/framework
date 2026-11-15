@@ -57,7 +57,7 @@ func TestResolveURLTraversalGuarded(t *testing.T) {
 	}
 }
 
-// TestResolveURLHTMLPages: an HTML-syntax page routes exactly like a Blade
+// TestResolveURLHTMLPages: a Studio-syntax page routes exactly like a Blade
 // one. When a URL has both, the Blade page serves it — the same order the
 // renderer's page-collision diagnostic names them in.
 func TestResolveURLHTMLPages(t *testing.T) {

@@ -178,7 +178,7 @@
             "license": [
                 "MIT"
             ],
-            "description": "Run Pocketknife (portable Blade) sites in a real Laravel application",
+            "description": "Run Pocketknife sites written in Blade in a real Laravel application",
             "transport-options": {
                 "relative": true
             }

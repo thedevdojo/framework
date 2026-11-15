@@ -16,7 +16,7 @@ import (
 //	/blog        → resources/views/pages/blog/index.blade.php    (directory index)
 //	(no match)   → resources/views/pages/404.blade.php           if present
 //
-// A page may equally be an HTML-syntax file: every row above also matches the
+// A page may equally be a Studio-syntax file: every row above also matches the
 // same path ending in .html. The flat-wins rule spans both syntaxes, and where
 // one route has a file in each the Blade page serves it.
 //

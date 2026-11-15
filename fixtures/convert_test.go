@@ -18,10 +18,10 @@ import (
 // convert — and a listed case that starts converting fails the test, so the
 // list cannot quietly go stale.
 var unconvertible = map[string]string{
-	"app-tier-directives → html":             "@auth, route() and an interpolated attribute all need real Laravel",
-	"props-array-default-unsupported → html": "a nested @props default needs real Laravel",
-	"html-diagnostics → blade":               "the page is full of deliberate mistakes (<If> with no condition, <Layout> with no src)",
-	"html-foreach-limit → blade":             "limit with loop.count and loop.last: Blade's @break does not shorten the list",
+	"app-tier-directives → studio":             "@auth, route() and an interpolated attribute all need real Laravel",
+	"props-array-default-unsupported → studio": "a nested @props default needs real Laravel",
+	"html-diagnostics → blade":                 "the page is full of deliberate mistakes (<If> with no condition, <Layout> with no src)",
+	"html-foreach-limit → blade":               "limit with loop.count and loop.last: Blade's @break does not shorten the list",
 }
 
 // TestFixturesConvert runs every fixture through the converter. The fixture's
@@ -45,10 +45,10 @@ func TestFixturesConvert(t *testing.T) {
 		}
 		files, _ := readTree(filepath.Join(name, "input"))
 		want, _ := readTree(filepath.Join(name, "expected"))
-		for _, to := range []convert.Syntax{convert.HTML, convert.Blade} {
+		for _, to := range []convert.Syntax{convert.Studio, convert.Blade} {
 			from := convert.Blade
 			if to == convert.Blade {
-				from = convert.HTML
+				from = convert.Studio
 			}
 			if !hasViews(files, from) {
 				continue

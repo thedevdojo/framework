@@ -39,7 +39,7 @@ func FuzzParse(f *testing.F) {
 	})
 }
 
-// FuzzParseHTML is FuzzParse for the HTML syntax: whatever the HTML scanner
+// FuzzParseHTML is FuzzParse for the Studio syntax: whatever the HTML scanner
 // makes of arbitrary bytes, the parser must take it without panicking.
 func FuzzParseHTML(f *testing.F) {
 	seeds := []string{

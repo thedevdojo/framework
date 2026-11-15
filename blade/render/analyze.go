@@ -91,7 +91,7 @@ func (a *analyzer) walk(nodes []ast.Node) {
 // instances inside components are analyzed without re-warning per referrer.
 func (a *analyzer) checkInstance(c *ast.Component) {
 	// Resolve the instance the way the renderer does: the first file that
-	// exists wins. An HTML-syntax tag may match several (<SectionsHero> is
+	// exists wins. A Studio-syntax tag may match several (<SectionsHero> is
 	// sections/hero or sections-hero); the rest are collected so the author
 	// hears which one is actually used.
 	var path string
@@ -135,7 +135,7 @@ func (a *analyzer) checkInstance(c *ast.Component) {
 	bag, where := "$attributes", "(not in @props)"
 	if isHTMLFile(path) {
 		bag, where = "attributes", "(not in its <Props>)"
-		// An HTML-syntax component may skip <Props> altogether — every passed
+		// A Studio-syntax component may skip <Props> altogether — every passed
 		// attribute becomes a variable regardless — so with no declaration
 		// there is nothing to check an attribute against.
 		if extractLegalProps(nodes) == nil {

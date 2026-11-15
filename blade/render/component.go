@@ -105,7 +105,7 @@ func (r *renderer) renderComponent(node *ast.Component) {
 	// a missing component is a dependency on each path it LOOKED FOR, so a
 	// render-on-save host diffing deps re-renders this output the moment the
 	// user creates the file. Same normalized form as every resolved dep. A Blade
-	// <x-name> names one file; an HTML-syntax tag may name several (see
+	// <x-name> names one file; a Studio-syntax tag may name several (see
 	// componentFiles), and the first that exists wins.
 	var path string
 	var src []byte
@@ -414,7 +414,7 @@ func componentPath(name string) string {
 // Laravel. It deliberately never falls back to an .html component — a Blade
 // page must keep rendering the same bytes real Blade would.
 //
-// An HTML-syntax tag carries its candidates (see htmlscan.Candidates): each is
+// A Studio-syntax tag carries its candidates (see htmlscan.Candidates): each is
 // tried as .html and then as .blade.php, so an .html page can use a component
 // from an existing Blade library unchanged.
 func componentFiles(node *ast.Component) []string {
@@ -433,7 +433,7 @@ func componentFiles(node *ast.Component) []string {
 const missingMessageMaxPaths = 4
 
 // missingMessage is the diagnostic text for a component no file was found for.
-// For an HTML-syntax tag it lists where the engine looked, because the tag
+// For a Studio-syntax tag it lists where the engine looked, because the tag
 // alone (<SectionsHero>) does not say which file name it expects.
 func missingMessage(node *ast.Component) string {
 	if node.Tag == "" {

@@ -1,4 +1,4 @@
-// Package pocketknife is the root facade over the portable Blade engine — the
+// Package pocketknife is the root facade over the HTML compiler's engine — the
 // single public Go entry point a host embeds. It re-exports the render
 // pipeline's Compile call and its input/output types so callers depend on
 // `github.com/thedevdojo/pocketknife` rather than reaching into the internal

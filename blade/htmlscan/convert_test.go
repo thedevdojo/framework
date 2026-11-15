@@ -50,7 +50,7 @@ func TestFriendly(t *testing.T) {
 		{`['a', 'b' => $post->on]`, `['a', 'b' => post.on]`},
 		{`'$not->touched' == "$a->b"`, `'$not->touched' == "$a->b"`},
 		{`true`, `true`}, {`3`, `3`}, {`'x'`, `'x'`}, {``, ``},
-		// Names the HTML syntax reads as words are left in Blade form.
+		// Names the Studio syntax reads as words are left in Blade form.
 		{`$and`, `$and`}, {`$not->x`, `$not->x`}, {`$true`, `$true`}, {`$a == $or`, `$a == $or`},
 		// Spaced member access is not something a dot can say.
 		{`$a -> b`, `a -> b`},

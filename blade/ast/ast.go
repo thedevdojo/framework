@@ -46,7 +46,7 @@ type Branch struct {
 // Foreach is @foreach (ItemsExpr as [KeyVar =>] ValVar) ... @endforeach.
 // KeyVar is "" when the loop has no key binding.
 //
-// Limit is the HTML syntax's <Foreach limit="3">: an expression for how many
+// Limit is the Studio syntax's <Foreach limit="3">: an expression for how many
 // items to loop over at most, "" for no limit. The loop runs over the list cut
 // to that length, so $loop->count and $loop->last describe what is shown. Blade
 // has no such argument, so a Blade @foreach never sets it.
@@ -73,7 +73,7 @@ type LoopJump struct {
 // way real Blade's ComponentTagCompiler applies Str::camel to inline slot
 // names), so <x-slot:foo-bar> appears here as "fooBar".
 //
-// Tag and Candidates are set only for a component written in the HTML syntax
+// Tag and Candidates are set only for a component written in the Studio syntax
 // (<SectionsHero>, <Layout src>, <Include src>): Tag is the tag as written,
 // and Candidates the component files it may name — paths relative to
 // resources/views/components without an extension, in the order to try them.

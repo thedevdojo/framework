@@ -14,7 +14,7 @@ import (
 // replace.
 func TestRunConvert(t *testing.T) {
 	in := `{
-		"to": "html",
+		"to": "studio",
 		"files": {
 			"resources/views/pages/index.blade.php": "<x-card :title=\"$name\" />\n",
 			"resources/views/components/card.blade.php": "@props(['title' => 'T'])\n<h1>{{ $title }}</h1>\n",
@@ -94,5 +94,37 @@ func TestRunConvertNothingToDo(t *testing.T) {
 	}
 	if got := strings.TrimSpace(out.String()); got != `{"engine":"`+blade.Version+`","files":{},"removed":[],"diagnostics":[]}` {
 		t.Errorf("output = %s", got)
+	}
+}
+
+// TestRunConvertSyntaxNames: the Studio syntax is asked for as "studio". "html"
+// is its older name and stays accepted, in any case, so a host written against
+// it keeps working. An unknown name is refused, naming the two that exist.
+func TestRunConvertSyntaxNames(t *testing.T) {
+	run := func(to string) ConvertOutput {
+		t.Helper()
+		in := `{"to": "` + to + `", "files": {"resources/views/pages/index.blade.php": "@if ($on) yes @endif\n"}, "data": {"on": true}}`
+		var out bytes.Buffer
+		if err := RunConvert(strings.NewReader(in), &out); err != nil {
+			t.Fatal(err)
+		}
+		var got ConvertOutput
+		if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+			t.Fatalf("output is not JSON: %v\n%s", err, out.String())
+		}
+		return got
+	}
+	for _, to := range []string{"studio", "Studio", "html", "HTML"} {
+		got := run(to)
+		if len(got.Diagnostics) != 0 {
+			t.Errorf("to %q: diagnostics = %+v", to, got.Diagnostics)
+		}
+		if want := "<If on> yes </If>\n"; got.Files["resources/views/pages/index.html"] != want {
+			t.Errorf("to %q: page = %q; want %q", to, got.Files["resources/views/pages/index.html"], want)
+		}
+	}
+	got := run("twig")
+	if len(got.Diagnostics) != 1 || got.Diagnostics[0].Message != `unknown syntax "twig": convert to "blade" or "studio"` {
+		t.Errorf("unknown syntax: diagnostics = %+v", got.Diagnostics)
 	}
 }
