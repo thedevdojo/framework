@@ -45,10 +45,16 @@ type Branch struct {
 
 // Foreach is @foreach (ItemsExpr as [KeyVar =>] ValVar) ... @endforeach.
 // KeyVar is "" when the loop has no key binding.
+//
+// Limit is the HTML syntax's <Foreach limit="3">: an expression for how many
+// items to loop over at most, "" for no limit. The loop runs over the list cut
+// to that length, so $loop->count and $loop->last describe what is shown. Blade
+// has no such argument, so a Blade @foreach never sets it.
 type Foreach struct {
 	ItemsExpr string
 	KeyVar    string
 	ValVar    string
+	Limit     string
 	Body      []Node
 	P         scanner.Pos
 }
@@ -66,13 +72,22 @@ type LoopJump struct {
 // BINDING name (a source name containing '-' is camelized by the parser, the
 // way real Blade's ComponentTagCompiler applies Str::camel to inline slot
 // names), so <x-slot:foo-bar> appears here as "fooBar".
+//
+// Tag and Candidates are set only for a component written in the HTML syntax
+// (<SectionsHero>, <Layout src>, <Include src>): Tag is the tag as written,
+// and Candidates the component files it may name — paths relative to
+// resources/views/components without an extension, in the order to try them.
+// Name is then the dotted name of the first candidate. A Blade <x-name> names
+// exactly one file, derived from Name, and leaves both empty.
 type Component struct {
-	Name      string
-	Attrs     []scanner.Attr
-	Body      []Node
-	Slots     map[string][]Node
-	SelfClose bool
-	P         scanner.Pos
+	Name       string
+	Tag        string
+	Candidates []string
+	Attrs      []scanner.Attr
+	Body       []Node
+	Slots      map[string][]Node
+	SelfClose  bool
+	P          scanner.Pos
 }
 
 // Props is an @props(...) directive; Raw is the literal argument text. Position

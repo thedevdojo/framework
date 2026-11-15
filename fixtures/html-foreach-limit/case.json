@@ -1,0 +1,23 @@
+{
+  "entries": [
+    "resources/views/pages/index.html"
+  ],
+  "data": {
+    "posts": [
+      {
+        "title": "A"
+      },
+      {
+        "title": "B"
+      },
+      {
+        "title": "C"
+      },
+      {
+        "title": "D"
+      }
+    ],
+    "max": 3
+  },
+  "oracle": false
+}

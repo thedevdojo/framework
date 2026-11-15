@@ -88,6 +88,22 @@ func entryInvalidDiagnostic(entry string) Diagnostic {
 	}
 }
 
+// pageCollisionDiagnostic reports two different pages that render to the same
+// output file — pages/index.blade.php beside pages/index.html. The later one
+// still renders (a later output replaces an earlier one, as it always has), but
+// one of the two files is dead weight the author should know about. It points
+// at the second page; Line/Col are 1/1 because the problem is the file itself.
+func pageCollisionDiagnostic(out, first, second string) Diagnostic {
+	return Diagnostic{
+		File:      second,
+		Line:      1,
+		Col:       1,
+		Kind:      KindError,
+		Construct: "page-collision",
+		Message:   "two pages render to " + out + ": " + first + " and " + second + " — keep one",
+	}
+}
+
 // diagKey identifies a diagnostic for dedupe purposes.
 type diagKey struct {
 	file, construct string

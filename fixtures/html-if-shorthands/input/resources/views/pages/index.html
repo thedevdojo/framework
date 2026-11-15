@@ -1,0 +1,38 @@
+<If name="Tony">
+name is Tony
+</If>
+<If name="Bob">
+name is Bob
+<Else>
+name is not Bob
+</If>
+<If featured>
+featured
+</If>
+<If post.featured>
+post is featured
+</If>
+<If not="draft">
+not a draft
+</If>
+<If count="3">
+count is 3
+</If>
+<If :plan="account.plan">
+same plan
+</If>
+<If featured post.status="live">
+featured and live
+</If>
+<If featured draft>
+never
+</If>
+<If condition="name = 'Tony' and count > 2">
+single equals, and
+</If>
+<If condition="draft or not featured">
+never
+<ElseIf condition="count === 3">
+triple equals
+</If>
+done

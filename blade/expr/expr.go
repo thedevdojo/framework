@@ -8,13 +8,14 @@
 //	primary   := $name | int | float | 'str' | "str" | true | false | null | '(' expr ')'
 //	postfix   := primary ( '->' name | '[' expr ']' )*
 //	unary     := ('!' | '-') unary | postfix
-//	compare   := unary ( ('==' '!=' '<' '>' '<=' '>=') unary )?   // non-associative
+//	concat    := unary ( '.' unary )*                             // joins text
+//	compare   := concat ( ('==' '!=' '<' '>' '<=' '>=') concat )? // non-associative
 //	and       := compare ( '&&' compare )*
 //	or        := and ( '||' and )*
 //	coalesce  := or ( '??' coalesce )?                            // right-assoc, lowest
 //
-// Anything valid in PHP but outside this subset (arithmetic, concatenation,
-// function/method calls, ?->, ::, assignments, …) is reported as a
+// Anything valid in PHP but outside this subset (arithmetic, function/method
+// calls, ?->, ::, assignments, …) is reported as a
 // *SyntaxError with AppTier=true, signalling the renderer to fall back to the
 // real Blade/PHP "app tier". Pure garbage is a *SyntaxError with AppTier=false.
 //
@@ -112,6 +113,11 @@ var errObjectOrder = errors.New("cannot order-compare objects")
 // int/float"), so the engine surfaces an error rather than silently succeeding.
 var errObjectNumber = errors.New("cannot compare object with a number")
 
+// errConcat is `.` applied to an array or an object: PHP warns ("Array to
+// string conversion") or fatals, so the fast path reports an error rather than
+// inventing a string.
+var errConcat = errors.New("cannot join a list or an object into text with '.'")
+
 // SyntaxError describes input Eval could not evaluate. AppTier distinguishes
 // valid-Blade-needing-PHP (true) from malformed input (false).
 type SyntaxError struct {
@@ -171,6 +177,9 @@ func collectVars(node exprNode, set map[string]struct{}) {
 	case *logicalNode:
 		collectVars(n.left, set)
 		collectVars(n.right, set)
+	case *concatNode:
+		collectVars(n.left, set)
+		collectVars(n.right, set)
 	case *coalesceNode:
 		collectVars(n.right, set)
 	case *arrayNode:
@@ -223,6 +232,11 @@ type compareNode struct {
 
 type logicalNode struct {
 	op          string // && or ||
+	left, right exprNode
+}
+
+// concatNode is PHP's `.`: both sides cast to string and joined.
+type concatNode struct {
 	left, right exprNode
 }
 
@@ -283,6 +297,7 @@ const (
 	tMinus
 	tComma
 	tDoubleArrow // => (array key separator)
+	tConcat      // . (string concatenation)
 	tAppTier     // an operator/construct that is valid PHP but outside v1's subset
 )
 
@@ -488,8 +503,8 @@ func tokenize(src string) ([]token, error) {
 			i++
 		case c == '.':
 			// A leading digit is consumed by scanNumber, so a bare '.' here is
-			// always the concatenation operator (app tier).
-			toks = append(toks, token{kind: tAppTier, text: "concatenation (.)", pos: i})
+			// always the concatenation operator.
+			toks = append(toks, token{kind: tConcat, pos: i})
 			i++
 		case c == ',':
 			toks = append(toks, token{kind: tComma, pos: i})
@@ -687,7 +702,7 @@ func compareOp(k tokKind) (string, bool) {
 }
 
 func (p *parser) parseCompare() (exprNode, error) {
-	left, err := p.parseUnary()
+	left, err := p.parseConcat()
 	if err != nil {
 		return nil, err
 	}
@@ -696,7 +711,7 @@ func (p *parser) parseCompare() (exprNode, error) {
 		return left, nil
 	}
 	p.next()
-	right, err := p.parseUnary()
+	right, err := p.parseConcat()
 	if err != nil {
 		return nil, err
 	}
@@ -704,6 +719,25 @@ func (p *parser) parseCompare() (exprNode, error) {
 		return nil, &SyntaxError{Msg: "comparison operators are non-associative", AppTier: false}
 	}
 	return &compareNode{op: op, left: left, right: right}, nil
+}
+
+// parseConcat parses a left-associative chain of `.`. In PHP 8 the operator
+// binds tighter than every comparison and looser than the unary operators, so
+// `'a' . $b == 'ab'` compares the joined string and `!$a . 'x'` joins (!$a).
+func (p *parser) parseConcat() (exprNode, error) {
+	left, err := p.parseUnary()
+	if err != nil {
+		return nil, err
+	}
+	for p.peek().kind == tConcat {
+		p.next()
+		right, err := p.parseUnary()
+		if err != nil {
+			return nil, err
+		}
+		left = &concatNode{left: left, right: right}
+	}
+	return left, nil
 }
 
 func (p *parser) parseUnary() (exprNode, error) {
@@ -967,6 +1001,24 @@ func evalNode(node exprNode, scope Scope) (Value, error) {
 		return evalCompare(n, scope)
 	case *logicalNode:
 		return evalLogical(n, scope)
+	case *concatNode:
+		lv, err := evalNode(n.left, scope)
+		if err != nil {
+			return nil, err
+		}
+		rv, err := evalNode(n.right, scope)
+		if err != nil {
+			return nil, err
+		}
+		ls, err := concatString(lv)
+		if err != nil {
+			return nil, err
+		}
+		rs, err := concatString(rv)
+		if err != nil {
+			return nil, err
+		}
+		return ls + rs, nil
 	case *coalesceNode:
 		lv, err := evalNode(n.left, scope)
 		if err != nil {
@@ -1444,6 +1496,31 @@ func phpNumeric(s string) (float64, bool) {
 		return 0, false
 	}
 	return f, true
+}
+
+// concatString casts one operand of `.` to a string the way PHP does: null and
+// false are "", true is "1", numbers print as echo prints them. A value that
+// carries its own text (a rendered slot) gives that text. An array or an object
+// has no string form — PHP warns or fatals — so joining one is an error.
+func concatString(v Value) (string, error) {
+	switch x := v.(type) {
+	case nil:
+		return "", nil
+	case bool:
+		if x {
+			return "1", nil
+		}
+		return "", nil
+	case int64:
+		return strconv.FormatInt(x, 10), nil
+	case float64:
+		return strconv.FormatFloat(x, 'G', -1, 64), nil
+	case string:
+		return x, nil
+	case interface{ String() string }:
+		return x.String(), nil
+	}
+	return "", errConcat
 }
 
 func phpString(v Value) string {

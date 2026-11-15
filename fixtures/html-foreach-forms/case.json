@@ -1,0 +1,26 @@
+{
+  "entries": [
+    "resources/views/pages/index.html"
+  ],
+  "data": {
+    "plans": {
+      "free": {
+        "price": 0
+      },
+      "pro": {
+        "price": 9
+      }
+    },
+    "post": {
+      "tags": [
+        "go",
+        "php"
+      ]
+    },
+    "items": [
+      "x",
+      "y"
+    ]
+  },
+  "oracle": false
+}

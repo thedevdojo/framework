@@ -1,0 +1,5 @@
+[
+    {"name": "Never eval", "blurb": "templates render with zero code execution"},
+    {"name": "Byte-faithful", "blurb": "your HTML passes through untouched"},
+    {"name": "Real Blade", "blurb": "the same files boot in a Laravel app"}
+]

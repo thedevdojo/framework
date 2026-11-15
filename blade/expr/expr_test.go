@@ -52,6 +52,20 @@ func TestEvalValues(t *testing.T) {
 		{`$zero || true`, true},
 		{`null ?? false ?? 'x'`, false},
 
+		// --- string concatenation (PHP's `.`) ---
+		{`'a' . 'b'`, "ab"},
+		{`'a' . $zero . 'b'`, "a0b"},
+		{`$site->name . '!'`, "X!"},
+		{`'p' . $plans[0]['price']`, "p9"},
+		{`'a'.'b'`, "ab"},                   // no spaces needed
+		{`1.5 . 'x'`, "1.5x"},               // a float literal is not a concat
+		{`'x' . true . false . null`, "x1"}, // PHP string casts
+		{`$nada . 'z'`, "z"},
+		{`'x' . $zero == 'x0'`, true},   // binds tighter than a comparison
+		{`!$zero . 'z'`, "1z"},          // and looser than !
+		{`$missing ?? 'd' . 'e'`, "de"}, // and tighter than ??
+		{`('a' . 'b') . 'c'`, "abc"},
+
 		// CONFLICT: the brief lists {`'10' < '9'`, true} with the comment
 		// "both numeric-ish -> numeric compare". Numeric compare of 10 and 9
 		// makes '10' < '9' FALSE (matching PHP 8: var_dump('10' < '9') => false).
@@ -194,7 +208,6 @@ func TestEvalErrors(t *testing.T) {
 		`count($x)`,
 		`$obj->method()`,
 		`$obj?->prop`,
-		`$a . $b`,
 		`$a + 1`,
 		`$a - 1`, // binary minus (unary is supported)
 		`$a * 2`,
@@ -241,7 +254,7 @@ func TestEvalErrors(t *testing.T) {
 
 	// Ordered comparison involving an array is a plain eval error: not
 	// ErrUndefinedVar, not a *SyntaxError.
-	arrayOrder := []string{`$plans < 1`, `$plans <= $plans`, `1 > $plans`}
+	arrayOrder := []string{`$plans < 1`, `$plans <= $plans`, `1 > $plans`, `$plans . 'x'`, `'x' . $site`}
 	for _, src := range arrayOrder {
 		t.Run("array order "+src, func(t *testing.T) {
 			_, err := Eval(src, scope)

@@ -13,7 +13,14 @@ jobs:
       - run: go vet ./... && test -z "$(gofmt -l .)"
       - run: go test ./...
       - run: go test ./blade/scanner -fuzz=FuzzScan -fuzztime=20s
-      - run: go test ./blade/parser -fuzz=FuzzParse -fuzztime=20s
+      - run: go test ./blade/parser -fuzz='^FuzzParse$' -fuzztime=20s
+      # The HTML syntax: its scanner, its expression rewriter, and the whole
+      # pipeline entered through an .html page.
+      - run: go test ./blade/htmlscan -fuzz='^FuzzScan$' -fuzztime=20s
+      - run: go test ./blade/htmlscan -fuzz='^FuzzExpr$' -fuzztime=20s
+      - run: go test ./blade/parser -fuzz='^FuzzParseHTML$' -fuzztime=20s
+      - run: go test ./blade/render -fuzz='^FuzzCompileHTML$' -fuzztime=20s
+      - run: go test ./blade/convert -fuzz='^FuzzFile$' -fuzztime=20s
   conformance:
     runs-on: ubuntu-latest
     steps:

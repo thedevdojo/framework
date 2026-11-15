@@ -43,7 +43,7 @@ class EngineTest extends TestCase
         ]));
 
         // engine + files populated.
-        $this->assertSame('0.2.1', $result->engine);
+        $this->assertSame('0.3.0', $result->engine);
         $this->assertSame(
             '<!DOCTYPE html><body><h1>Hello</h1></body>',
             $result->file('index.html')

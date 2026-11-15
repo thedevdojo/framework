@@ -327,3 +327,220 @@ func TestLintNotADirectoryExitsTwo(t *testing.T) {
 		t.Errorf("expected an error message on stderr for a non-directory path")
 	}
 }
+
+// TestCompileHTMLSyntax: a page ending in .html is written in the HTML syntax,
+// and compiles through the same protocol with nothing extra in the request.
+func TestCompileHTMLSyntax(t *testing.T) {
+	input := `{"files":{` +
+		`"resources/views/pages/index.html":"<Layout src=\"main.html\" title=\"Home\"><Foreach posts=\"post\"><Card :title=\"post.title\" /></Foreach></Layout>",` +
+		`"resources/views/components/layouts/main.html":"<title>{{ title }}</title><Slot />",` +
+		`"resources/views/components/card.html":"<Props title /><h2>{{ title }}</h2>"` +
+		`},"data":{"posts":[{"title":"One"},{"title":"Two"}]}}`
+	stdout, stderr, code := runCLI(t, input, "compile")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
+	}
+	var out struct {
+		Files       map[string]string `json:"files"`
+		Diagnostics []json.RawMessage `json:"diagnostics"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatalf("stdout is not valid JSON: %v\n%s", err, stdout)
+	}
+	if len(out.Diagnostics) != 0 {
+		t.Errorf("diagnostics = %s; want none", out.Diagnostics)
+	}
+	if got, want := out.Files["index.html"], "<title>Home</title><h2>One</h2><h2>Two</h2>"; got != want {
+		t.Errorf("index.html = %q; want %q", got, want)
+	}
+}
+
+// TestLintHTMLSyntax: lint finds .html pages on its own, and reports on them
+// in the words their author wrote — tags, not directives, and no "$".
+func TestLintHTMLSyntax(t *testing.T) {
+	dir := t.TempDir()
+	writeSite(t, dir, map[string]string{
+		"resources/views/pages/index.html":              "<SectionsHero heading=\"Hi\" subtitle=\"typo\" />\n<If condition=\"titel\">x</If>\n<Foreach posts>y</Foreach>",
+		"resources/views/components/sections/hero.html": "<Props heading=\"Default\" />\n<h1>{{ heading }}</h1>",
+	})
+	stdout, stderr, code := runCLI(t, "", "lint", dir)
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1 for an error (stdout: %s, stderr: %s)", code, stdout, stderr)
+	}
+	for _, want := range []string{
+		`resources/views/pages/index.html:1:28 [warning] undeclared attribute "subtitle" on <SectionsHero> (not in its <Props>)`,
+		`resources/views/pages/index.html:2:1 [error] undefined-variable: undefined variable titel`,
+		`resources/views/pages/index.html:3:1 [error] <Foreach>: <Foreach> needs a list and a name for each item, like <Foreach posts="post">`,
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("stdout is missing %q\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout, "@") || strings.Contains(stdout, "$") {
+		t.Errorf("an HTML-syntax report should not speak Blade:\n%s", stdout)
+	}
+}
+
+// tempSite writes a site's files into a fresh temp dir and returns it.
+func tempSite(t *testing.T, files map[string]string) string {
+	t.Helper()
+	dir := t.TempDir()
+	writeSite(t, dir, files)
+	return dir
+}
+
+// tree lists every file under dir, relative, sorted, as one string.
+func tree(t *testing.T, dir string) string {
+	t.Helper()
+	var out []string
+	filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() {
+			rel, _ := filepath.Rel(dir, p)
+			out = append(out, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	return strings.Join(out, "\n")
+}
+
+var convertSite = map[string]string{
+	"resources/views/pages/index.blade.php":             "<x-layouts.main>\n@foreach ($site->items as $item)\n<x-card :title=\"$item\" />\n@endforeach\n</x-layouts.main>\n",
+	"resources/views/components/layouts/main.blade.php": "<main>{{ $slot }}</main>\n",
+	"resources/views/components/card.blade.php":         "@props(['title' => 'T'])\n<h1>{{ $title }}</h1>\n",
+	"resources/data/site.json":                          `{"items": ["a", "b"]}`,
+}
+
+// TestConvertOnDisk: `convert <dir> --to html` rewrites a site in place — the
+// new files appear, the old ones go, everything else is left alone — and
+// `--to blade` brings it back byte for byte.
+func TestConvertOnDisk(t *testing.T) {
+	dir := tempSite(t, convertSite)
+	stdout, stderr, code := runCLI(t, "", "convert", dir, "--to", "html")
+	if code != 0 {
+		t.Fatalf("exit code = %d (stdout: %s, stderr: %s)", code, stdout, stderr)
+	}
+	want := "resources/data/site.json\nresources/views/components/card.html\nresources/views/components/layouts/main.html\nresources/views/pages/index.html"
+	if got := tree(t, dir); got != want {
+		t.Errorf("files after converting:\n%s\nwant:\n%s", got, want)
+	}
+	page, _ := os.ReadFile(filepath.Join(dir, "resources/views/pages/index.html"))
+	if want := "<Layout src=\"main.html\">\n<Foreach site.items=\"item\">\n<Card :title=\"item\" />\n</Foreach>\n</Layout>\n"; string(page) != want {
+		t.Errorf("index.html = %q\nwant %q", page, want)
+	}
+	if !strings.Contains(stdout, "Converted 3 files to the HTML syntax") {
+		t.Errorf("stdout = %q", stdout)
+	}
+
+	stdout, stderr, code = runCLI(t, "", "convert", "--to=blade", dir)
+	if code != 0 {
+		t.Fatalf("back: exit code = %d (stdout: %s, stderr: %s)", code, stdout, stderr)
+	}
+	for rel, body := range convertSite {
+		got, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(rel)))
+		if err != nil || string(got) != body {
+			t.Errorf("%s did not come back: %q (%v)", rel, got, err)
+		}
+	}
+	if !strings.Contains(stdout, "Converted 3 files to Blade") {
+		t.Errorf("stdout = %q", stdout)
+	}
+}
+
+// TestConvertDryRun: --dry-run says what would happen and touches nothing.
+func TestConvertDryRun(t *testing.T) {
+	dir := tempSite(t, convertSite)
+	before := tree(t, dir)
+	stdout, stderr, code := runCLI(t, "", "convert", dir, "--to", "html", "--dry-run")
+	if code != 0 {
+		t.Fatalf("exit code = %d (stdout: %s, stderr: %s)", code, stdout, stderr)
+	}
+	if got := tree(t, dir); got != before {
+		t.Errorf("--dry-run changed the site:\n%s", got)
+	}
+	for _, want := range []string{
+		"resources/views/pages/index.blade.php → resources/views/pages/index.html",
+		"Would convert 3 files to the HTML syntax",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("stdout is missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+// TestConvertRefusedTouchesNothing: one file that cannot be converted and the
+// whole site is left exactly as it was, with the reason and exit code 1.
+func TestConvertRefusedTouchesNothing(t *testing.T) {
+	files := map[string]string{}
+	for k, v := range convertSite {
+		files[k] = v
+	}
+	files["resources/views/components/gate.blade.php"] = "x\n@auth\nsecret\n@endauth\n"
+	dir := tempSite(t, files)
+	before := tree(t, dir)
+	stdout, stderr, code := runCLI(t, "", "convert", dir, "--to", "html")
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1 (stdout: %s, stderr: %s)", code, stdout, stderr)
+	}
+	if got := tree(t, dir); got != before {
+		t.Errorf("a refused conversion changed the site:\n%s", got)
+	}
+	for _, want := range []string{
+		"resources/views/components/gate.blade.php:2:1 @auth needs real Laravel",
+		"Nothing was converted",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("stdout is missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+// TestConvertNothingToDo: converting a site that is already there is fine.
+func TestConvertNothingToDo(t *testing.T) {
+	dir := tempSite(t, convertSite)
+	stdout, _, code := runCLI(t, "", "convert", dir, "--to", "blade")
+	if code != 0 || !strings.Contains(stdout, "Nothing to convert") {
+		t.Errorf("exit code = %d, stdout = %q", code, stdout)
+	}
+}
+
+// TestConvertUsage: a missing or unknown --to, or a folder that is not there,
+// is a usage error (exit 2) and nothing is read.
+func TestConvertUsage(t *testing.T) {
+	dir := tempSite(t, convertSite)
+	for _, args := range [][]string{
+		{"convert", dir},
+		{"convert", dir, "--to", "twig"},
+		{"convert", dir, "--to"},
+		{"convert", filepath.Join(dir, "nope"), "--to", "html"},
+		{"convert", dir, "extra", "--to", "html"},
+		{"convert", dir, "--to", "html", "--force"},
+	} {
+		_, stderr, code := runCLI(t, "", args...)
+		if code != 2 || stderr == "" {
+			t.Errorf("%v: exit code = %d, stderr = %q; want 2 and a message", args[1:], code, stderr)
+		}
+	}
+}
+
+// TestConvertProtocol: with no folder, convert speaks JSON on stdin and stdout
+// the way compile does, for a host that holds the site in memory.
+func TestConvertProtocol(t *testing.T) {
+	in := `{"to": "blade", "files": {"resources/views/pages/index.html": "<If featured> yes </If>\n"}}`
+	stdout, stderr, code := runCLI(t, in, "convert")
+	if code != 0 {
+		t.Fatalf("exit code = %d (stderr: %s)", code, stderr)
+	}
+	var out struct {
+		Files   map[string]string `json:"files"`
+		Removed []string          `json:"removed"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatalf("stdout is not JSON: %v\n%s", err, stdout)
+	}
+	if got := out.Files["resources/views/pages/index.blade.php"]; got != "@if ($featured) yes @endif\n" {
+		t.Errorf("converted page = %q", got)
+	}
+	if len(out.Removed) != 1 || out.Removed[0] != "resources/views/pages/index.html" {
+		t.Errorf("removed = %v", out.Removed)
+	}
+}

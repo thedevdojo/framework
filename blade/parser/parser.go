@@ -166,13 +166,28 @@ func (p *parser) parseNode(ctx bodyCtx) []ast.Node {
 	case scanner.TagOpen:
 		return one(p.parseComponent(ctx))
 	case scanner.TagClose:
-		p.diag(tok.Pos, "<x-"+tok.Name+">", "stray </x-"+tok.Name+"> with no open component")
+		if isHTML(tok) {
+			p.diag(tok.Pos, "<"+tok.Tag+">", "stray </"+tok.Tag+"> with no matching <"+tok.Tag+">")
+		} else {
+			p.diag(tok.Pos, "<x-"+tok.Name+">", "stray </x-"+tok.Name+"> with no open component")
+		}
 		p.next()
 		return nil
 	case scanner.SlotOpen:
 		return p.parseSlot(ctx)
 	case scanner.SlotClose:
-		p.diag(tok.Pos, "<x-slot>", "stray </x-slot> outside a component body")
+		if isHTML(tok) {
+			p.diag(tok.Pos, "<"+tok.Tag+">", "stray </"+tok.Tag+"> with no matching <"+tok.Tag+">")
+		} else {
+			p.diag(tok.Pos, "<x-slot>", "stray </x-slot> outside a component body")
+		}
+		p.next()
+		return nil
+	case scanner.Error:
+		// The scanner read a construct it could not turn into a token (an
+		// HTML-syntax <Layout> with no src). It carries its own label and
+		// message; report it and carry on with whatever follows.
+		p.diag(tok.Pos, tok.Name, tok.Text)
 		p.next()
 		return nil
 	default:
@@ -191,7 +206,11 @@ func (p *parser) parseDirective(ctx bodyCtx) []ast.Node {
 	case "break", "continue":
 		p.next()
 		if !ctx.inForeach {
-			p.diag(tok.Pos, "@"+tok.Name, "@"+tok.Name+" outside a @foreach")
+			if isHTML(tok) {
+				p.diag(tok.Pos, tok.Label(), tok.Label()+" outside a <Foreach>")
+			} else {
+				p.diag(tok.Pos, "@"+tok.Name, "@"+tok.Name+" outside a @foreach")
+			}
 			return nil
 		}
 		return one(&ast.LoopJump{Cond: tok.Text, Continue: tok.Name == "continue", P: tok.Pos})
@@ -210,7 +229,15 @@ func (p *parser) parseDirective(ctx bodyCtx) []ast.Node {
 	case "endif", "elseif", "else", "endforeach":
 		// Reaching here means no open construct wants this closer.
 		p.next()
-		p.diag(tok.Pos, "@"+tok.Name, "stray @"+tok.Name+" with no matching open construct")
+		if isHTML(tok) {
+			opener := "<If>"
+			if tok.Name == "endforeach" {
+				opener = "<Foreach>"
+			}
+			p.diag(tok.Pos, tok.Label(), "stray "+tok.Label()+" with no matching "+opener)
+		} else {
+			p.diag(tok.Pos, "@"+tok.Name, "stray @"+tok.Name+" with no matching open construct")
+		}
 		return nil
 	default:
 		// Unknown directive: the renderer writes Src verbatim and classifies it
@@ -236,7 +263,7 @@ func (p *parser) parseIf(ctx bodyCtx) ast.Node {
 	inElse := false
 	for {
 		if p.eof() {
-			p.diag(open.Pos, "@if", "unclosed @if")
+			p.diag(open.Pos, open.Label(), "unclosed "+open.Label())
 			return node
 		}
 		tok := p.peek()
@@ -268,7 +295,7 @@ func (p *parser) parseIf(ctx bodyCtx) ast.Node {
 		}
 		// An ancestor's closer (or a stray @else/@elseif we won't accept):
 		// this @if is unclosed; unwind without consuming.
-		p.diag(open.Pos, "@if", "unclosed @if")
+		p.diag(open.Pos, open.Label(), "unclosed "+open.Label())
 		return node
 	}
 }
@@ -287,11 +314,18 @@ func (p *parser) parseForeach(ctx bodyCtx) []ast.Node {
 	if !p.eof() && p.peek().Kind == scanner.Directive && p.peek().Name == "endforeach" {
 		p.next()
 	} else {
-		p.diag(open.Pos, "@foreach", "unclosed @foreach")
+		p.diag(open.Pos, open.Label(), "unclosed "+open.Label())
 	}
 
 	if !argsOK {
 		return body // loop dropped; its body surfaces where the loop would have been
+	}
+	// The HTML syntax's <Foreach limit="3"> arrives as an attribute on the loop
+	// token; a Blade @foreach carries none.
+	for _, a := range open.Attrs {
+		if a.Name == "limit" {
+			node.Limit = a.Value
+		}
 	}
 	node.Body = body
 	return one(node)
@@ -301,11 +335,13 @@ func (p *parser) parseForeach(ctx bodyCtx) []ast.Node {
 func (p *parser) parseComponent(ctx bodyCtx) ast.Node {
 	open := p.next() // TagOpen
 	comp := &ast.Component{
-		Name:      open.Name,
-		Attrs:     open.Attrs,
-		Slots:     map[string][]ast.Node{},
-		SelfClose: open.SelfClose,
-		P:         open.Pos,
+		Name:       open.Name,
+		Tag:        open.Tag,
+		Candidates: open.Candidates,
+		Attrs:      open.Attrs,
+		Slots:      map[string][]ast.Node{},
+		SelfClose:  open.SelfClose,
+		P:          open.Pos,
 	}
 	if open.SelfClose {
 		return comp
@@ -318,7 +354,7 @@ func (p *parser) parseComponent(ctx bodyCtx) ast.Node {
 	if !p.eof() && p.peek().Kind == scanner.TagClose && p.peek().Name == open.Name {
 		p.next()
 	} else {
-		p.diag(open.Pos, "<x-"+open.Name+">", "unclosed <x-"+open.Name+">")
+		p.diag(open.Pos, open.Label(), "unclosed "+open.Label())
 	}
 	return comp
 }
@@ -329,7 +365,11 @@ func (p *parser) parseComponent(ctx bodyCtx) ast.Node {
 func (p *parser) parseSlot(ctx bodyCtx) []ast.Node {
 	tok := p.peek()
 	if ctx.component == nil {
-		p.diag(tok.Pos, "<x-slot:"+tok.Name+">", "<x-slot:"+tok.Name+"> is only valid directly inside a component body")
+		if isHTML(tok) {
+			p.diag(tok.Pos, tok.Label(), tok.Label()+" is only valid directly inside a component tag")
+		} else {
+			p.diag(tok.Pos, "<x-slot:"+tok.Name+">", "<x-slot:"+tok.Name+"> is only valid directly inside a component body")
+		}
 		p.next()
 		return nil
 	}
@@ -349,13 +389,13 @@ func (p *parser) parseNamedSlot(ctx bodyCtx) {
 		if !p.eof() && p.peek().Kind == scanner.SlotClose {
 			p.next()
 		} else {
-			p.diag(open.Pos, "<x-slot:"+name+">", "unclosed <x-slot:"+name+">")
+			p.diag(open.Pos, open.Label(), "unclosed "+open.Label())
 		}
 	}
 
 	key := slotBindingName(name)
 	if _, dup := ctx.component.Slots[key]; dup {
-		p.diag(open.Pos, "<x-slot:"+name+">", "duplicate slot \""+name+"\"; last one wins")
+		p.diag(open.Pos, open.Label(), "duplicate slot \""+name+"\"; last one wins")
 	}
 	ctx.component.Slots[key] = body // last one wins
 }
@@ -423,14 +463,22 @@ var reLoopVar = regexp.MustCompile(`^\$[a-zA-Z_][a-zA-Z0-9_]*$`)
 // the last top-level " as " and then on "=>". It returns false (with a Diag)
 // when the grammar or variable names are invalid.
 func (p *parser) parseForeachArgs(open scanner.Token, node *ast.Foreach) bool {
+	// An HTML-syntax <Foreach> reaches here already assembled by its scanner,
+	// so the one thing left to get wrong is the name given to each item.
+	label := open.Label()
+	badVar, badVars := "invalid loop variable", "invalid loop variable(s)"
+	if isHTML(open) {
+		badVar = "the name for each item must be letters, numbers and underscores"
+		badVars = badVar
+	}
 	left, right, found := splitLastAs(open.Text)
 	if !found {
-		p.diag(open.Pos, "@foreach", `malformed @foreach: expected "<expr> as $item"`)
+		p.diag(open.Pos, label, "malformed "+label+`: expected "<expr> as $item"`)
 		return false
 	}
 	items := strings.TrimSpace(left)
 	if items == "" {
-		p.diag(open.Pos, "@foreach", "malformed @foreach: empty loop expression")
+		p.diag(open.Pos, label, "malformed "+label+": empty loop expression")
 		return false
 	}
 
@@ -439,7 +487,7 @@ func (p *parser) parseForeachArgs(open scanner.Token, node *ast.Foreach) bool {
 		key := strings.TrimSpace(keyRaw)
 		val := strings.TrimSpace(valRaw)
 		if !reLoopVar.MatchString(key) || !reLoopVar.MatchString(val) {
-			p.diag(open.Pos, "@foreach", "malformed @foreach: invalid loop variable(s)")
+			p.diag(open.Pos, label, "malformed "+label+": "+badVars)
 			return false
 		}
 		node.KeyVar = key
@@ -447,7 +495,7 @@ func (p *parser) parseForeachArgs(open scanner.Token, node *ast.Foreach) bool {
 	} else {
 		val := strings.TrimSpace(right)
 		if !reLoopVar.MatchString(val) {
-			p.diag(open.Pos, "@foreach", "malformed @foreach: invalid loop variable")
+			p.diag(open.Pos, label, "malformed "+label+": "+badVar)
 			return false
 		}
 		node.ValVar = val
@@ -479,3 +527,8 @@ func splitArrow(s string) (key, val string, found bool) {
 }
 
 func one(n ast.Node) []ast.Node { return []ast.Node{n} }
+
+// isHTML reports whether tok came from the HTML-syntax scanner. The grammar is
+// the same for both syntaxes; this only chooses how a diagnostic is worded, so
+// it names the construct the way the file spells it (<If>, not @if).
+func isHTML(tok scanner.Token) bool { return tok.Tag != "" }

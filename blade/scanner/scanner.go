@@ -30,6 +30,12 @@ const (
 	TagClose              // </x-name>
 	SlotOpen              // <x-slot:name>
 	SlotClose             // </x-slot>
+	// Error is a construct the scanner recognized but could not turn into a
+	// token the parser can act on (an HTML-syntax <Layout> with no src, an
+	// <If> with no condition). Name holds the construct's label, Text the
+	// message; the parser reports it and moves on. The Blade scanner never
+	// emits one — malformed Blade degrades to Text.
+	Error
 )
 
 // Pos is a 1-based source position; Col counts bytes.
@@ -72,6 +78,43 @@ type Token struct {
 	Attrs     []Attr
 	SelfClose bool
 	Pos       Pos
+	// Tag is set ONLY by the HTML-syntax scanner (blade/htmlscan): the tag name
+	// exactly as the author wrote it (If, ForEach, SectionsHero, layout). It is
+	// "" for every Blade-syntax token. Label uses it so a diagnostic names the
+	// construct the way the file spells it.
+	Tag string
+	// Candidates is set ONLY by the HTML-syntax scanner, on a TagOpen: the
+	// component files the tag may name, as paths relative to
+	// resources/views/components without an extension, in the order to try
+	// them. A Blade <x-name> has exactly one path, derived from Name.
+	Candidates []string
+}
+
+// Label is the construct's spelling for diagnostics: "@if" or "<x-hero>" for a
+// Blade-syntax token, "<If>" or "</SectionsHero>" for an HTML-syntax one.
+func (t Token) Label() string {
+	if t.Tag != "" {
+		switch {
+		case t.Kind == TagClose, t.Kind == SlotClose:
+			return "</" + t.Tag + ">"
+		case t.Kind == Directive && strings.HasPrefix(t.Name, "end"):
+			return "</" + t.Tag + ">"
+		case t.Kind == SlotOpen:
+			return "<" + t.Tag + ` name="` + t.Name + `">`
+		}
+		return "<" + t.Tag + ">"
+	}
+	switch t.Kind {
+	case Directive:
+		return "@" + t.Name
+	case TagOpen, TagClose:
+		return "<x-" + t.Name + ">"
+	case SlotOpen:
+		return "<x-slot:" + t.Name + ">"
+	case SlotClose:
+		return "<x-slot>"
+	}
+	return ""
 }
 
 // Scan tokenizes src in a single forward pass. It never panics and never
@@ -523,7 +566,10 @@ func isNameChar(b byte) bool {
 	return isIdentPart(b) || b == '.' || b == '-'
 }
 
-// isAttrNameChar matches attribute-name bytes: [:a-zA-Z0-9_-].
+// isAttrNameChar matches attribute-name bytes: [:a-zA-Z0-9_.@-]. The dot and
+// the '@' are what Alpine and Livewire attributes are made of (@click.prevent,
+// x-on:keydown.escape, wire:model.live); real Blade's tag compiler accepts
+// them and passes the attribute into the bag under that exact name.
 func isAttrNameChar(b byte) bool {
-	return isIdentPart(b) || b == ':' || b == '-'
+	return isIdentPart(b) || b == ':' || b == '-' || b == '.' || b == '@'
 }

@@ -4,7 +4,8 @@
 # and unpack the output into <site>/_out/. Requires jq.
 #
 #   ./render.sh          # render this example
-#   ./render.sh <dir>    # render any Blade-dialect site folder
+#   ./render.sh <dir>    # render any site folder, Blade or HTML syntax
+#                        # (./render.sh ../example-html)
 #
 # The binary is found on PATH, or set POCKETKNIFE=/path/to/pocketknife.
 set -euo pipefail

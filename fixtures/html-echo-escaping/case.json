@@ -1,0 +1,1 @@
+{"entries": ["resources/views/pages/index.html"], "data": {"html": "<i>x</i> & \"y\" 'z'"}, "oracle": false, "twin": "echo-escaping"}

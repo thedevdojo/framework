@@ -9,4 +9,4 @@ package blade
 // Version is Pocketknife's engine semver. Bump it when the rendered-output
 // contract (grammar, diagnostics shape, or the protocol envelope) changes in
 // a way a host might need to react to.
-const Version = "0.2.1"
+const Version = "0.3.0"

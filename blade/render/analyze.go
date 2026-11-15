@@ -56,7 +56,7 @@ func (a *analyzer) parse(path string, src []byte) []ast.Node {
 	if nodes, ok := a.cache[path]; ok {
 		return nodes
 	}
-	tokens := scanner.Scan(path, src)
+	tokens := scanSource(path, src)
 	nodes, _ := parser.Parse(path, tokens)
 	a.cache[path] = nodes
 	return nodes
@@ -90,22 +90,64 @@ func (a *analyzer) walk(nodes []ast.Node) {
 // component file's own body exactly once (memoized in a.walked) so nested
 // instances inside components are analyzed without re-warning per referrer.
 func (a *analyzer) checkInstance(c *ast.Component) {
-	path := componentPath(c.Name)
-	src, ok := a.fs.Read(path)
-	if !ok {
+	// Resolve the instance the way the renderer does: the first file that
+	// exists wins. An HTML-syntax tag may match several (<SectionsHero> is
+	// sections/hero or sections-hero); the rest are collected so the author
+	// hears which one is actually used.
+	var path string
+	var src []byte
+	var others []string
+	for _, candidate := range componentFiles(c) {
+		b, ok := a.fs.Read(candidate)
+		if !ok {
+			continue
+		}
+		if path == "" {
+			path, src = candidate, b
+		} else {
+			others = append(others, candidate)
+		}
+	}
+	if path == "" {
 		// Missing component is Compile's error, not a lint warning: the analyzer
 		// cannot know the declared prop set, so it stays silent.
 		return
 	}
+	// tag is the instance as its file spells it, for the messages below.
+	tag := "<x-" + c.Name + ">"
+	if c.Tag != "" {
+		tag = "<" + c.Tag + ">"
+	}
+	if len(others) > 0 {
+		a.warnings = append(a.warnings, Diagnostic{
+			File:    c.P.File,
+			Line:    c.P.Line,
+			Col:     c.P.Col,
+			Kind:    KindWarning,
+			Message: tag + " matches more than one file — using " + path + ", not " + strings.Join(others, ", "),
+		})
+	}
 	nodes := a.parse(path, src)
 
 	declared, known := declaredProps(nodes)
+	// The component file's own syntax decides how its props are declared and
+	// how it reaches its attributes bag.
+	bag, where := "$attributes", "(not in @props)"
+	if isHTMLFile(path) {
+		bag, where = "attributes", "(not in its <Props>)"
+		// An HTML-syntax component may skip <Props> altogether — every passed
+		// attribute becomes a variable regardless — so with no declaration
+		// there is nothing to check an attribute against.
+		if extractLegalProps(nodes) == nil {
+			known = false
+		}
+	}
 	// A component that reads $attributes accepts arbitrary extra attributes by
 	// design (undeclared ones fill the bag), so warning on them would flag the
 	// exact usage the feature exists for. A plain byte scan is deliberate: the
 	// bag can be reached from any expression position (echo, @if, a bound
 	// attribute), and a false "mention" merely silences a lint hint.
-	if known && strings.Contains(string(src), "$attributes") {
+	if known && strings.Contains(string(src), bag) {
 		known = false
 	}
 	if known {
@@ -126,7 +168,7 @@ func (a *analyzer) checkInstance(c *ast.Component) {
 				Line:    at.Pos.Line,
 				Col:     at.Pos.Col,
 				Kind:    KindWarning,
-				Message: `undeclared attribute "` + at.Name + `" on <x-` + c.Name + `> (not in @props)`,
+				Message: `undeclared attribute "` + at.Name + `" on ` + tag + ` ` + where,
 			})
 		}
 	}

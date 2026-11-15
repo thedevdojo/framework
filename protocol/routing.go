@@ -16,6 +16,10 @@ import (
 //	/blog        → resources/views/pages/blog/index.blade.php    (directory index)
 //	(no match)   → resources/views/pages/404.blade.php           if present
 //
+// A page may equally be an HTML-syntax file: every row above also matches the
+// same path ending in .html. The flat-wins rule spans both syntaxes, and where
+// one route has a file in each the Blade page serves it.
+//
 // It returns the resolved entry and whether a serving page (or the 404 page)
 // exists. A leading/trailing slash is ignored; an empty path is the index. A
 // URL that would escape the pages root resolves to the 404 page (or nothing).
@@ -37,19 +41,27 @@ func ResolveURL(fs vfs.FS, urlPath string) (string, bool) {
 		return notFoundOr(fs)
 	}
 
-	if flat := pagesPrefix + seg + ".blade.php"; exists(fs, flat) {
-		return flat, true
+	// A flat file wins over a directory index in either syntax; within one
+	// shape the Blade page wins (pageExts order).
+	for _, ext := range pageExts {
+		if flat := pagesPrefix + seg + ext; exists(fs, flat) {
+			return flat, true
+		}
 	}
-	if nested := pagesPrefix + seg + "/index.blade.php"; exists(fs, nested) {
-		return nested, true
+	for _, ext := range pageExts {
+		if nested := pagesPrefix + seg + "/index" + ext; exists(fs, nested) {
+			return nested, true
+		}
 	}
 	return notFoundOr(fs)
 }
 
 // notFoundOr returns the 404 page entry when present, else ("", false).
 func notFoundOr(fs vfs.FS) (string, bool) {
-	if nf := pagesPrefix + "404.blade.php"; exists(fs, nf) {
-		return nf, true
+	for _, ext := range pageExts {
+		if nf := pagesPrefix + "404" + ext; exists(fs, nf) {
+			return nf, true
+		}
 	}
 	return "", false
 }

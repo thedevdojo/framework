@@ -1,0 +1,14 @@
+1:{{ 'a' . n . 'b' }}
+2:{{ s . '-' . s }}
+3:{{ 1.5 . 'x' . true . false . null . 'y' }}
+4:{{ 'x' . n == 'x2' }}
+5:{{ missing ?? 'd' . 'e' }}
+6:{{ !n . 'z' }}
+7:{{ ('a' . 'b') . 'c' }}
+8:{{ 'a'.'b'.n }}
+9:<If condition="'a' . 'b' == 'ab'">
+yes
+</If>
+10:{!! '<b>' . s . '</b>' !!}
+<Card :title="'Hi ' . who . '!'" class="a" />
+<Card :title="'T'" :data-x="'v-' . n" :href="'/posts/' . s" />

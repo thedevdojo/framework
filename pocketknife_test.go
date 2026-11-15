@@ -1,9 +1,12 @@
 package pocketknife_test
 
 import (
+	"errors"
+	"os"
 	"testing"
 
 	"github.com/thedevdojo/pocketknife"
+	"github.com/thedevdojo/pocketknife/blade/convert"
 	"github.com/thedevdojo/pocketknife/vfs"
 )
 
@@ -52,5 +55,68 @@ func TestFacadeDiagnosticKinds(t *testing.T) {
 	ws := pocketknife.Analyze(fs, []string{"resources/views/pages/index.blade.php"})
 	if len(ws) != 1 || ws[0].Kind != pocketknife.KindWarning {
 		t.Fatalf("want one KindWarning from Analyze, got %v", ws)
+	}
+}
+
+// TestExamplesRenderAlike: example/ and example-html/ are the same site
+// written in the two syntaxes — Blade and HTML. They must lint clean and
+// render the same bytes, and those bytes are the ones committed in
+// example/_out (which real Laravel Blade also produces; see example/README).
+func TestExamplesRenderAlike(t *testing.T) {
+	render := func(dir, entry string) string {
+		t.Helper()
+		fs := vfs.Dir(dir)
+		res := pocketknife.Compile(fs, []string{entry}, pocketknife.Options{})
+		if len(res.Diagnostics) != 0 {
+			t.Fatalf("%s: diagnostics = %+v; want none", dir, res.Diagnostics)
+		}
+		if warnings := pocketknife.Analyze(fs, []string{entry}); len(warnings) != 0 {
+			t.Fatalf("%s: lint warnings = %+v; want none", dir, warnings)
+		}
+		out, ok := res.Files["index.html"]
+		if !ok {
+			t.Fatalf("%s: no index.html in %v", dir, res.Files)
+		}
+		return out
+	}
+	bladeOut := render("example", "resources/views/pages/index.blade.php")
+	htmlOut := render("example-html", "resources/views/pages/index.html")
+	if htmlOut != bladeOut {
+		t.Errorf("the HTML-syntax example renders differently:\n--- blade ---\n%s\n--- html ---\n%s", bladeOut, htmlOut)
+	}
+	// _out/ is render.sh's output and is not in git: on a fresh checkout there
+	// is nothing to compare with, and nothing to be stale.
+	committed, err := os.ReadFile("example/_out/index.html")
+	if errors.Is(err, os.ErrNotExist) {
+		return
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bladeOut != string(committed) {
+		t.Errorf("example/_out/index.html is stale; re-run example/render.sh")
+	}
+}
+
+// TestExampleHTMLIsTheConversion: example-html/ is not a hand-kept copy. Its
+// views are exactly what `pocketknife convert example --to html` writes, so
+// the pair doubles as the converter's worked example.
+func TestExampleHTMLIsTheConversion(t *testing.T) {
+	res := convert.Site(vfs.Dir("example"), convert.HTML, pocketknife.Options{})
+	if len(res.Problems) != 0 {
+		t.Fatalf("example/ did not convert: %+v", res.Problems)
+	}
+	if len(res.Files) == 0 {
+		t.Fatal("example/ converted to no files")
+	}
+	for path, got := range res.Files {
+		want, err := os.ReadFile("example-html/" + path)
+		if err != nil {
+			t.Errorf("example-html/ is missing %s", path)
+			continue
+		}
+		if got != string(want) {
+			t.Errorf("example-html/%s is not the conversion of example/:\n--- converted ---\n%s\n--- committed ---\n%s", path, got, want)
+		}
 	}
 }

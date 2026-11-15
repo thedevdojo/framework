@@ -1,0 +1,6 @@
+<Foreach groups="name, items">
+{{ name }}:
+<Foreach items="item">
+  {{ loop.iteration }}/{{ loop.count }} {{ item }}
+</Foreach>
+</Foreach>

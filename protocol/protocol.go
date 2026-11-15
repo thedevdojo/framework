@@ -66,7 +66,7 @@ const pagesPrefix = "resources/views/pages/"
 type Input struct {
 	Files   map[string]string `json:"files"`
 	Data    map[string]any    `json:"data,omitempty"`
-	Entries []string          `json:"entries,omitempty"` // empty (and no variants) → every resources/views/pages/**.blade.php, sorted
+	Entries []string          `json:"entries,omitempty"` // empty (and no variants) → every page under resources/views/pages/ (**.blade.php and **.html), sorted
 	// Variants renders one entry many times — a Folio-style dynamic page, one
 	// document per collection entry — in ONE request: each variant's data is
 	// merged over `data` for that render alone, and its output lands at
@@ -101,14 +101,31 @@ type Output struct {
 	Diagnostics []render.Diagnostic `json:"diagnostics"`
 }
 
-// DiscoverPages returns every resources/views/pages/**.blade.php path in fs,
-// sorted. This is the default entry set when a protocol Input omits entries,
-// and it is what `pocketknife lint <dir>` compiles — both callers share it so
-// "what counts as a page" has one definition.
+// pageExts are the extensions a page file may have, one per syntax: Blade
+// (.blade.php) and HTML (.html). The order is the precedence when a route has
+// both — the Blade page serves it — and matches the order the renderer names
+// the two files in its page-collision diagnostic.
+var pageExts = []string{".blade.php", ".html"}
+
+// isPage reports whether p has a page extension.
+func isPage(p string) bool {
+	for _, ext := range pageExts {
+		if strings.HasSuffix(p, ext) {
+			return true
+		}
+	}
+	return false
+}
+
+// DiscoverPages returns every page under resources/views/pages/ in fs — each
+// **.blade.php (Blade syntax) and **.html (HTML syntax) path — sorted. This is
+// the default entry set when a protocol Input omits entries, and it is what
+// `pocketknife lint <dir>` compiles — both callers share it so "what counts as
+// a page" has one definition.
 func DiscoverPages(fs vfs.FS) []string {
 	var out []string
 	for _, p := range fs.List(pagesPrefix) {
-		if strings.HasSuffix(p, ".blade.php") {
+		if isPage(p) {
 			out = append(out, p)
 		}
 	}

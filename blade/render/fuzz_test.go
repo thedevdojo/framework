@@ -1,6 +1,7 @@
 package render
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/thedevdojo/pocketknife/vfs"
@@ -59,5 +60,65 @@ func FuzzCompile(f *testing.F) {
 			}
 		}()
 		_ = Compile(vfs.Mem{entry: src}, []string{entry}, Options{Data: data})
+	})
+}
+
+// FuzzCompileHTML is FuzzCompile for the HTML syntax: the same full pipeline,
+// entered through an .html page, with one .html and one .blade.php component on
+// disk so capitalized tags resolve down both paths. One more invariant holds
+// here that Blade cannot offer: an .html page never reports a Blade directive,
+// because in an .html file "@" is plain text.
+func FuzzCompileHTML(f *testing.F) {
+	seeds := []string{
+		`{{ x }}`, `<If condition="a">x</If>`, `<If a>x<Else>y</If>`, `<If x="v">x</If>`,
+		`<If :n="2">x</If>`, `<If not="b">x</If>`, `<If>`, `</If>`, `<Else>`,
+		`<Foreach rows="row">{{ row }}{{ loop.index }}</Foreach>`,
+		`<Foreach rows="k, v" limit="1"><Break condition="v" /><Continue /></Foreach>`,
+		`<Foreach collection="rows" as="r" count="n">{{ r }}</Foreach>`,
+		`<Foreach rows="row" limit="x">a</Foreach>`, `<Foreach rows>`, `</Foreach>`,
+		`<Layout src="main.html" title="Home"><Slot name="head"><meta></Slot>body</Layout>`,
+		`<include src="card.html"></include>`, `<Include src="../x" />`, `<Layout>`,
+		`<Card title="Hi {{ x }}" :n="n" class="a">body</Card>`, `<Card/><Card/>`,
+		`<Old label="{{ x }}" />`, `<Missing />`, `<Sections.Hero />`, `<SectionsHeroBigOne />`,
+		`<Card><Slot name="a">1</Slot><Slot name="a">2</Slot></Card>`,
+		`<Slot />`, `<Slot name="t" />`, `<Slot name="t">x</Slot>`,
+		`<Props title="x" :n="3" />`, `<Vite src="a.js, b.css" />`,
+		`{{-- c --}}{{ x }}{!! h !!}@{{ raw }}`, `{{ }}`, `{{ ]]] }}`, `{{ a.b.c }}`,
+		`{{ attributes }}`, `{{ route('home') }}`, `{{ a = b and not c }}`,
+		`@if($a)x@endif @foreach @auth @csrf a@b.co`,
+		`<script>a<B>c {{ x }}</script><style>@media{}</style><!-- <If> -->`,
+		`<Recur />`, "",
+	}
+	for _, s := range seeds {
+		f.Add(s)
+	}
+
+	entry := "resources/views/pages/index.html"
+	data := map[string]any{
+		"a": true, "b": false, "x": "v", "h": "<b>x</b>",
+		"rows": []any{"a", "b"}, "n": float64(2),
+	}
+
+	f.Fuzz(func(t *testing.T, src string) {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Fatalf("Compile panicked on %q: %v", src, r)
+			}
+		}()
+		res := Compile(vfs.Mem{
+			entry:                                  src,
+			"resources/views/components/card.html": `<Props title="T" /><div {{ attributes }}>{{ title }}<Slot /></div>`,
+			"resources/views/components/old.blade.php":          `@props(['label' => 'L'])<b>{{ $label }}</b>`,
+			"resources/views/components/recur.html":             `<Recur />`,
+			"resources/views/components/layouts/main.html":      `<html>{{ slot }}</html>`,
+			"resources/views/components/sections/hero.html":     `<h1><Slot /></h1>`,
+			"resources/views/components/sections-hero.html":     `<h2></h2>`,
+			"resources/views/components/sections/hero/big.html": src,
+		}, []string{entry}, Options{Data: data})
+		for _, d := range res.Diagnostics {
+			if strings.HasSuffix(d.File, ".html") && strings.HasPrefix(d.Construct, "@") {
+				t.Fatalf("an .html file reported a Blade directive %q (%s) for %q", d.Construct, d.Message, src)
+			}
+		}
 	})
 }

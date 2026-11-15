@@ -1,0 +1,18 @@
+<Foreach plans="slug, plan">
+{{ slug }}: {{ plan.price }}
+</Foreach>
+<Foreach plans="slug => plan">
+{{ slug }}={{ plan.price }}
+</Foreach>
+<Foreach collection="plans" as="plan" key="slug">
+{{ slug }}/{{ plan.price }}
+</Foreach>
+<Foreach post.tags="tag">
+#{{ tag }}
+</Foreach>
+<Foreach collection="items">
+{{ items }}
+</Foreach>
+<ForEach collection="items" as="item">
+{{ item }}!
+</ForEach>

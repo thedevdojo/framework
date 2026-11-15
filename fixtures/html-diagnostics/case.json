@@ -1,0 +1,57 @@
+{
+  "entries": [
+    "resources/views/pages/index.html"
+  ],
+  "oracle": false,
+  "diagnostics": [
+    {
+      "kind": "error",
+      "construct": "undefined-variable",
+      "file": "resources/views/pages/index.html",
+      "line": 1
+    },
+    {
+      "kind": "error",
+      "construct": "component-missing",
+      "file": "resources/views/pages/index.html",
+      "line": 2,
+      "col": 1
+    },
+    {
+      "kind": "error",
+      "construct": "<If>",
+      "file": "resources/views/pages/index.html",
+      "line": 3,
+      "col": 1
+    },
+    {
+      "kind": "error",
+      "construct": "<Foreach>",
+      "file": "resources/views/pages/index.html",
+      "line": 6,
+      "col": 1
+    },
+    {
+      "kind": "error",
+      "construct": "<Layout>",
+      "file": "resources/views/pages/index.html",
+      "line": 9,
+      "col": 1
+    },
+    {
+      "kind": "error",
+      "construct": "expression",
+      "file": "resources/views/pages/index.html",
+      "line": 10
+    }
+  ],
+  "deps": {
+    "index.html": [
+      "resources/views/pages/index.html",
+      "resources/views/components/sections/hero.html",
+      "resources/views/components/sections/hero.blade.php",
+      "resources/views/components/sections-hero.html",
+      "resources/views/components/sections-hero.blade.php"
+    ]
+  }
+}

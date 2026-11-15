@@ -1,0 +1,7 @@
+Top:
+<Foreach items="item">
+<Continue condition="item == 'skip'" />
+{{ loop.iteration }}. {{ item }}
+<Break condition="loop.iteration == 3" />
+</Foreach>
+done

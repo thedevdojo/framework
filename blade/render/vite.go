@@ -74,14 +74,17 @@ func parseViteEntries(raw string) ([]string, bool) {
 func (r *renderer) renderVite(node *ast.Vite) {
 	entries, ok := parseViteEntries(node.Raw)
 	if !ok {
-		r.diag(node.P, KindError, "@vite", "invalid @vite([...]) literal")
+		r.diag(node.P, KindError, say(node.P, "@vite", "<Vite>"), say(node.P,
+			"invalid @vite([...]) literal",
+			`<Vite> needs a src, like <Vite src="resources/css/site.css" />`))
 		return
 	}
 
 	var styles []string
 	for _, entry := range entries {
 		if strings.HasSuffix(entry, ".js") {
-			r.diag(node.P, KindAppTier, "@vite-js", "@vite js entry \""+entry+"\" needs a real bundler; skipped")
+			r.diag(node.P, KindAppTier, say(node.P, "@vite-js", "<Vite>"),
+				say(node.P, "@vite", "<Vite>")+" js entry \""+entry+"\" needs a real bundler; skipped")
 			continue
 		}
 		if r.ctx == nil {
@@ -93,7 +96,7 @@ func (r *renderer) renderVite(node *ast.Vite) {
 		r.ctx.deps.add(entry)
 		src, ok := r.ctx.fs.Read(entry)
 		if !ok {
-			r.diag(node.P, KindError, "@vite", "vite asset \""+entry+"\" not found")
+			r.diag(node.P, KindError, say(node.P, "@vite", "<Vite>"), "vite asset \""+entry+"\" not found")
 			continue
 		}
 		styles = append(styles, string(src))

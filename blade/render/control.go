@@ -1,8 +1,10 @@
 package render
 
 import (
+	"math"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/thedevdojo/pocketknife/blade/ast"
 	"github.com/thedevdojo/pocketknife/blade/expr"
@@ -39,6 +41,12 @@ func (r *renderer) renderForeach(node *ast.Foreach) {
 		return
 	}
 
+	if node.Limit != "" {
+		if n, ok := r.loopLimit(node); ok && n < len(pairs) {
+			pairs = pairs[:n]
+		}
+	}
+
 	valName := trimDollar(node.ValVar)
 	keyName := trimDollar(node.KeyVar)
 	count := int64(len(pairs))
@@ -72,6 +80,45 @@ func (r *renderer) renderForeach(node *ast.Foreach) {
 	r.scope = parent
 }
 
+// loopLimit evaluates the HTML syntax's <Foreach limit="…">: how many items the
+// loop runs over at most. It must come to a whole number, zero or more — a
+// number, or a numeric string such as a JSON "3". Anything else is diagnosed
+// and ok is false, so the loop runs in full rather than silently showing
+// nothing.
+func (r *renderer) loopLimit(node *ast.Foreach) (n int, ok bool) {
+	v, err := expr.Eval(node.Limit, r.scope)
+	if err != nil {
+		r.diagExprError(err, node.P)
+		return 0, false
+	}
+	const maxLimit = 1 << 30 // far past any list; keeps the int conversion safe
+	switch x := v.(type) {
+	case int64:
+		if x >= 0 {
+			if x > maxLimit {
+				x = maxLimit
+			}
+			return int(x), true
+		}
+	case float64:
+		if x >= 0 && x == math.Trunc(x) {
+			if x > maxLimit {
+				x = maxLimit
+			}
+			return int(x), true
+		}
+	case string:
+		if i, perr := strconv.ParseInt(strings.TrimSpace(x), 10, 64); perr == nil && i >= 0 {
+			if i > maxLimit {
+				i = maxLimit
+			}
+			return int(i), true
+		}
+	}
+	r.diag(node.P, KindError, "foreach", "limit must be a whole number, zero or more")
+	return 0, false
+}
+
 // consumeLoopIteration draws one @foreach iteration from the entry's shared
 // budget (renderCtx.loopCap, set from Options.MaxLoopIterations). The first
 // draw past the cap emits the single error/render-budget diagnostic — at the
@@ -90,7 +137,7 @@ func (r *renderer) consumeLoopIteration(p scanner.Pos) bool {
 		r.ctx.exceeded = true
 		r.diag(p, KindError, "render-budget",
 			"render budget exceeded: more than "+strconv.Itoa(r.ctx.loopCap)+
-				" @foreach iterations in one entry; render aborted")
+				" "+say(p, "@foreach", "<Foreach>")+" iterations in one entry; render aborted")
 		return false
 	}
 	r.ctx.loopUsed++
@@ -111,7 +158,9 @@ func (r *renderer) overBudget() bool {
 // and treated FALSE (no jump). Either way the directive eats one newline.
 func (r *renderer) renderLoopJump(node *ast.LoopJump) bool {
 	if r.loopDepth == 0 {
-		r.diag(node.P, KindError, "loop-jump", "@break/@continue outside a @foreach")
+		r.diag(node.P, KindError, "loop-jump", say(node.P,
+			"@break/@continue outside a @foreach",
+			"<Break> and <Continue> only work directly inside a <Foreach>"))
 		return directiveEatsNewline
 	}
 

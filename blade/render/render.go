@@ -30,6 +30,9 @@ import (
 // Blade that needs real PHP and so falls to the app tier; KindWarning marks a
 // non-fatal lint hint (an undeclared component attribute).
 //
+// KindAppTier is BLADE-ONLY. An .html (HTML-syntax) file cannot be handed to
+// real Laravel, so it has no app tier: the same constructs are KindError there.
+//
 // KindWarning is LINT-ONLY: it is produced solely by Analyze (surfaced through
 // `pocketknife lint`), never by Compile. The compile protocol's diagnostic
 // stream carries only error/app-tier so that hosts which treat "any diagnostic"
@@ -144,11 +147,21 @@ func CompileVariants(fs vfs.FS, variants []Variant, opts Options) Result {
 	if loopCap <= 0 {
 		loopCap = DefaultMaxLoopIterations
 	}
+	// pageOf remembers which entry produced each DEFAULT output name, to catch
+	// two different pages landing on one file (pages/index.blade.php next to
+	// pages/index.html). An explicit variant Output is the host's own choice
+	// and is never a collision.
+	pageOf := map[string]string{}
 	for _, v := range variants {
 		entry := v.Entry
 		out := v.Output
 		if out == "" {
 			out = outputName(entry)
+			if first, taken := pageOf[out]; taken && first != entry {
+				res.Diagnostics = append(res.Diagnostics, pageCollisionDiagnostic(out, first, entry))
+			} else if !taken {
+				pageOf[out] = entry
+			}
 		}
 		// Refuse an entry that escapes the site root — either the entry path
 		// itself or the output name it would derive or was given (the
@@ -165,7 +178,7 @@ func CompileVariants(fs vfs.FS, variants []Variant, opts Options) Result {
 			res.Diagnostics = append(res.Diagnostics, entryMissingDiagnostic(entry))
 			continue
 		}
-		tokens := scanner.Scan(entry, src)
+		tokens := scanSource(entry, src)
 		nodes, pdiags := parser.Parse(entry, tokens)
 		res.Diagnostics = append(res.Diagnostics, foldParseDiags(pdiags)...)
 		// deps is per-output: it starts with the entry and gains every component
@@ -322,13 +335,15 @@ func (r *renderer) renderNode(n ast.Node, eat bool) bool {
 		// tier to take over.
 		r.sb.WriteString(node.Src)
 		r.diags = append(r.diags, unknownDiagnostic(node))
-		// Deliberate divergence from every other directive: this does NOT eat the
-		// following newline. Every other directive's eat-one-newline rule exists
-		// because it compiles to a `<?php … ?>` close tag whose swallow affects
-		// the next byte; an unregistered directive left literal has no such close
-		// tag, and real Blade leaves the following newline in place. Returning
-		// `eat` unchanged keeps Unknown transparent to surrounding whitespace.
-		return eat
+		// Unlike every other directive this does NOT eat the following newline,
+		// and it ends any eating the construct before it began. A directive eats
+		// a newline because it compiles to a `<?php … ?>` close tag, and PHP
+		// swallows a newline only when it comes straight after one. An
+		// unregistered directive compiles to nothing: it is bytes on the page
+		// like any other text, so the newline after it stays, and a close tag
+		// before it has these bytes after it and not a newline. Settled against
+		// the oracle: fixtures/unknown-directive-newline.
+		return false
 
 	default:
 		// Defensive: every ast.Node variant is matched above. Do nothing and
@@ -444,13 +459,25 @@ func (r *renderer) renderIf(node *ast.If) {
 // where real Blade raises the same undefined-variable error this reports.
 // The carve-out is gone; error/undefined-variable is the parity answer.
 func (r *renderer) diagExprError(err error, p scanner.Pos) {
+	// In an HTML-syntax file the variable was written without its "$" (title,
+	// post.title), so the message names it the same way.
 	if errors.Is(err, expr.ErrUndefinedVar) {
-		r.diag(p, KindError, "undefined-variable", err.Error())
+		msg := err.Error()
+		var uv *expr.UndefinedVarError
+		if isHTMLFile(p.File) && errors.As(err, &uv) {
+			msg = "undefined variable " + uv.Name
+		}
+		r.diag(p, KindError, "undefined-variable", msg)
 		return
 	}
 	// A missing object member mirrors real Blade's Undefined-property abort.
 	if errors.Is(err, expr.ErrUndefinedProp) {
-		r.diag(p, KindError, "undefined-property", err.Error())
+		msg := err.Error()
+		var up *expr.UndefinedPropError
+		if isHTMLFile(p.File) && errors.As(err, &up) {
+			msg = "undefined property " + up.Name
+		}
+		r.diag(p, KindError, "undefined-property", msg)
 		return
 	}
 	// `[]` on an object mirrors PHP's "Cannot use object of type stdClass as
@@ -461,13 +488,22 @@ func (r *renderer) diagExprError(err error, p scanner.Pos) {
 	}
 	var se *expr.SyntaxError
 	if errors.As(err, &se) && se.AppTier {
-		r.diag(p, KindAppTier, "expression", err.Error())
+		// Valid PHP the evaluator does not model. In Blade that is the app
+		// tier's to run; in an .html file nothing will ever run it (see diag),
+		// so the message says what a template CAN do instead.
+		r.diag(p, KindAppTier, "expression", say(p, err.Error(), htmlExprMessage(err.Error())))
 		return
 	}
 	r.diag(p, KindError, "expression", err.Error())
 }
 
 func (r *renderer) diag(p scanner.Pos, kind DiagKind, construct, msg string) {
+	// "App tier" means real Laravel can take over what this engine cannot
+	// finish. Real Laravel cannot read an .html view, so an .html file has no
+	// tier to fall to: what would be app-tier in Blade is an error here.
+	if kind == KindAppTier && isHTMLFile(p.File) {
+		kind = KindError
+	}
 	r.diags = append(r.diags, Diagnostic{
 		File:      p.File,
 		Line:      p.Line,
@@ -501,7 +537,9 @@ func escapesRoot(p string) bool {
 
 // outputName maps an entry path to its output file name. Pages lose the
 // resources/views/pages/ prefix; any other view keeps its path relative to
-// resources/views/. In both cases .blade.php becomes .html.
+// resources/views/. A Blade page's .blade.php becomes .html; an HTML-syntax
+// page already ends in .html and keeps it, so pages/about.blade.php and
+// pages/about.html both render to about.html.
 func outputName(entry string) string {
 	const pages = "resources/views/pages/"
 	const views = "resources/views/"
@@ -512,7 +550,11 @@ func outputName(entry string) string {
 	case strings.HasPrefix(name, views):
 		name = name[len(views):]
 	}
-	name = strings.TrimSuffix(name, ".blade.php")
+	if strings.HasSuffix(name, ".blade.php") {
+		name = strings.TrimSuffix(name, ".blade.php")
+	} else {
+		name = strings.TrimSuffix(name, ".html")
+	}
 	return name + ".html"
 }
 

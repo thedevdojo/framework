@@ -1,0 +1,3 @@
+<div @click.prevent="go" x-on:keydown.escape="close" x-data="{ open: false }" :class="{ on: open }">One</div>
+<div @click="open = !open" x-transition.opacity="x-transition.opacity" wire:model.live="q"></div>
+after

@@ -1,0 +1,3 @@
+go test fuzz v1
+string("@foreACh($items as $A)@A\n0")
+bool(true)

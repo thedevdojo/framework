@@ -1,0 +1,6 @@
+{
+  "entries": ["resources/views/pages/index.html"],
+  "data": {"a": true, "b": false, "name": "Ada & Bob", "id": 7, "items": ["p", "q", "r"]},
+  "oracle": false,
+  "twin": "convert-hazards"
+}

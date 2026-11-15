@@ -21,6 +21,10 @@ const componentMaxDepth = 16
 // value of this type as already-safe HTML.
 type rawHTML string
 
+// String lets a slot be joined into text by the evaluator's `.`, as PHP joins
+// an HtmlString: by its contents.
+func (h rawHTML) String() string { return string(h) }
+
 // renderCtx is the render state shared across an entire Compile: the source
 // filesystem, the deps set of the OUTPUT currently rendering, and a per-Compile
 // parse cache. Every component render (however deeply nested, and every slot
@@ -78,7 +82,9 @@ func (r *renderer) renderProps(node *ast.Props) {
 	if node == r.legalProps {
 		return
 	}
-	r.diag(node.P, KindError, "props", "@props is only valid as the first element of a component file")
+	r.diag(node.P, KindError, "props", say(node.P,
+		"@props is only valid as the first element of a component file",
+		"<Props> is only valid as the first thing in a component file"))
 }
 
 // renderComponent resolves, loads, and renders an <x-name …/> tag, splicing the
@@ -95,16 +101,25 @@ func (r *renderer) renderComponent(node *ast.Component) {
 		return // defensive: a renderer with no ctx cannot resolve components
 	}
 
-	path := componentPath(node.Name)
-	// The candidate path joins deps whether or not the file exists: a missing
-	// component is a dependency on the path the resolver LOOKED FOR, so a
+	// Every path the resolver tries joins deps whether or not the file exists:
+	// a missing component is a dependency on each path it LOOKED FOR, so a
 	// render-on-save host diffing deps re-renders this output the moment the
-	// user creates the file. Same normalized form as every resolved dep.
-	r.ctx.deps.add(path)
-	src, ok := r.ctx.fs.Read(path)
-	if !ok {
+	// user creates the file. Same normalized form as every resolved dep. A Blade
+	// <x-name> names one file; an HTML-syntax tag may name several (see
+	// componentFiles), and the first that exists wins.
+	var path string
+	var src []byte
+	found := false
+	for _, candidate := range componentFiles(node) {
+		r.ctx.deps.add(candidate)
+		if b, ok := r.ctx.fs.Read(candidate); ok {
+			path, src, found = candidate, b, true
+			break
+		}
+	}
+	if !found {
 		r.sb.WriteString(missingMarker(node.Name))
-		r.diag(node.P, KindError, "component-missing", "component \""+node.Name+"\" not found")
+		r.diag(node.P, KindError, "component-missing", missingMessage(node))
 		return
 	}
 
@@ -122,10 +137,12 @@ func (r *renderer) renderComponent(node *ast.Component) {
 			// prop declared without a default; each one is app-tier — real
 			// Blade accepts it, this engine cannot carry the value.
 			for _, msg := range issues {
-				r.diag(propsNode.P, KindAppTier, "props", msg)
+				r.diag(propsNode.P, KindAppTier, "props", say(propsNode.P, msg, strings.Replace(msg, "@props", "<Props>", 1)))
 			}
 		} else {
-			r.diag(propsNode.P, KindError, "props", "invalid @props(...) literal")
+			r.diag(propsNode.P, KindError, "props", say(propsNode.P,
+				"invalid @props(...) literal",
+				`<Props> has a default that is not a plain value — use text, or a number, true, false, null or a list after a colon (:count="3")`))
 		}
 	}
 
@@ -180,7 +197,7 @@ func (r *renderer) parseFile(path string, src []byte) ([]ast.Node, []parser.Diag
 			return nodes, nil
 		}
 	}
-	tokens := scanner.Scan(path, src)
+	tokens := scanSource(path, src)
 	nodes, diags := parser.Parse(path, tokens)
 	if r.ctx.cache != nil {
 		r.ctx.cache[path] = nodes
@@ -381,10 +398,56 @@ func extractLegalProps(nodes []ast.Node) *ast.Props {
 	return nil
 }
 
+// componentsRoot is where component files live, in both syntaxes.
+const componentsRoot = "resources/views/components/"
+
 // componentPath maps a dotted component name to its exact source file:
 // sections.hero → resources/views/components/sections/hero.blade.php.
 func componentPath(name string) string {
-	return "resources/views/components/" + strings.ReplaceAll(name, ".", "/") + ".blade.php"
+	return componentsRoot + strings.ReplaceAll(name, ".", "/") + ".blade.php"
+}
+
+// componentFiles lists the files a component tag may name, in the order to try
+// them.
+//
+// A Blade <x-sections.hero> names exactly one: its .blade.php, as in real
+// Laravel. It deliberately never falls back to an .html component — a Blade
+// page must keep rendering the same bytes real Blade would.
+//
+// An HTML-syntax tag carries its candidates (see htmlscan.Candidates): each is
+// tried as .html and then as .blade.php, so an .html page can use a component
+// from an existing Blade library unchanged.
+func componentFiles(node *ast.Component) []string {
+	if len(node.Candidates) == 0 {
+		return []string{componentPath(node.Name)}
+	}
+	out := make([]string, 0, 2*len(node.Candidates))
+	for _, base := range node.Candidates {
+		out = append(out, componentsRoot+base+".html", componentsRoot+base+".blade.php")
+	}
+	return out
+}
+
+// missingMessageMaxPaths caps how many looked-for paths a missing-component
+// message spells out; a long tag name can have dozens.
+const missingMessageMaxPaths = 4
+
+// missingMessage is the diagnostic text for a component no file was found for.
+// For an HTML-syntax tag it lists where the engine looked, because the tag
+// alone (<SectionsHero>) does not say which file name it expects.
+func missingMessage(node *ast.Component) string {
+	if node.Tag == "" {
+		return "component \"" + node.Name + "\" not found"
+	}
+	var looked []string
+	for i, base := range node.Candidates {
+		if i == missingMessageMaxPaths {
+			looked = append(looked, "and "+strconv.Itoa(len(node.Candidates)-i)+" more")
+			break
+		}
+		looked = append(looked, componentsRoot+base+".html")
+	}
+	return "component <" + node.Tag + "> not found — looked for " + strings.Join(looked, ", ")
 }
 
 // missingMarker is the byte-stable output marker for an unresolved component.

@@ -1,0 +1,20 @@
+{
+  "entries": [
+    "resources/views/pages/index.html"
+  ],
+  "data": {
+    "name": "Tony",
+    "featured": true,
+    "draft": false,
+    "count": 3,
+    "plan": "pro",
+    "account": {
+      "plan": "pro"
+    },
+    "post": {
+      "featured": true,
+      "status": "live"
+    }
+  },
+  "oracle": false
+}
