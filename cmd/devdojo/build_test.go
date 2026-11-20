@@ -14,14 +14,14 @@ import (
 // with one good entry, one more, and two that cannot be addresses.
 func buildSite() map[string]string {
 	return map[string]string{
-		"src/components/layouts/main.html": "<!doctype html>\n<html>\n<head>\n<title>{{ site.name }}</title>\n" +
+		"src/components/layouts/main.html": "<!doctype html>\n<html>\n<head>\n<title>{site.name}</title>\n" +
 			"<Vite src=\"src/css/site.css\" />\n</head>\n<body>\n<Slot />\n</body>\n</html>\n",
 		"src/components/badge.html":        "<span class=\"only-in-a-component\">new</span>\n",
 		"src/pages/index.html":             "<Layout src=\"main.html\">\n<h1 class=\"text-brand\">Home</h1>\n</Layout>\n",
 		"src/pages/about.html":             "<Layout src=\"main.html\">\n<h1>About</h1>\n</Layout>\n",
 		"src/pages/docs/index.html":        "<Layout src=\"main.html\">\n<h1>Docs</h1>\n</Layout>\n",
 		"src/pages/404.html":               "<Layout src=\"main.html\">\n<h1>Not here</h1>\n</Layout>\n",
-		"src/pages/blog/[posts.slug].html": "<Layout src=\"main.html\">\n<h1>{{ posts.title }}</h1>\n</Layout>\n",
+		"src/pages/blog/[posts.slug].html": "<Layout src=\"main.html\">\n<h1>{posts.title}</h1>\n</Layout>\n",
 		"src/data/collections/posts.json": `[{"slug": "hello", "title": "Hello"}, {"slug": "second", "title": "Second"},` +
 			` {"slug": "a/b", "title": "Slash"}, {"title": "No slug"}]`,
 		"src/data/site.json":  `{"name": "Test site", "url": "https://example.com"}`,
@@ -199,7 +199,7 @@ func TestBuildStopsWhenTheStylesheetDoesNotBuild(t *testing.T) {
 // printed as serve prints it, and a build already there is left as it was.
 func TestBuildRefusesAPageWithADiagnostic(t *testing.T) {
 	files := buildSite()
-	files["src/pages/broken.html"] = "<h1>{{ nope }}</h1>\n"
+	files["src/pages/broken.html"] = "<h1>{nope}</h1>\n"
 	files["dist/old.txt"] = "the last build"
 	dir := tempSite(t, files)
 	stdout, stderr, code := runBuild(t, fakeTailwind(t, ""), dir)

@@ -24,6 +24,7 @@
 package site
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/thedevdojo/framework/vfs"
@@ -58,6 +59,7 @@ const (
 	CodeViewsFolder     = "views-folder"     // pages or components are under views/
 	CodeFolderNotRead   = "folder-not-read"  // two candidates hold files; one is ignored
 	CodeAssetPath       = "asset-path"       // an asset is named in the folder the site does not use
+	CodeDoubleBraces    = "double-braces"    // an .html view prints values with {{ }}, not { }
 )
 
 // Layout is where one site keeps its files. Every path ends in a slash.
@@ -199,6 +201,21 @@ func AssetNotice(file, named, resolved string) Notice {
 		Code:    CodeAssetPath,
 		File:    file,
 		Message: "\"" + named + "\" was read from " + resolved + ". Change the path in " + file + " to match.",
+	}
+}
+
+// DoubleBracesNotice is the notice for an .html view that writes count values
+// in double braces, the older spelling of a single brace.
+func DoubleBracesNotice(file string, count int) Notice {
+	what, it := "a value in double braces, {{ x }}. It still works", "it"
+	if count != 1 {
+		what, it = strconv.Itoa(count)+" values in double braces, {{ x }}. They still work", "them"
+	}
+	return Notice{
+		Kind:    KindDeprecation,
+		Code:    CodeDoubleBraces,
+		File:    file,
+		Message: file + " writes " + what + ", but a value is now written in single braces, {x}. Run `devdojo migrate` to rewrite " + it + ".",
 	}
 }
 

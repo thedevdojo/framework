@@ -67,57 +67,70 @@ func TestFriendly(t *testing.T) {
 }
 
 // TestLiteral: text written through Literal scans back as that exact text —
-// whatever it contains — and Literal reports the raw-text element the scanner
-// is left inside.
+// whatever it contains — and Literal leaves the context where the scanner is
+// at its end. pre is text read first, to set the context up.
 func TestLiteral(t *testing.T) {
-	cases := []struct{ name, text, raw, want, rawAfter string }{
-		{"plain html", `<div class="a">x</div>`, "", `<div class="a">x</div>`, ""},
-		{"at signs are plain", `@click="x" @media (a) a@b.co`, "", `@click="x" @media (a) a@b.co`, ""},
-		{"braces", `{{ x }}`, "", `@{{ x }}`, ""},
-		{"unclosed braces", `a {{ b`, "", `a {!! '{' !!}{ b`, ""},
-		{"raw braces", `{!! x !!}`, "", `{!! '{' !!}!! x !!}`, ""},
-		{"comment braces", `{{-- x --}}`, "", `{!! '{' !!}{-- x --}}`, ""},
-		{"an at-sign before braces", `@{{ x }}`, "", `@@{{ x }}`, ""},
-		{"an at-sign before unclosed braces", `@{{ x`, "", `{!! '@' !!}{!! '{' !!}{ x`, ""},
-		{"component tag", `<Button>x</Button>`, "", `{!! '<' !!}Button>x{!! '<' !!}/Button>`, ""},
-		{"built-in tag", `<If a>`, "", `{!! '<' !!}If a>`, ""},
-		{"static spellings", `<include src="a">`, "", `{!! '<' !!}include src="a">`, ""},
-		{"shouted html", `<BR><TABLE>`, "", `<BR><TABLE>`, ""},
-		{"html comment is already opaque", `<!-- <If a> {{ x }} -->`, "", `<!-- <If a> {{ x }} -->`, ""},
-		{"comment left open", `<!-- start`, "", `{!! '<' !!}!-- start`, ""},
-		{"enters script", `<script>a<B>c`, "", `<script>a<B>c`, "script"},
-		{"built-in inside script", `a<If x>b`, "script", `a{!! '<' !!}If x>b`, "script"},
-		{"leaves script", `x</script><Button />`, "script", `x</script>{!! '<' !!}Button />`, ""},
-		{"style does not close script", `</style>`, "script", `</style>`, "script"},
-		{"comment marker inside script", `<!-- a<B>`, "script", `<!-- a<B>`, "script"},
+	cases := []struct{ name, pre, text, want, elemAfter string }{
+		{"plain html", "", `<div class="a">x</div>`, `<div class="a">x</div>`, ""},
+		{"at signs are plain", "", `@click="x" @media (a) a@b.co`, `@click="x" @media (a) a@b.co`, ""},
+		{"a value", "", `{title}`, `\{title}`, ""},
+		{"not a value", "", `{ open: false } {} a { b c }`, `{ open: false } {} a { b c }`, ""},
+		{"a backslash before a brace", "", `\{x} \{ a\b`, `\\{x} \\{ a\b`, ""},
+		{"braces", "", `{{ x }}`, `\{\{ x }}`, ""},
+		{"spaced braces", "", `{{x y}}`, `\{{x y}}`, ""},
+		{"unclosed braces", "", `a {{ b`, `a \{{ b`, ""},
+		{"raw braces", "", `{!! x !!}`, `\{!! x !!}`, ""},
+		{"comment braces", "", `{{-- x --}}`, `\{{-- x --}}`, ""},
+		{"an at-sign before braces", "", `@{{ x }}`, `@\{\{ x }}`, ""},
+		{"an at-sign before unclosed braces", "", `@{{ x`, `@\{{ x`, ""},
+		{"a value in an attribute", "", `<a title="{x}" href={y}>`, `<a title="\{x}" href=\{y}>`, ""},
+		{"a code attribute", "", `<a x-text="{x}" onclick="{y}" :class="{z}">`, `<a x-text="{x}" onclick="{y}" :class="{z}">`, ""},
+		{"braces in a code attribute", "", `<a x-text="{{ x }}">`, `<a x-text="@{{ x }}">`, ""},
+		{"component tag", "", `<Button>x</Button>`, `{!! '<' !!}Button>x{!! '<' !!}/Button>`, ""},
+		{"built-in tag", "", `<If a>`, `{!! '<' !!}If a>`, ""},
+		{"static spellings", "", `<include src="a">`, `{!! '<' !!}include src="a">`, ""},
+		{"shouted html", "", `<BR><TABLE>`, `<BR><TABLE>`, ""},
+		{"html comment is already opaque", "", `<!-- <If a> {{ x }} {y} -->`, `<!-- <If a> {{ x }} {y} -->`, ""},
+		{"comment left open", "", `<!-- start`, `{!! '<' !!}!-- start`, ""},
+		{"enters script", "", `<script>a<B>c{x}`, `<script>a<B>c{x}`, "script"},
+		{"braces inside script", "<script>", `{x} {{ x }}`, `{x} @{{ x }}`, "script"},
+		{"built-in inside script", "<script>", `a<If x>b`, `a{!! '<' !!}If x>b`, "script"},
+		{"leaves script", "<script>", `x</script><Button />{x}`, `x</script>{!! '<' !!}Button />\{x}`, ""},
+		{"style does not close script", "<script>", `</style>{x}`, `</style>{x}`, "script"},
+		{"comment marker inside script", "<script>", `<!-- a<B>`, `<!-- a<B>`, "script"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, rawAfter := Literal(tc.text, tc.raw)
-			if got != tc.want || rawAfter != tc.rawAfter {
-				t.Errorf("Literal(%q, %q) = %q, %q; want %q, %q", tc.text, tc.raw, got, rawAfter, tc.want, tc.rawAfter)
+			var ctx Context
+			Literal(tc.pre, &ctx)
+			got := Literal(tc.text, &ctx)
+			if got != tc.want || ctx.Elem() != tc.elemAfter {
+				t.Errorf("Literal(%q) after %q = %q, %q; want %q, %q", tc.text, tc.pre, got, ctx.Elem(), tc.want, tc.elemAfter)
 			}
 			// And the point of it: scanned, it prints the text it was given.
-			prefix := ""
-			if tc.raw != "" {
-				prefix = "<" + tc.raw + ">"
-			}
-			var printed strings.Builder
-			for _, tok := range Scan("x.html", []byte(prefix+got)) {
-				switch tok.Kind {
-				case scanner.Text:
-					printed.WriteString(tok.Text)
-				case scanner.RawEcho:
-					printed.WriteString(strings.Trim(tok.Text, "'"))
-				default:
-					t.Fatalf("Literal(%q) = %q scans to a %v token", tc.text, got, tok.Kind)
-				}
-			}
-			if printed.String() != prefix+tc.text {
-				t.Errorf("Literal(%q) = %q prints %q", tc.text, got, printed.String())
+			if printed := printedText(t, tc.pre+got); printed != tc.pre+tc.text {
+				t.Errorf("Literal(%q) = %q prints %q", tc.text, got, printed)
 			}
 		})
 	}
+}
+
+// printedText is what src prints when every token in it is text or a hatch.
+func printedText(t *testing.T, src string) string {
+	t.Helper()
+	var printed strings.Builder
+	for _, tok := range Scan("x.html", []byte(src)) {
+		switch tok.Kind {
+		case scanner.Text:
+			printed.WriteString(tok.Text)
+		case scanner.RawEcho:
+			s := strings.TrimSuffix(strings.TrimPrefix(tok.Text, "'"), "'")
+			printed.WriteString(strings.TrimPrefix(s, `\`))
+		default:
+			t.Fatalf("%q scans to a %v token", src, tok.Kind)
+		}
+	}
+	return printed.String()
 }
 
 // TestIsComponentTag: only a name the scanner reads as a component tag is one.

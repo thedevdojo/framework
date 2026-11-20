@@ -340,8 +340,8 @@ func TestLintNotADirectoryExitsTwo(t *testing.T) {
 func TestCompileHTMLSyntax(t *testing.T) {
 	input := `{"files":{` +
 		`"src/pages/index.html":"<Layout src=\"main.html\" title=\"Home\"><Foreach posts=\"post\"><Card :title=\"post.title\" /></Foreach></Layout>",` +
-		`"src/components/layouts/main.html":"<title>{{ title }}</title><Slot />",` +
-		`"src/components/card.html":"<Props title /><h2>{{ title }}</h2>"` +
+		`"src/components/layouts/main.html":"<title>{title}</title><Slot />",` +
+		`"src/components/card.html":"<Props title /><h2>{title}</h2>"` +
 		`},"data":{"posts":[{"title":"One"},{"title":"Two"}]}}`
 	stdout, stderr, code := runCLI(t, input, "compile")
 	if code != 0 {
@@ -368,7 +368,7 @@ func TestLintHTMLSyntax(t *testing.T) {
 	dir := t.TempDir()
 	writeSite(t, dir, map[string]string{
 		"src/pages/index.html":              "<SectionsHero heading=\"Hi\" subtitle=\"typo\" />\n<If condition=\"titel\">x</If>\n<Foreach posts>y</Foreach>",
-		"src/components/sections/hero.html": "<Props heading=\"Default\" />\n<h1>{{ heading }}</h1>",
+		"src/components/sections/hero.html": "<Props heading=\"Default\" />\n<h1>{heading}</h1>",
 	})
 	stdout, stderr, code := runCLI(t, "", "lint", dir)
 	if code != 1 {
@@ -612,6 +612,25 @@ func TestLintASrcSiteIsSilent(t *testing.T) {
 	}
 }
 
+// TestLintTellsDoubleBracesAndNearMisses: a view still written with {{ x }}
+// gets one notice on stderr naming the file and devdojo migrate, and a single
+// brace around a function call is a warning on stdout. Neither fails lint.
+func TestLintTellsDoubleBracesAndNearMisses(t *testing.T) {
+	dir := tempSite(t, map[string]string{
+		"src/pages/index.html": "<h1>{{ title ?? 'Hi' }} {{ title ?? 'Ho' }}</h1>\n<a href=\"{route('home')}\">x</a>\n",
+	})
+	stdout, stderr, code := runCLI(t, "", "lint", dir)
+	if code != 0 {
+		t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout, stderr)
+	}
+	if !strings.Contains(stderr, "src/pages/index.html writes 2 values in double braces") || !strings.Contains(stderr, "devdojo migrate") || strings.Count(stderr, "\n") != 1 {
+		t.Errorf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stdout, "src/pages/index.html:2:10 [warning]") || !strings.Contains(stdout, "prints as text") {
+		t.Errorf("stdout = %q", stdout)
+	}
+}
+
 // TestMigrateOnDisk: `migrate <dir>` moves a site into the flat src/ shape in
 // place, rewrites the stylesheet entry, leaves everything else alone, and the
 // site then lints with nothing left to say.
@@ -756,7 +775,7 @@ func TestUsageNamesMigrate(t *testing.T) {
 // truly missing still does not.
 func TestLintBindsEntriesInADynamicPage(t *testing.T) {
 	files := map[string]string{
-		"src/pages/blog/[posts.slug].html":     "<h1>{{ posts.title }}</h1>\n<Foreach entries=\"post\">\n<a href=\"/blog/{{ post.slug }}\">{{ post.title }}</a>\n</Foreach>\n",
+		"src/pages/blog/[posts.slug].html":     "<h1>{posts.title}</h1>\n<Foreach entries=\"post\">\n<a href=\"/blog/{post.slug}\">{post.title}</a>\n</Foreach>\n",
 		"src/pages/news/[news.slug].blade.php": "<h1>{{ $news->title }}</h1>\n@foreach ($entries as $item)\n{{ $item->title }}\n@endforeach\n",
 		"src/data/collections/posts.json":      `[{"slug": "a", "title": "A"}, {"slug": "b", "title": "B"}]`,
 		"src/data/collections/news.json":       `[{"slug": "n", "title": "N"}]`,
@@ -767,7 +786,7 @@ func TestLintBindsEntriesInADynamicPage(t *testing.T) {
 		t.Errorf("exit %d, stdout %q, stderr %q; want a silent 0", code, stdout, stderr)
 	}
 
-	writeSite(t, dir, map[string]string{"src/pages/blog/[posts.slug].html": "<h1>{{ posts.title }}{{ nope }}</h1>\n"})
+	writeSite(t, dir, map[string]string{"src/pages/blog/[posts.slug].html": "<h1>{posts.title}{nope}</h1>\n"})
 	stdout, _, code = runCLI(t, "", "lint", dir)
 	if code != 1 || !strings.Contains(stdout, "nope") {
 		t.Errorf("a missing name in a dynamic page: exit %d, stdout %q", code, stdout)

@@ -39,7 +39,7 @@ func TestRunConvert(t *testing.T) {
 	if want := "<Card :title=\"name\" />\n"; got.Files["src/pages/index.html"] != want {
 		t.Errorf("page = %q; want %q", got.Files["src/pages/index.html"], want)
 	}
-	if want := "<Props title=\"T\" />\n<h1>{{ title }}</h1>\n"; got.Files["src/components/card.html"] != want {
+	if want := "<Props title=\"T\" />\n<h1>{title}</h1>\n"; got.Files["src/components/card.html"] != want {
 		t.Errorf("component = %q; want %q", got.Files["src/components/card.html"], want)
 	}
 	if len(got.Files) != 2 {

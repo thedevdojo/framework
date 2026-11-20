@@ -1,10 +1,10 @@
 <Props heading="Features" items />
 <section class="mx-auto max-w-2xl pb-16">
-    <h2 class="text-2xl font-semibold">{{ heading }}</h2>
+    <h2 class="text-2xl font-semibold">{heading}</h2>
     <ol class="mt-6 space-y-3">
 <If items>
 <Foreach items="item">
-        <li><strong>{{ item.name }}</strong> — {{ item.blurb }} <em>({{ loop.iteration }} of {{ loop.count }})</em></li>
+        <li><strong>{item.name}</strong> — {item.blurb} <em>({loop.iteration} of {loop.count})</em></li>
 </Foreach>
 <Else>
         <li>No features yet.</li>

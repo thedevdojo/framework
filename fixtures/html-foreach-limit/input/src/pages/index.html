@@ -1,16 +1,16 @@
 <Foreach posts="post" limit="2">
-{{ loop.iteration }}/{{ loop.count }} {{ post.title }}
+{loop.iteration}/{loop.count} {post.title}
 <If loop.last>
 (last)
 </If>
 </Foreach>
 --
 <Foreach collection="posts" as="p" count="1">
-{{ p.title }}
+{p.title}
 </Foreach>
 --
 <Foreach posts="post" limit="max">
-{{ post.title }}
+{post.title}
 </Foreach>
 --
 <Foreach posts="post" limit="0">
@@ -18,5 +18,5 @@ never
 </Foreach>
 --
 <Foreach posts="i, post" limit="9">
-{{ i }}={{ post.title }}
+{i}={post.title}
 </Foreach>

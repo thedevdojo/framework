@@ -29,21 +29,22 @@ func printHTML(path string, src []byte, toks []scanner.Token, exists func(string
 		switch tok.Kind {
 		case scanner.Text:
 			// Literal defuses whatever the HTML scanner would take for its
-			// own — a capitalized tag, an HTML comment left open — and tracks
-			// whether the text has walked into a <script> or <style>.
-			lit, raw := htmlscan.Literal(tok.Text, p.raw)
-			p.out.write(lit)
-			p.raw = raw
+			// own — a brace that would open a value, a capitalized tag, an
+			// HTML comment left open — and follows where the text stands:
+			// inside a tag, an attribute, a <script> or a <style>.
+			p.out.write(htmlscan.Literal(tok.Text, &p.ctx))
+			continue
 		case scanner.Echo:
 			if tok.Text == "$slot" {
 				p.out.write("<Slot />")
-				continue
+				break
 			}
-			p.brace("{{ " + htmlscan.Friendly(tok.Text) + " }}")
+			p.echo(htmlscan.Friendly(tok.Text))
 		case scanner.RawEcho:
 			p.brace("{!! " + htmlscan.Friendly(tok.Text) + " !!}")
 		case scanner.Comment:
 			p.brace(p.off.commentSource(tok.Pos))
+			continue // a comment prints nothing, so where the page stands is unchanged
 		case scanner.Directive:
 			if tok.Name == "foreach" {
 				limit, skip := "", 0
@@ -52,7 +53,7 @@ func printHTML(path string, src []byte, toks []scanner.Token, exists func(string
 				}
 				p.foreach(tok, limit)
 				i += skip
-				continue
+				break
 			}
 			p.directive(tok)
 		case scanner.TagOpen:
@@ -65,6 +66,7 @@ func printHTML(path string, src []byte, toks []scanner.Token, exists func(string
 		case scanner.SlotClose:
 			p.out.write("</Slot>")
 		}
+		p.ctx.Construct()
 	}
 	return p.out.String(), p.problems
 }
@@ -75,7 +77,7 @@ type htmlPrinter struct {
 	exists   func(string) bool
 	tidy     bool // take out the escapes only Blade needed
 	out      buffer
-	raw      string // the <script> or <style> the output is inside, if any
+	ctx      htmlscan.Context // where the output stands, as the HTML scanner reads it
 	problems []render.Diagnostic
 }
 
@@ -83,12 +85,52 @@ func (p *htmlPrinter) problem(pos scanner.Pos, msg string) {
 	p.problems = append(p.problems, problem(p.path, pos.Line, pos.Col, msg))
 }
 
-// brace writes a construct that opens with a brace. Text ending in '{' or '@'
-// would fuse with it ("@{{" is the escape, "{{{" opens one brace early), so
-// such a last byte is reprinted through a hatch first.
+// brace writes a construct that opens with two braces, or {!!. Text ending in
+// '{' or '@' would fuse with it ("@{{" is the escape, "{{{" opens one brace
+// early), and so would a backslash where a brace is read ("\{" is a brace),
+// so such bytes are reprinted through hatches first.
 func (p *htmlPrinter) brace(s string) {
-	p.out.hatchLast("{@")
+	if p.ctx.Reads() {
+		p.fence("{@\\")
+	} else {
+		p.fence("{@")
+	}
 	p.out.write(s)
+}
+
+// echo writes a value: {post.title} where a single brace is read and the
+// expression can be written in one, {{ post.title }} anywhere else.
+func (p *htmlPrinter) echo(friendly string) {
+	if p.ctx.Reads() && htmlscan.SingleEcho(friendly) {
+		p.fence("{\\")
+		p.out.write("{" + friendly + "}")
+		return
+	}
+	p.brace("{{ " + friendly + " }}")
+}
+
+// fence reprints the bytes of text at the end of the output that are in set,
+// so they cannot fuse with the brace written next: through hatches, except
+// that where a brace is read a '{' is written \{. There a '{' after a
+// backslash is already that escape, and stands as it is.
+func (p *htmlPrinter) fence(set string) {
+	b := p.out.b
+	n := len(b)
+	for n > 0 && strings.IndexByte(set, b[n-1]) >= 0 {
+		if b[n-1] == '{' && n > 1 && b[n-2] == '\\' && p.ctx.Reads() {
+			break
+		}
+		n--
+	}
+	tail := string(b[n:])
+	p.out.b = b[:n]
+	for i := 0; i < len(tail); i++ {
+		if tail[i] == '{' && p.ctx.Reads() {
+			p.out.write(`\{`) // a brace that is text, the way an author writes one
+			continue
+		}
+		p.out.write(htmlscan.Hatch(tail[i]))
+	}
 }
 
 // engineDirectives are the directives this engine renders itself. Every other
@@ -212,7 +254,13 @@ func (p *htmlPrinter) directive(tok scanner.Token) {
 	case "vite":
 		p.vite(tok)
 	case "class", "style":
-		p.brace("{{ " + tok.Name + "(" + htmlscan.Friendly(tok.Text) + ") }}")
+		call := tok.Name + "(" + htmlscan.Friendly(tok.Text) + ")"
+		if p.ctx.Reads() && htmlscan.SingleBrace(call) {
+			p.fence("{\\")
+			p.out.write("{" + call + "}")
+			return
+		}
+		p.brace("{{ " + call + " }}")
 	}
 }
 
@@ -395,7 +443,7 @@ func (p *htmlPrinter) form(name string) (tagForm, bool) {
 	if rest, ok := strings.CutPrefix(path, "layouts/"); ok && isSrc(rest) {
 		return tagForm{open: `Layout src="` + rest + `.html"`, close: "Layout"}, true
 	}
-	if p.raw == "" {
+	if p.ctx.Elem() == "" {
 		for _, tag := range []string{pascal(path, ""), pascal(path, ".")} {
 			if tag != "" && htmlscan.IsComponentTag(tag) && resolve(htmlscan.Candidates(tag), p.exists) == name {
 				return tagForm{open: tag, close: tag}, true
@@ -458,11 +506,13 @@ func (p *htmlPrinter) tagOpen(tok scanner.Token) {
 	if !lexed || len(raw.attrs) != len(tok.Attrs) {
 		for _, a := range tok.Attrs {
 			if a.Bound {
-				if joined, ok := interpolated(a.Value); ok {
+				if joined, ok := interpolated(a.Name, a.Value); ok {
 					a.Value, a.Bound = joined, false
 				} else {
 					a.Value = htmlscan.Friendly(a.Value)
 				}
+			} else if !a.Valueless {
+				a.Value = staticValue(a.Name, a.Value)
 			}
 			text, fits := plainAttr(a)
 			if !fits {
@@ -478,10 +528,13 @@ func (p *htmlPrinter) tagOpen(tok scanner.Token) {
 		ra := raw.attrs[i]
 		p.out.write(ra.lead)
 		if !a.Bound {
+			if ra.eq {
+				ra.value = staticValue(a.Name, ra.value)
+			}
 			p.out.write(ra.static())
 			continue
 		}
-		if text, ok := interpolated(a.Value); ok {
+		if text, ok := interpolated(a.Name, a.Value); ok {
 			if q, fits := pickQuote(text, ra.quote); fits {
 				p.out.write(a.Name + "=" + string(q) + text + string(q))
 				continue
@@ -501,46 +554,73 @@ func (p *htmlPrinter) tagOpen(tok scanner.Token) {
 	p.out.write(raw.tail + end)
 }
 
+// staticValue writes the text value of a component attribute named name so
+// that the HTML scanner reads it back as that text: in an attribute that holds
+// no code, a brace that would open a value becomes \{.
+func staticValue(name, value string) string {
+	if htmlscan.IsCodeAttr(name) {
+		return value
+	}
+	return htmlscan.EscapeBraces(value)
+}
+
 // interpolated writes a bound attribute's joined text the way an .html author
 // would, with the values dropped into the text:
 //
-//	'Hi ' . $name . '!'   →   Hi {{ name }}!
-//	'' . $id              →   {{ id }}
+//	'Hi ' . $name . '!'   →   Hi {name}!
+//	'' . $id              →   {id}
 //
-// Only an expression that joins at least one piece of plain text qualifies, and
-// only when the HTML scanner reads the result back as the very expression it
-// came from — so 'Hi '.$name (unspaced), $a . $b (no text) and a text holding
-// {{ all stay as they are, bound.
-func interpolated(expr string) (string, bool) {
+// In an attribute that holds code a value is written {{ id }}, the only way a
+// brace is read there. Only an expression that joins at least one piece of
+// plain text qualifies, and only when the HTML scanner reads the result back
+// as the very expression it came from — so 'Hi '.$name (unspaced) and $a . $b
+// (no text) stay as they are, bound.
+func interpolated(name, expr string) (string, bool) {
 	operands := joinOperands(expr)
 	if len(operands) < 2 {
 		return "", false
 	}
-	var b strings.Builder
-	texts := 0
-	for _, op := range operands {
-		if op != "" && op[0] == '\'' {
-			text, ok := stringLiteral(op)
-			if !ok {
-				return "", false
+	code := htmlscan.IsCodeAttr(name)
+	write := func(single bool) (string, bool) {
+		var b strings.Builder
+		texts := 0
+		for _, op := range operands {
+			if op != "" && op[0] == '\'' {
+				text, ok := stringLiteral(op)
+				if !ok {
+					return "", false
+				}
+				texts++
+				if !code {
+					text = htmlscan.EscapeBraces(text)
+				}
+				b.WriteString(text)
+				continue
 			}
-			texts++
-			b.WriteString(text)
-			continue
+			if len(op) > 1 && op[0] == '(' && closes(op) {
+				op = op[1 : len(op)-1]
+			}
+			if f := htmlscan.Friendly(op); single && htmlscan.SingleEcho(f) {
+				b.WriteString("{" + f + "}")
+			} else {
+				b.WriteString("{{ " + f + " }}")
+			}
 		}
-		if len(op) > 1 && op[0] == '(' && closes(op) {
-			op = op[1 : len(op)-1]
+		if texts == 0 {
+			return "", false
 		}
-		b.WriteString("{{ " + htmlscan.Friendly(op) + " }}")
+		text := b.String()
+		if back, ok := htmlscan.Interpolate(name, text); !ok || back != expr {
+			return "", false
+		}
+		return text, true
 	}
-	if texts == 0 {
-		return "", false
+	if !code {
+		if text, ok := write(true); ok {
+			return text, true
+		}
 	}
-	text := b.String()
-	if back, ok := htmlscan.Interpolate(text); !ok || back != expr {
-		return "", false
-	}
-	return text, true
+	return write(false)
 }
 
 // joinOperands splits an expression at each " . " that stands outside a string

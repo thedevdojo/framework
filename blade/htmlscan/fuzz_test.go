@@ -15,7 +15,9 @@ var templateTag = regexp.MustCompile(`</?[A-Z]|(?i)</?(layout|include)`)
 
 // FuzzScan holds the HTML scanner to its three promises on any input: it never
 // panics, its tokens never run backwards, and a file with nothing of the
-// template's in it comes back as the exact bytes that went in.
+// template's in it comes back as the exact bytes that went in. Read the way
+// it was before single braces (Options.Legacy), only {{, {!! and a template
+// tag are the template's; read today, any brace may be.
 func FuzzScan(f *testing.F) {
 	seeds := []string{
 		`{{ post.title }}`,
@@ -27,6 +29,8 @@ func FuzzScan(f *testing.F) {
 		`<include src="button.html"></include>`,
 		`<Props heading="Hello" items :count="3" /><Vite src="a.css, b.js" />`,
 		`<SectionsHero badge="Hi {{ name }}" :items="posts" />`,
+		`<h2>{title}</h2><a href="{link.url}" class="btn-{variant}" x-data="{ open: false }">\\{x}</a>`,
+		`<Button label="Hi {name} \\{x}" x-text="{a}" />{!open}{ open: false }{}`,
 		`<Sections.Hero><Slot /></Sections.Hero>`,
 		`<Button>Text Here</Button>`,
 		`<script>if (a<B && c>d) { x = "<If>" }</script>`,
@@ -44,6 +48,7 @@ func FuzzScan(f *testing.F) {
 	}
 	f.Fuzz(func(t *testing.T, src string) {
 		toks := Scan("page.html", []byte(src)) // must not panic
+		legacy, _ := ScanWith("page.html", []byte(src), Options{Legacy: true})
 
 		last := scanner.Pos{Line: 1, Col: 1}
 		for _, tk := range toks {
@@ -60,33 +65,55 @@ func FuzzScan(f *testing.F) {
 		if strings.Contains(src, "{{") || strings.Contains(src, "{!!") || templateTag.MatchString(src) {
 			return
 		}
-		var out strings.Builder
-		for _, tk := range toks {
-			if tk.Kind != scanner.Text {
-				t.Fatalf("plain HTML produced a %v token (%q) from %q", tk.Kind, tk.Name, src)
+		plain := func(toks []scanner.Token, how string) {
+			var out strings.Builder
+			for _, tk := range toks {
+				if tk.Kind != scanner.Text {
+					t.Fatalf("plain HTML produced a %v token (%q) from %q, %s", tk.Kind, tk.Name, src, how)
+				}
+				out.WriteString(tk.Text)
 			}
-			out.WriteString(tk.Text)
+			if out.String() != src {
+				t.Fatalf("plain HTML changed, %s:\n in  %q\n out %q", how, src, out.String())
+			}
 		}
-		if out.String() != src {
-			t.Fatalf("plain HTML changed:\n in  %q\n out %q", src, out.String())
+		plain(legacy, "read the old way")
+		if !strings.Contains(src, "{") {
+			plain(toks, "read today")
 		}
 	})
 }
 
-// FuzzExpr: rewriting a friendly expression never panics, and an expression
-// already written the Blade way is left exactly as it was.
-func FuzzExpr(f *testing.F) {
+// FuzzLiteral: any text written through Literal scans back as exactly that
+// text. (The converter hands Literal each run of text whole, so the fuzz does
+// too: a context is set up by what the text itself starts with.)
+func FuzzLiteral(f *testing.F) {
 	for _, seed := range []string{
-		`post.title`, `name = 'Tony'`, `a and not b or c`, `$post->title`, `count > 2`,
-		`attributes.merge(['class' => 'btn'])`, `"a.b" . c`, `1.5 + x.y`, `a === b`, `a !== b`,
-		`'`, `"`, `a.`, `.a`, `((`, `x ?? 'y'`, ``,
+		`{title} \\{x} {{ x }} @{{ y }} {!! z !!} {{-- c --}} { open: false }`,
+		`<a title="{x}" x-text="{y}">{z}<script>{a}</script>{b}<!-- {c} -->{d}`,
+		`<script>{x}</script>{y}`,
+		`<Button>{!x}</Button><If a>\\`,
+		`<a {class(['a'])} onclick={x} title={y}>`,
 	} {
 		f.Add(seed)
 	}
-	f.Fuzz(func(t *testing.T, src string) {
-		once := Expr(src) // must not panic
-		if twice := Expr(once); twice != once {
-			t.Fatalf("Expr is not stable:\n src   %q\n once  %q\n twice %q", src, once, twice)
+	f.Fuzz(func(t *testing.T, text string) {
+		var ctx Context
+		got := Literal(text, &ctx)
+		var printed strings.Builder
+		for _, tok := range Scan("x.html", []byte(got)) {
+			switch tok.Kind {
+			case scanner.Text:
+				printed.WriteString(tok.Text)
+			case scanner.RawEcho:
+				s := strings.TrimSuffix(strings.TrimPrefix(tok.Text, "'"), "'")
+				printed.WriteString(strings.TrimPrefix(s, `\`))
+			default:
+				t.Fatalf("Literal(%q) = %q scans to a %v token", text, got, tok.Kind)
+			}
+		}
+		if printed.String() != text {
+			t.Fatalf("Literal(%q) = %q prints %q", text, got, printed.String())
 		}
 	})
 }

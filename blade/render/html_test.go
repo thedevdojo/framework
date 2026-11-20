@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/thedevdojo/framework/site"
 	"github.com/thedevdojo/framework/vfs"
 )
 
@@ -625,5 +626,42 @@ func TestHTMLBarePropIsOptional(t *testing.T) {
 	requireClean(t, diags)
 	if want := `<b>A</b> [New]New|<b>B</b>none`; out != want {
 		t.Errorf("output = %q; want %q", out, want)
+	}
+}
+
+// TestSingleBracesRender: {value} prints in an .html view; {{ value }} still
+// does, with one notice per file saying migrate rewrites it; OldBraces reads a
+// file the way it was read before single braces.
+func TestSingleBracesRender(t *testing.T) {
+	fs := vfs.Mem{
+		"src/pages/index.html":     "<h1>{site.name}</h1><p>{{ site.name }} {{ site.name }} \\{x} { open: false }</p><Card title=\"Hi {site.name}\" />",
+		"src/components/card.html": "<Props title=\"\" /><b>{{ title }}</b>",
+		"src/data/site.json":       `{"name": "Acme"}`,
+	}
+	res := Compile(fs, []string{"src/pages/index.html"}, Options{})
+	if len(res.Diagnostics) > 0 {
+		t.Fatalf("diagnostics: %+v", res.Diagnostics)
+	}
+	if got, want := res.Files["index.html"], "<h1>Acme</h1><p>Acme Acme {x} { open: false }</p><b>Hi Acme</b>"; got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+	var files []string
+	for _, n := range res.Notices {
+		if n.Code != site.CodeDoubleBraces {
+			t.Errorf("unexpected notice %+v", n)
+			continue
+		}
+		files = append(files, n.File)
+	}
+	if strings.Join(files, " ") != "src/pages/index.html src/components/card.html" {
+		t.Errorf("double-brace notices for %v", files)
+	}
+
+	old := Compile(fs, []string{"src/pages/index.html"}, Options{OldBraces: func(string) bool { return true }})
+	if got, want := old.Files["index.html"], "<h1>{site.name}</h1><p>Acme Acme \\{x} { open: false }</p><b>Hi {site.name}</b>"; got != want {
+		t.Errorf("read the old way:\n got  %q\n want %q", got, want)
+	}
+	if len(old.Notices) > 0 {
+		t.Errorf("a file read the old way is not told about the new one: %+v", old.Notices)
 	}
 }

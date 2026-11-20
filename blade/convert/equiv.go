@@ -173,13 +173,16 @@ func normalize(toks []scanner.Token, html, foldUnknown bool, exists func(string)
 	return out
 }
 
-// hatched recognizes a hatch's expression — one of the three characters that
+// hatched recognizes a hatch's expression — one of the four characters that
 // ever need one, as a single-quoted string — and returns the character. Only
-// these three: text and a raw echo are the same thing on the page unless a
+// these four: text and a raw echo are the same thing on the page unless a
 // line break is involved, which a tag before it would swallow.
 func hatched(expr string) (byte, bool) {
 	if len(expr) == 3 && expr[0] == '\'' && expr[2] == '\'' && strings.IndexByte("@{<", expr[1]) >= 0 {
 		return expr[1], true
+	}
+	if expr == `'\\'` {
+		return '\\', true
 	}
 	return 0, false
 }

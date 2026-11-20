@@ -63,6 +63,8 @@ type renderCtx struct {
 	loopCap  int
 	loopUsed int
 	exceeded bool
+	// oldBraces is Options.OldBraces.
+	oldBraces func(string) bool
 }
 
 // vfsReader is the slice of vfs.FS the renderer needs (only Read). Declared here
@@ -206,7 +208,10 @@ func (r *renderer) parseFile(path string, src []byte) ([]ast.Node, []parser.Diag
 			return nodes, nil
 		}
 	}
-	tokens := scanSource(path, src)
+	tokens, info := scanSource(path, src, r.ctx.oldBraces)
+	if r.ctx.notices != nil {
+		*r.ctx.notices = append(*r.ctx.notices, braceNotices(path, info)...)
+	}
 	nodes, diags := parser.Parse(path, tokens)
 	if r.ctx.cache != nil {
 		r.ctx.cache[path] = nodes

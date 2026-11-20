@@ -76,6 +76,10 @@ type Options struct {
 	// error/render-budget diagnostic (output truncated at the budget). Zero or
 	// negative means DefaultMaxLoopIterations; there is no unlimited setting.
 	MaxLoopIterations int
+	// OldBraces, when set, names the .html views to read the way the engine
+	// read them before single braces, where {title} was text. Only devdojo
+	// migrate needs it, to render a site as it printed before it is rewritten.
+	OldBraces func(path string) bool `json:"-"`
 }
 
 // Result is the output of a Compile: rendered files by output name, the source
@@ -187,7 +191,8 @@ func CompileVariants(fs vfs.FS, variants []Variant, opts Options) Result {
 			res.Diagnostics = append(res.Diagnostics, entryMissingDiagnostic(entry))
 			continue
 		}
-		tokens := scanSource(entry, src)
+		tokens, info := scanSource(entry, src, opts.OldBraces)
+		notices = append(notices, braceNotices(entry, info)...)
 		nodes, pdiags := parser.Parse(entry, tokens)
 		res.Diagnostics = append(res.Diagnostics, foldParseDiags(pdiags)...)
 		// deps is per-output: it starts with the entry and gains every component
@@ -197,7 +202,7 @@ func CompileVariants(fs vfs.FS, variants []Variant, opts Options) Result {
 		deps.add(entry)
 		// The loop budget is per entry: each output gets the full allowance, so
 		// one pathological page cannot starve its siblings.
-		ctx := &renderCtx{fs: fs, deps: deps, cache: parseCache, site: data.site, shared: data.shared, layout: layout, notices: &notices, loopCap: loopCap}
+		ctx := &renderCtx{fs: fs, deps: deps, cache: parseCache, site: data.site, shared: data.shared, layout: layout, notices: &notices, loopCap: loopCap, oldBraces: opts.OldBraces}
 		r := &renderer{scope: dataScope(variantBindings(data.bindings, v.Data)), ctx: ctx}
 		r.renderNodes(nodes, false)
 		// Real Blade returns ltrim(ob_get_clean()) for every rendered view

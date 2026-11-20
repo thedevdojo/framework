@@ -58,9 +58,21 @@ func (a *analyzer) parse(path string, src []byte) []ast.Node {
 	if nodes, ok := a.cache[path]; ok {
 		return nodes
 	}
-	tokens := scanSource(path, src)
+	tokens, info := scanSource(path, src, nil)
 	nodes, _ := parser.Parse(path, tokens)
 	a.cache[path] = nodes
+	// A single brace around what looks like a value the engine cannot read
+	// ({route('home')}) is text, as it must be in a file that holds CSS and
+	// JavaScript; say so, since the author most likely meant a value.
+	for _, p := range info.NearMisses {
+		a.warnings = append(a.warnings, Diagnostic{
+			File:    p.File,
+			Line:    p.Line,
+			Col:     p.Col,
+			Kind:    KindWarning,
+			Message: "this brace prints as text: what is inside is not a value the HTML syntax can read (no function calls). Write \\{ if the brace is meant as text",
+		})
+	}
 	return nodes
 }
 

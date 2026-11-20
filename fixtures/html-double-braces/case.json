@@ -1,0 +1,10 @@
+{
+  "entries": [
+    "src/pages/index.html"
+  ],
+  "data": {
+    "name": "Ada & Bob",
+    "size": 4
+  },
+  "oracle": false
+}

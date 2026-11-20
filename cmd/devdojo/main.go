@@ -95,7 +95,7 @@ Commands:
 
 A file is read in the syntax its extension names:
   .blade.php     Blade            @if, {{ $post->title }}, <x-sections.hero />
-  .html          HTML             <If>, {{ post.title }}, <SectionsHero />`)
+  .html          HTML             <If>, {post.title}, <SectionsHero />`)
 }
 
 // cmdCompile speaks the protocol over stdin/stdout. Per the protocol

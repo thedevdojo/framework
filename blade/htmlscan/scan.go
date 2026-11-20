@@ -1,7 +1,7 @@
-// Package htmlscan is the scanner for the DevDojo Studio syntax — DevDojo Framework's
+// Package htmlscan is the scanner for the HTML syntax: DevDojo Framework's
 // second spelling of the template language, used by .html files.
 //
-// The Studio syntax is Blade written as tags. A capitalized tag is either one of
+// The HTML syntax is Blade written as tags. A capitalized tag is either one of
 // the built-in tags (<If>, <Foreach>, <Layout>, <Include>, <Slot>, <Props>, …)
 // or a component (<Button>, <SectionsHero>); expressions drop the PHP sigils
 // (post.title instead of $post->title). Nothing else changes: this package
@@ -12,7 +12,12 @@
 //
 // What is the template's in an .html file:
 //
-//   - {{ expr }}, {!! expr !!}, {{-- comment --}}, and the @{{ escape
+//   - {expr}, a value in single braces, and \{ for a brace that is text,
+//     wherever a brace is read (see Context): text and the values of
+//     attributes that do not hold code. Only an inside that parses as an
+//     expression counts; { open: false } and {} stay text.
+//   - {{ expr }} (still read, with a notice that devdojo migrate rewrites
+//     it), {!! expr !!}, {{-- comment --}}, and the old @{{ escape
 //   - a tag whose name starts with a capital letter (a real HTML element
 //     shouted in ALL CAPS, <BR> or <TABLE>, is still HTML)
 //   - <layout> and <include> in lowercase, the DevDojo Static spellings
@@ -21,46 +26,87 @@
 // @click, a CSS @media, an email address. There are no @directives. An HTML
 // comment is opaque too, so commenting a block out really switches it off.
 // Inside <script> and <style> a capitalized tag is treated as code rather than
-// a component (a<B>c), though the built-in tags and the brace forms still work.
+// a component (a<B>c), and a single brace is the code's own, though the
+// built-in tags and the double-brace forms still work.
 //
 // Like the Blade scanner it never panics and never returns an error: a tag it
 // cannot read degrades to text, and a tag it can read but that is missing
 // something it needs becomes a scanner.Error token carrying the message.
-// Positions are 1-based line and column in bytes. Only the Go standard library
-// is imported.
+// Positions are 1-based line and column in bytes.
 package htmlscan
 
 import (
 	"bytes"
 	"strings"
 
+	"github.com/thedevdojo/framework/blade/expr"
 	"github.com/thedevdojo/framework/blade/scanner"
 )
 
 // Scan tokenizes src in a single forward pass.
 func Scan(file string, src []byte) []scanner.Token {
-	s := &state{file: file, src: src, line: 1, col: 1, open: map[string][]string{}}
+	toks, _ := ScanWith(file, src, Options{})
+	return toks
+}
+
+// Options change how ScanWith reads a file.
+type Options struct {
+	// Legacy reads the file the way the engine did before single braces:
+	// {title} and \{ are text everywhere. devdojo migrate needs it to know
+	// what an older site printed.
+	Legacy bool
+}
+
+// Info is what a scan learns about a file beside its tokens.
+type Info struct {
+	// DoubleBraces are the {{ … }} values, and the @{{ … }} escapes, written
+	// where a single brace would do: in text and in an attribute that holds
+	// no code. They still work; `devdojo migrate` rewrites them. Each is the
+	// position of its first brace, or of the component attribute holding it.
+	DoubleBraces []scanner.Pos
+	// NearMisses are single braces where a brace is read whose inside reads
+	// as an attempt at a value the engine cannot compute: a function or
+	// method call ({now()}, {post.url()}). They print as text, as written,
+	// and lint says so.
+	NearMisses []scanner.Pos
+}
+
+// ScanWith tokenizes src as Scan does, with options, and says what it learned.
+func ScanWith(file string, src []byte, opts Options) ([]scanner.Token, Info) {
+	s := &state{file: file, src: src, line: 1, col: 1, open: map[string][]string{}, legacy: opts.Legacy}
 	for !s.eof() {
-		switch {
-		case s.has("@{{"):
-			s.escapeBraces()
-		case s.has("{{--"):
-			s.comment()
-		case s.has("{!!"):
-			s.echo("{!!", "!!}", scanner.RawEcho)
-		case s.has("{{"):
-			s.echo("{{", "}}", scanner.Echo)
-		case s.raw == "" && s.has("<!--"):
-			s.htmlComment()
-		case s.has("</"):
-			s.closeTag()
-		case s.src[s.pos] == '<':
-			s.openTag()
-		default:
-			s.text()
-		}
+		s.step()
 	}
-	return s.tokens
+	return s.tokens, s.info
+}
+
+// step reads one construct, or one run of text, at the cursor.
+func (s *state) step() {
+	switch {
+	case s.has("@{{"):
+		s.escapeBraces()
+	case s.has("{{--"):
+		s.comment()
+	case s.has("{!!"):
+		s.echo("{!!", "!!}", scanner.RawEcho)
+	case s.has("{{"):
+		s.echo("{{", "}}", scanner.Echo)
+	case !s.legacy && s.has(`\{`) && s.ctx.Reads():
+		// \{ is a brace and nothing more.
+		pos := s.curPos()
+		s.adv()
+		s.adv()
+		s.emitText(pos, "{")
+	case !s.legacy && s.src[s.pos] == '{' && s.ctx.Reads() && s.single():
+	case s.ctx.elem == "" && s.has("<!--"):
+		s.htmlComment()
+	case s.has("</"):
+		s.closeTag()
+	case s.src[s.pos] == '<':
+		s.openTag()
+	default:
+		s.text()
+	}
 }
 
 type state struct {
@@ -70,15 +116,33 @@ type state struct {
 	line   int
 	col    int
 	tokens []scanner.Token
-	// raw is "script" or "style" while the cursor is inside that element, where
-	// a capitalized tag is code rather than a component.
-	raw string
+	// ctx is where the cursor stands as a browser reads the page, which says
+	// whether a single brace is the template's. Its Elem is the <script> or
+	// <style> the cursor is inside, where a capitalized tag is code rather
+	// than a component.
+	ctx Context
 	// open tracks, per paired built-in tag, what each still-open tag resolved
 	// to, innermost last. A closing tag pops its entry: a <Layout> learns the
 	// component name its opener resolved from src, and "" marks an opener that
 	// was refused with an Error token, whose closer is then swallowed so the
 	// mistake is reported once.
 	open map[string][]string
+	// legacy reads no single braces (Options.Legacy).
+	legacy bool
+	info   Info
+	// brace caches the offset of the next '{' or '}' after the cursor (or
+	// len(src) for none), so finding where a single brace closes costs one
+	// pass over the file however many braces it holds.
+	brace int
+	// spans are the attributes of the tag lexAttrs read last, as written.
+	spans []attrSpan
+}
+
+// attrSpan is where one attribute's name and value sit in src.
+type attrSpan struct {
+	name       string // as written, with any ':' or '::'
+	hasValue   bool
+	start, end int // the value, between its quotes
 }
 
 func (s *state) eof() bool { return s.pos >= len(s.src) }
@@ -130,13 +194,21 @@ func (s *state) skipSpaces() {
 	}
 }
 
-func (s *state) emit(tok scanner.Token) { s.tokens = append(s.tokens, tok) }
+// emit appends a token. A construct of the template's own moves the context
+// past it as one byte; a comment prints nothing and does not.
+func (s *state) emit(tok scanner.Token) {
+	if tok.Kind != scanner.Text && tok.Kind != scanner.Comment {
+		s.ctx.Construct()
+	}
+	s.tokens = append(s.tokens, tok)
+}
 
 // emitText appends text at pos, coalescing with a preceding Text token.
 func (s *state) emitText(pos scanner.Pos, text string) {
 	if text == "" {
 		return
 	}
+	s.ctx.Feed(text)
 	if n := len(s.tokens); n > 0 && s.tokens[n-1].Kind == scanner.Text {
 		s.tokens[n-1].Text += text
 		return
@@ -184,7 +256,7 @@ func (s *state) text() {
 	s.adv()
 	for !s.eof() {
 		switch s.src[s.pos] {
-		case '{', '<', '@':
+		case '{', '<', '@', '\\':
 			s.emitText(pos, string(s.src[start:s.pos]))
 			return
 		}
@@ -202,6 +274,9 @@ func (s *state) escapeBraces() {
 	if end < 0 {
 		s.emitDelim(pos, 1)
 		return
+	}
+	if !s.legacy && s.ctx.Reads() {
+		s.info.DoubleBraces = append(s.info.DoubleBraces, pos)
 	}
 	stop := s.pos + 3 + end + 2
 	text := string(s.src[s.pos+1 : stop])
@@ -232,6 +307,9 @@ func (s *state) echo(open, close string, kind scanner.Kind) {
 	}
 	innerStart := s.pos + len(open)
 	inner := strings.TrimSpace(string(s.src[innerStart : innerStart+rel]))
+	if kind == scanner.Echo && !s.legacy && s.ctx.Reads() && SingleBrace(inner) {
+		s.info.DoubleBraces = append(s.info.DoubleBraces, pos)
+	}
 	s.advanceTo(innerStart + rel + len(close))
 	if kind == scanner.Echo {
 		// {{ class([...]) }} and {{ style([...]) }} are Blade's @class and
@@ -330,8 +408,8 @@ func (s *state) openTag() {
 	class, lower := classify(name)
 	switch class {
 	case tagRawText:
-		if s.raw == "" {
-			s.raw = lower
+		if s.ctx.elem == "" {
+			s.ctx.elem = lower
 		}
 		s.literalLt(pos, p, l, c)
 		return
@@ -339,7 +417,7 @@ func (s *state) openTag() {
 		s.literalLt(pos, p, l, c)
 		return
 	case tagComponent:
-		if s.raw != "" {
+		if s.ctx.elem != "" {
 			s.literalLt(pos, p, l, c)
 			return
 		}
@@ -362,7 +440,7 @@ func (s *state) openTag() {
 	}
 	s.emit(scanner.Token{
 		Kind: scanner.TagOpen, Name: dotted(cands[0]), Tag: name, Candidates: cands,
-		Attrs: componentAttrs(attrs), SelfClose: selfClose, Pos: pos,
+		Attrs: s.componentAttrs(attrs), SelfClose: selfClose, Pos: pos,
 	})
 }
 
@@ -375,10 +453,10 @@ func (s *state) closeTag() {
 	s.adv() // '/'
 	name := s.readWhile(isNameChar)
 	class, lower := classify(name)
-	if class == tagRawText && lower == s.raw {
-		s.raw = ""
+	if class == tagRawText && lower == s.ctx.elem {
+		s.ctx.elem = ""
 	}
-	if class == tagHTML || class == tagRawText || (class == tagComponent && s.raw != "") {
+	if class == tagHTML || class == tagRawText || (class == tagComponent && s.ctx.elem != "") {
 		s.literalLt(pos, p, l, c)
 		return
 	}
@@ -404,6 +482,7 @@ func (s *state) closeTag() {
 // attributes, whether the tag self-closes, and false when the bytes do not
 // form a tag (EOF, or a byte that cannot start an attribute).
 func (s *state) lexAttrs() (attrs []scanner.Attr, selfClose, ok bool) {
+	s.spans = s.spans[:0]
 	for {
 		s.skipSpaces()
 		if s.eof() {
@@ -440,6 +519,7 @@ func (s *state) lexAttrs() (attrs []scanner.Attr, selfClose, ok bool) {
 		}
 		value := ""
 		valueless := true
+		span := attrSpan{name: raw}
 		if !s.eof() && s.src[s.pos] == '=' {
 			valueless = false
 			s.adv() // '='
@@ -457,6 +537,7 @@ func (s *state) lexAttrs() (attrs []scanner.Attr, selfClose, ok bool) {
 					return nil, false, false
 				}
 				value = string(s.src[vStart:s.pos])
+				span.hasValue, span.start, span.end = true, vStart, s.pos
 				s.adv()
 			} else {
 				vStart := s.pos
@@ -464,82 +545,209 @@ func (s *state) lexAttrs() (attrs []scanner.Attr, selfClose, ok bool) {
 					s.adv()
 				}
 				value = string(s.src[vStart:s.pos])
+				span.hasValue, span.start, span.end = true, vStart, s.pos
 			}
 		}
+		s.spans = append(s.spans, span)
 		attrs = append(attrs, scanner.Attr{Name: name, Value: value, Bound: bound, Valueless: valueless, Pos: aPos})
 	}
 }
 
 // componentAttrs prepares a component tag's attributes for the renderer: a
 // bound attribute's expression is rewritten to Blade form, and a text value
-// that embeds {{ }} becomes the bound attribute it is sugar for.
-func componentAttrs(attrs []scanner.Attr) []scanner.Attr {
+// that embeds a value — {name}, or the older {{ name }} — becomes the bound
+// attribute it is sugar for. An attribute that holds code (x-text, @click,
+// ::class, onclick) keeps its single braces as text, as it does on plain HTML.
+func (s *state) componentAttrs(attrs []scanner.Attr) []scanner.Attr {
 	for i := range attrs {
 		a := &attrs[i]
 		switch {
 		case a.Bound:
 			a.Value = Expr(a.Value)
 		case !a.Valueless:
-			if joined, ok := interpolate(a.Value); ok {
-				a.Value, a.Bound = joined, true
+			single := !s.legacy && !IsCodeAttr(a.Name)
+			if single && hasDoubleBraces(a.Value) {
+				s.info.DoubleBraces = append(s.info.DoubleBraces, a.Pos)
 			}
+			joined, ok := interpolate(a.Value, single)
+			a.Value, a.Bound = joined, ok
 		}
 	}
 	return attrs
 }
 
-// interpolate turns a text attribute value that embeds {{ … }} into the
+// hasDoubleBraces reports whether a value embeds a {{ … }} that {…} would do.
+func hasDoubleBraces(value string) bool {
+	for rest := value; ; {
+		i := strings.Index(rest, "{{")
+		if i < 0 {
+			return false
+		}
+		end := strings.Index(rest[i+2:], "}}")
+		if end < 0 {
+			return false
+		}
+		if SingleBrace(strings.TrimSpace(rest[i+2 : i+2+end])) {
+			return true
+		}
+		rest = rest[i+2+end+2:]
+	}
+}
+
+// interpolate turns a text attribute value that embeds values into the
 // expression that joins its pieces, and reports whether it embeds any:
 //
-//	Hi {{ name }}!   →   'Hi ' . $name . '!'
+//	Hi {name}!   →   'Hi ' . $name . '!'
 //
-// title="Hi {{ name }}" is therefore exactly :title="'Hi ' . name" — one
-// meaning, two spellings, and the form Blade can say too. The result is always
-// text: a value standing alone is joined onto an empty string so it is not
-// passed as a number or a list. {!! … !!} reads the same as {{ … }} here, since an
-// attribute's value is escaped when it is printed, never when it is passed. An
-// unterminated opener is left as written.
-func interpolate(value string) (string, bool) {
-	if !strings.Contains(value, "{{") && !strings.Contains(value, "{!!") {
+// title="Hi {name}" is therefore exactly :title="'Hi ' . name" — one meaning,
+// two spellings, and the form Blade can say too. The result is always text: a
+// value standing alone is joined onto an empty string so it is not passed as a
+// number or a list. {{ … }} and {!! … !!} read the same as {…} here, since an
+// attribute's value is escaped when it is printed, never when it is passed.
+//
+// With single false (an attribute holding code, or a legacy read) only
+// {{ … }} and {!! … !!} are values, and an opener left unterminated leaves the
+// rest of the value as written. With single true a brace is read as it is in
+// text: \{ is a brace, {value} is a value, and an unterminated opener is text.
+// For a value that embeds nothing, the text it means is returned, with ok
+// false.
+func interpolate(value string, single bool) (string, bool) {
+	if !strings.Contains(value, "{") {
 		return value, false
 	}
 	var parts []string
+	var text strings.Builder
 	exprs := 0
-	rest := value
-	for {
-		open, close := "{{", "}}"
-		i := strings.Index(rest, "{{")
-		if j := strings.Index(rest, "{!!"); j >= 0 && (i < 0 || j < i) {
-			i, open, close = j, "{!!", "!!}"
+	flush := func() {
+		if text.Len() > 0 {
+			parts = append(parts, phpString(text.String()))
+			text.Reset()
 		}
-		if i < 0 {
-			break
-		}
-		end := strings.Index(rest[i+len(open):], close)
-		if end < 0 {
-			break
-		}
-		if i > 0 {
-			parts = append(parts, phpString(rest[:i]))
-		}
-		inner := Expr(strings.TrimSpace(rest[i+len(open) : i+len(open)+end]))
+	}
+	add := func(inner string) {
+		flush()
+		inner = Expr(strings.TrimSpace(inner))
 		if !isAtom(inner) {
 			inner = "(" + inner + ")"
 		}
 		parts = append(parts, inner)
 		exprs++
-		rest = rest[i+len(open)+end+len(close):]
+	}
+	for i := 0; i < len(value); {
+		rest := value[i:]
+		open, close := "", ""
+		switch {
+		case strings.HasPrefix(rest, "{!!"):
+			open, close = "{!!", "!!}"
+		case strings.HasPrefix(rest, "{{"):
+			open, close = "{{", "}}"
+		}
+		if open != "" {
+			end := strings.Index(rest[len(open):], close)
+			switch {
+			case end >= 0:
+				add(rest[len(open) : len(open)+end])
+				i += len(open) + end + len(close)
+			case single:
+				text.WriteString(open)
+				i += len(open)
+			default:
+				text.WriteString(rest)
+				i = len(value)
+			}
+			continue
+		}
+		if single && strings.HasPrefix(rest, `\{`) {
+			text.WriteByte('{')
+			i += 2
+			continue
+		}
+		if single && rest[0] == '{' {
+			if inner, ok := singleAt(rest); ok {
+				add(inner)
+				i += len(inner) + 2
+				continue
+			}
+		}
+		text.WriteByte(value[i])
+		i++
 	}
 	if exprs == 0 {
-		return value, false
+		return text.String(), false
 	}
-	if rest != "" {
-		parts = append(parts, phpString(rest))
-	}
+	flush()
 	if len(parts) == 1 {
 		parts = []string{"''", parts[0]}
 	}
 	return strings.Join(parts, " . "), true
+}
+
+// single reads a value in single braces at the cursor, {title}, and reports
+// whether there was one. Nothing is consumed when the braces do not hold an
+// expression: then the brace is text.
+func (s *state) single() bool {
+	if s.brace <= s.pos {
+		s.brace = len(s.src)
+		if j := bytes.IndexAny(s.src[s.pos+1:], "{}"); j >= 0 {
+			s.brace = s.pos + 1 + j
+		}
+	}
+	if s.brace >= len(s.src) || s.src[s.brace] != '}' {
+		return false
+	}
+	inner := strings.TrimSpace(string(s.src[s.pos+1 : s.brace]))
+	if !SingleBrace(inner) {
+		if inner != "" && expr.Call(Expr(inner)) {
+			s.info.NearMisses = append(s.info.NearMisses, s.curPos())
+		}
+		return false
+	}
+	pos := s.curPos()
+	s.advanceTo(s.brace + 1)
+	if name, args, ok := classCall(inner); ok {
+		s.emit(scanner.Token{Kind: scanner.Directive, Name: name, Text: Expr(args), Pos: pos})
+		return true
+	}
+	s.emit(scanner.Token{Kind: scanner.Echo, Text: Expr(inner), Pos: pos})
+	return true
+}
+
+// SingleBrace reports whether inner, the trimmed text between a pair of
+// single braces, is a value: an expression the engine evaluates, or a
+// class([…]) or style([…]) call. Nothing with a brace in it is.
+func SingleBrace(inner string) bool {
+	if inner == "" || strings.ContainsAny(inner, "{}") {
+		return false
+	}
+	if _, args, ok := classCall(inner); ok {
+		return args == "" || expr.Valid(Expr(args))
+	}
+	return expr.Valid(Expr(inner))
+}
+
+// SingleEcho reports whether a friendly expression can be written as a value
+// in single braces, {friendly}, and be read back as that same echo: it is a
+// value, it is not a class() or style() call (those are directives), and it
+// does not start with "!!" ({!! would open a raw echo).
+func SingleEcho(friendly string) bool {
+	if friendly != strings.TrimSpace(friendly) || strings.HasPrefix(friendly, "!!") {
+		return false
+	}
+	if _, _, ok := classCall(friendly); ok {
+		return false
+	}
+	return SingleBrace(friendly)
+}
+
+// singleAt reads the value in single braces that s starts with: the text up
+// to the next brace, when that brace closes and what it holds is a value.
+func singleAt(s string) (inner string, ok bool) {
+	j := strings.IndexAny(s[1:], "{}")
+	if j < 0 || s[1+j] != '}' {
+		return "", false
+	}
+	inner = s[1 : 1+j]
+	return inner, SingleBrace(strings.TrimSpace(inner))
 }
 
 // isAtom reports whether a Blade-form expression is one operand — a variable

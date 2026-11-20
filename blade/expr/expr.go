@@ -136,6 +136,25 @@ func Eval(src string, scope Scope) (Value, error) {
 	return evalNode(node, scope)
 }
 
+// Valid reports whether src is an expression the engine evaluates: it parses,
+// with nothing left over and nothing that needs PHP. It says nothing about the
+// values: an undefined variable is still a valid expression.
+func Valid(src string) bool {
+	_, err := parse(src)
+	return err == nil
+}
+
+// Call reports whether src fails to parse only because it calls a function
+// or a method the engine does not evaluate itself (route('home'),
+// $post->url()): something that reads as an attempt at a value rather than as
+// text.
+func Call(src string) bool {
+	_, err := parse(src)
+	var se *SyntaxError
+	return errors.As(err, &se) && se.AppTier &&
+		(strings.HasPrefix(se.Msg, "function call ") || strings.HasPrefix(se.Msg, "method call "))
+}
+
 // RequiredVars returns, sorted and de-duplicated, the names (without '$') of
 // the variables whose undefined-ness would make Eval fail — i.e. every
 // referenced variable except those protected by a `??` on their left. A parse

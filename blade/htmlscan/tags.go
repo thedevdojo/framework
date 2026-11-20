@@ -143,7 +143,7 @@ func (s *state) openComponent(pos scanner.Pos, name, lower, dir, folder string, 
 	}
 	s.emit(scanner.Token{
 		Kind: scanner.TagOpen, Name: dotted(base), Tag: name, Candidates: []string{base},
-		Attrs: componentAttrs(rest), SelfClose: selfClose, Pos: pos,
+		Attrs: s.componentAttrs(rest), SelfClose: selfClose, Pos: pos,
 	})
 	if !selfClose {
 		s.push(lower, dotted(base))

@@ -5,12 +5,13 @@ import (
 
 	"github.com/thedevdojo/framework/blade/htmlscan"
 	"github.com/thedevdojo/framework/blade/scanner"
+	"github.com/thedevdojo/framework/site"
 )
 
 // DevDojo Framework reads two syntaxes, chosen per file by its extension:
 //
 //	.blade.php   Blade   — @if, {{ $post->title }}, <x-sections.hero/>
-//	.html        Studio  — <If>, {{ post.title }}, <SectionsHero />
+//	.html        HTML    — <If>, {post.title}, <SectionsHero />
 //
 // They are two scanners in front of ONE parser, renderer and expression
 // evaluator: blade/htmlscan emits the same tokens blade/scanner does for the
@@ -24,13 +25,23 @@ func isHTMLFile(path string) bool {
 }
 
 // scanSource tokenizes a view file with the scanner its extension selects. Any
-// file that is not .html is Blade, as every file was before the Studio syntax
-// existed.
-func scanSource(path string, src []byte) []scanner.Token {
+// file that is not .html is Blade, as every file was before the HTML syntax
+// existed. old, when set, names the .html files to read as they were read
+// before single braces (Options.OldBraces).
+func scanSource(path string, src []byte, old func(string) bool) ([]scanner.Token, htmlscan.Info) {
 	if isHTMLFile(path) {
-		return htmlscan.Scan(path, src)
+		return htmlscan.ScanWith(path, src, htmlscan.Options{Legacy: old != nil && old(path)})
 	}
-	return scanner.Scan(path, src)
+	return scanner.Scan(path, src), htmlscan.Info{}
+}
+
+// braceNotices is the notice for an .html file that still prints values with
+// {{ }} where single braces would do: once per file, however many it holds.
+func braceNotices(path string, info htmlscan.Info) []site.Notice {
+	if len(info.DoubleBraces) == 0 {
+		return nil
+	}
+	return []site.Notice{site.DoubleBracesNotice(path, len(info.DoubleBraces))}
 }
 
 // say picks the wording for a diagnostic at p: blade for a Blade file, html

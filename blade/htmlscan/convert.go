@@ -53,37 +53,83 @@ func IsComponentTag(name string) bool {
 	return class == tagComponent && len(Candidates(name)) > 0
 }
 
-// Literal writes text so that Scan, entering it inside the raw-text element raw
-// ("script", "style" or ""), reads every byte back as plain text. It returns
-// the rewritten text and the raw-text element the scanner is inside at its end.
+// Literal writes text so that Scan, reading it at ctx, reads every byte back
+// as plain text. It moves ctx over the text, as Scan would.
 //
 // Most text needs nothing. What Scan would take for the template's is defused
-// the least intrusive way that is exact: braces get the @{{ escape, and where
-// no escape exists the first byte is printed by a raw echo of a one-character
-// string — {!! '<' !!}Button> prints <Button> and is not a tag. An HTML
-// comment that closes inside the text is already opaque and is copied as it
-// is; one that does not is defused, so it cannot swallow what follows.
+// the least intrusive way that is exact. Where a brace is read, a brace that
+// would open a value, or that follows a backslash, is written \{. Elsewhere
+// braces get the @{{ escape. Where no escape exists the first byte is printed
+// by a raw echo of a one-character string — {!! '<' !!}Button> prints
+// <Button> and is not a tag. An HTML comment that closes inside the text is
+// already opaque and is copied as it is; one that does not is defused, so it
+// cannot swallow what follows.
 //
 // The walk mirrors Scan's own dispatch, in the same order.
-func Literal(text, raw string) (out, rawAfter string) {
+func Literal(text string, ctx *Context) string {
 	var b strings.Builder
 	b.Grow(len(text) + 16)
 	i, n := 0, len(text)
+	// tail counts the '{' and '\' bytes the output ends in that were written
+	// as text. Such a byte would fuse with a hatch after it — "{{" opens
+	// braces, and where a brace is read "\{" is the escape — so it is hatched
+	// too.
+	tail := 0
+	put := func(s string) {
+		b.WriteString(s)
+		ctx.Feed(s)
+		i += len(s)
+		if s == "{" || s == "\\" {
+			tail++
+		} else {
+			tail = 0
+		}
+	}
 	hatch := func() {
-		b.WriteString("{!! '" + text[i:i+1] + "' !!}")
+		out := b.String()
+		cut := len(out)
+		for ; tail > 0; tail-- {
+			if c := out[cut-1]; c != '{' && !(c == '\\' && ctx.Reads()) {
+				break
+			}
+			cut--
+		}
+		if cut < len(out) {
+			b.Reset()
+			b.WriteString(out[:cut])
+			for j := cut; j < len(out); j++ {
+				b.WriteString(Hatch(out[j]))
+			}
+		}
+		b.WriteString(Hatch(text[i]))
+		ctx.Construct()
 		i++
+		tail = 0
 	}
 	for i < n {
 		rest := text[i:]
+		if text[i] == '{' && ctx.Reads() {
+			if escapeBrace(text, i) {
+				b.WriteString(`\`)
+				put("{")
+				tail = 0
+				continue
+			}
+			put("{")
+			continue
+		}
 		switch {
+		case text[i] == '@' && ctx.Reads():
+			// The braces after it are escaped with a backslash, which is
+			// not the @{{ escape.
+			put("@")
 		case strings.HasPrefix(rest, "@{{"):
 			// The '@' is real. Before braces that close it can simply be
 			// written: they get their own escape below, and "@@{{ x }}" reads
 			// as an at-sign and then escaped braces. Before braces left open
 			// it would fuse with the hatch they get, so it is hatched too.
 			if strings.Contains(rest[3:], "}}") {
-				b.WriteByte('@')
-				i++
+				put("@")
 				continue
 			}
 			hatch()
@@ -96,45 +142,83 @@ func Literal(text, raw string) (out, rawAfter string) {
 				continue
 			}
 			stop := 2 + end + 2
-			b.WriteString("@" + rest[:stop])
-			i += stop
-		case raw == "" && strings.HasPrefix(rest, "<!--"):
+			b.WriteByte('@')
+			put(rest[:stop])
+		case ctx.elem == "" && strings.HasPrefix(rest, "<!--"):
 			end := strings.Index(rest[4:], "-->")
 			if end < 0 {
 				hatch()
 				continue
 			}
-			stop := 4 + end + 3
-			b.WriteString(rest[:stop])
-			i += stop
+			put(rest[:4+end+3])
 		case strings.HasPrefix(rest, "</"):
 			class, lower := classify(tagName(rest[2:]))
-			if class == tagRawText && lower == raw {
-				raw = ""
+			if class == tagRawText && lower == ctx.elem {
+				ctx.elem = ""
 			}
-			if class == tagBuiltin || (class == tagComponent && raw == "") {
+			if class == tagBuiltin || (class == tagComponent && ctx.elem == "") {
 				hatch()
 				continue
 			}
-			b.WriteByte('<')
-			i++
+			put("<")
 		case text[i] == '<':
 			class, lower := classify(tagName(rest[1:]))
-			if class == tagRawText && raw == "" {
-				raw = lower
+			if class == tagRawText && ctx.elem == "" {
+				ctx.elem = lower
 			}
-			if class == tagBuiltin || (class == tagComponent && raw == "") {
+			if class == tagBuiltin || (class == tagComponent && ctx.elem == "") {
 				hatch()
 				continue
 			}
-			b.WriteByte('<')
-			i++
+			put("<")
 		default:
-			b.WriteByte(text[i])
-			i++
+			put(text[i : i+1])
 		}
 	}
-	return b.String(), raw
+	return b.String()
+}
+
+// escapeBrace reports whether the brace at text[i], where a brace is read,
+// must be written \{ to stay text: it follows a backslash (which would
+// otherwise escape it), or it opens something — {{, {!!, or a value.
+func escapeBrace(text string, i int) bool {
+	rest := text[i:]
+	if i > 0 && text[i-1] == '\\' {
+		return true
+	}
+	if strings.HasPrefix(rest, "{{") || strings.HasPrefix(rest, "{!!") {
+		return true
+	}
+	_, ok := singleAt(rest)
+	return ok
+}
+
+// EscapeBraces writes text that a component attribute's value holds so that
+// the value reads back as exactly that text: every brace that would open a
+// value, or follows a backslash, becomes \{. It is for an attribute that
+// holds no code; there a brace is never read.
+func EscapeBraces(text string) string {
+	if !strings.Contains(text, "{") {
+		return text
+	}
+	var b strings.Builder
+	for i := 0; i < len(text); i++ {
+		if text[i] == '{' && escapeBrace(text, i) {
+			b.WriteByte('\\')
+		}
+		b.WriteByte(text[i])
+	}
+	return b.String()
+}
+
+// Hatch prints one character through a raw echo, so the scanner reading it
+// sees an expression and not the start of whatever that character would have
+// begun: {!! '<' !!}Button> prints <Button> and is not a tag.
+func Hatch(c byte) string {
+	if c == '\\' || c == '\'' {
+		return "{!! '\\" + string(c) + "' !!}"
+	}
+	return "{!! '" + string(c) + "' !!}"
 }
 
 // tagName returns the run of tag-name bytes s starts with.
@@ -178,8 +262,12 @@ func classCall(inner string) (name, args string, ok bool) {
 	return "", "", false
 }
 
-// Interpolate reads an attribute value the way a component tag does: text that
-// embeds {{ … }} is the expression joining its pieces, so "Hi {{ name }}" is
-// 'Hi ' . $name. ok is false for a value that embeds nothing. The converter
-// uses it to check that a joined expression can be written back as text.
-func Interpolate(value string) (expr string, ok bool) { return interpolate(value) }
+// Interpolate reads the value of a component attribute named name the way the
+// component tag does: text that embeds {name} or {{ name }} is the expression
+// joining its pieces, so "Hi {name}" is 'Hi ' . $name. In an attribute that
+// holds code only {{ }} is read. ok is false for a value that embeds nothing;
+// then expr is the text the value means. The converter uses it to check that a
+// joined expression can be written back as text.
+func Interpolate(name, value string) (expr string, ok bool) {
+	return interpolate(value, !IsCodeAttr(name))
+}

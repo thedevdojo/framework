@@ -21,8 +21,8 @@ import (
 // only a template listing needs, which `devdojo new` leaves out.
 func Site() map[string]string {
 	return map[string]string{
-		"src/pages/index.html": "<Layout src=\"main.html\">\n<h1>{{ site.name }}</h1>\n</Layout>\n",
-		"src/components/layouts/main.html": "<!doctype html>\n<html>\n<head>\n<title>{{ site.name }}</title>\n" +
+		"src/pages/index.html": "<Layout src=\"main.html\">\n<h1>{site.name}</h1>\n</Layout>\n",
+		"src/components/layouts/main.html": "<!doctype html>\n<html>\n<head>\n<title>{site.name}</title>\n" +
 			"<Vite src=\"src/css/site.css\" />\n</head>\n<body>\n<Slot />\n</body>\n</html>\n",
 		"src/data/site.json":      `{"name": "Fixture"}`,
 		"src/css/site.css":        "@theme { --color-brand: #123456; }\n",

@@ -1,18 +1,18 @@
 <Foreach plans="slug, plan">
-{{ slug }}: {{ plan.price }}
+{slug}: {plan.price}
 </Foreach>
 <Foreach plans="slug => plan">
-{{ slug }}={{ plan.price }}
+{slug}={plan.price}
 </Foreach>
 <Foreach collection="plans" as="plan" key="slug">
-{{ slug }}/{{ plan.price }}
+{slug}/{plan.price}
 </Foreach>
 <Foreach post.tags="tag">
-#{{ tag }}
+#{tag}
 </Foreach>
 <Foreach collection="items">
-{{ items }}
+{items}
 </Foreach>
 <ForEach collection="items" as="item">
-{{ item }}!
+{item}!
 </ForEach>

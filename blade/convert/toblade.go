@@ -485,6 +485,17 @@ func (p *bladePrinter) tagOpen(tok scanner.Token) {
 		ra := raw.attrs[i]
 		p.out.write(ra.lead)
 		if !a.Bound {
+			if ra.eq && a.Value != ra.value {
+				// The value held an escaped brace (\{), which Blade writes
+				// as the brace itself.
+				q, fits := pickQuote(a.Value, ra.quote)
+				if !fits {
+					p.problem(a.Pos, `attribute "`+a.Name+`" uses both kinds of quotes, which one Blade attribute cannot hold`)
+					continue
+				}
+				p.out.write(ra.name + "=" + string(q) + a.Value + string(q))
+				continue
+			}
 			p.out.write(ra.static())
 			continue
 		}

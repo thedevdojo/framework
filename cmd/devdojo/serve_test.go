@@ -203,7 +203,7 @@ func dynamicSite(t *testing.T) string {
 		"src/pages/index.html":             "home",
 		"src/pages/404.html":               "<h1>Lost</h1>",
 		"src/pages/blog/index.html":        "all posts",
-		"src/pages/blog/[posts.slug].html": "<h1>{{ posts.title }}</h1><Foreach entries=\"e\">[{{ e.slug }}]</Foreach>",
+		"src/pages/blog/[posts.slug].html": "<h1>{posts.title}</h1><Foreach entries=\"e\">[{e.slug}]</Foreach>",
 		"src/pages/blog/pinned.html":       "the static page",
 		"src/data/collections/posts.json": `[
 			{"slug": "hello", "title": "Hello there"},
@@ -290,7 +290,7 @@ func TestServeNotFound(t *testing.T) {
 
 func TestServeErrorPage(t *testing.T) {
 	h, term := quietHandler(writeSite(t, map[string]string{
-		"src/pages/index.html": "<h1>ok</h1>\n  {{ nope }}\n<Foreach items=\"<b>\">x</Foreach>",
+		"src/pages/index.html": "<h1>ok</h1>\n  {nope}\n<Foreach items=\"<b>\">x</Foreach>",
 	}))
 	rec := get(t, h, "/")
 	if rec.Code != 500 {
@@ -381,7 +381,7 @@ func TestServeReloadScript(t *testing.T) {
 	dir := writeSite(t, map[string]string{
 		"src/pages/index.html": "<html><body><p>one</p></body><!-- </body> --></BODY></html>",
 		"src/pages/bare.html":  "<p>no body tag</p>",
-		"src/pages/bad.html":   "{{ nope }}",
+		"src/pages/bad.html":   "{nope}",
 		"src/pages/404.html":   "<body>lost</body>",
 		"public/page.html":     "<body>a file, served as it is</body>",
 	})

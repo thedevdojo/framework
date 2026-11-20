@@ -279,3 +279,18 @@ func TestAnalyzeHTMLPageCallingBladeComponent(t *testing.T) {
 		t.Fatalf("warnings = %v", ws)
 	}
 }
+
+// TestAnalyzeHTMLSingleBraceNearMiss: a single brace around a function call
+// prints as text, and lint says so. CSS, JavaScript and an Alpine object do
+// not look like a value and say nothing.
+func TestAnalyzeHTMLSingleBraceNearMiss(t *testing.T) {
+	ws := htmlWarnings(map[string]string{
+		"src/pages/index.html": "<a href=\"{route('home')}\">x</a>\n<p>{ open: false } {} {title}</p><script>if (a) { go() }</script><style>a { color: red }</style><i x-data=\"{ f() }\"></i>",
+	})
+	if len(ws) != 1 {
+		t.Fatalf("want 1 warning, got %d: %v", len(ws), ws)
+	}
+	if w := ws[0]; w.Kind != KindWarning || w.Line != 1 || w.Col != 10 || !strings.Contains(w.Message, "prints as text") {
+		t.Errorf("warning = %+v", w)
+	}
+}
