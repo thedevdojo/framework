@@ -68,7 +68,7 @@ func usage() {
 Commands:
   compile        Compile a site from the JSON protocol on stdin, write the result to stdout
   lint <dir>     Compile every page under <dir> and print diagnostics
-  convert <dir> --to studio|blade [--dry-run]
+  convert <dir> --to html|blade [--dry-run]
                  Rewrite every view under <dir> in the other syntax, in place.
                  The site must render exactly as before or nothing is changed.
                  With no <dir>: the same over the JSON protocol on stdin/stdout
@@ -95,7 +95,7 @@ Commands:
 
 A file is read in the syntax its extension names:
   .blade.php     Blade            @if, {{ $post->title }}, <x-sections.hero />
-  .html          DevDojo Studio   <If>, {{ post.title }}, <SectionsHero />`)
+  .html          HTML             <If>, {{ post.title }}, <SectionsHero />`)
 }
 
 // cmdCompile speaks the protocol over stdin/stdout. Per the protocol
@@ -330,7 +330,7 @@ func cmdMigrate(args []string) int {
 	return 0
 }
 
-const convertUsage = "usage: devdojo convert <dir> --to studio|blade [--dry-run]"
+const convertUsage = "usage: devdojo convert <dir> --to html|blade [--dry-run]"
 
 // cmdConvert rewrites a site's views from one syntax into the other.
 //
@@ -361,7 +361,7 @@ func cmdConvert(args []string) int {
 			dryRun = true
 		case arg == "--to":
 			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "devdojo convert: --to needs a syntax, studio or blade\n"+convertUsage)
+				fmt.Fprintln(os.Stderr, "devdojo convert: --to needs a syntax, html or blade\n"+convertUsage)
 				return 2
 			}
 			i++
@@ -378,11 +378,11 @@ func cmdConvert(args []string) int {
 			return 2
 		}
 	}
-	// "html" is the Studio syntax's older name; ParseSyntax still takes it.
+	// "html" is the HTML syntax's name; "studio", its older one, is still taken.
 	syntax, known := convert.ParseSyntax(to)
 	if dir == "" || !known {
 		if to != "" && !known {
-			fmt.Fprintf(os.Stderr, "devdojo convert: unknown syntax %q — use --to studio or --to blade\n", to)
+			fmt.Fprintf(os.Stderr, "devdojo convert: unknown syntax %q — use --to html or --to blade\n", to)
 		}
 		fmt.Fprintln(os.Stderr, convertUsage)
 		return 2

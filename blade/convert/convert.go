@@ -36,12 +36,12 @@ type Syntax string
 
 const (
 	Blade  Syntax = "blade"  // .blade.php
-	Studio Syntax = "studio" // .html — the DevDojo Studio syntax
+	Studio Syntax = "studio" // .html — the HTML syntax (its older name, DevDojo Studio, is kept here in code)
 )
 
-// ParseSyntax reads a syntax by its name, in any case: "blade" or "studio".
-// "html" is the Studio syntax's older name, and the extension its files carry,
-// so it stays accepted.
+// ParseSyntax reads a syntax by its name, in any case: "blade" or "html" (the
+// HTML syntax, named for the extension its files carry). "studio", the HTML
+// syntax's older name, stays accepted.
 func ParseSyntax(name string) (Syntax, bool) {
 	switch strings.ToLower(name) {
 	case "blade":
@@ -69,7 +69,7 @@ func (s Syntax) Name() string {
 	case Blade:
 		return "Blade"
 	case Studio:
-		return "the DevDojo Studio syntax"
+		return "the HTML syntax"
 	}
 	return string(s)
 }

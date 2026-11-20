@@ -541,7 +541,7 @@ func TestSyntaxNames(t *testing.T) {
 	if got := Blade.Name(); got != "Blade" {
 		t.Errorf("Blade.Name() = %q", got)
 	}
-	if got := Studio.Name(); got != "the DevDojo Studio syntax" {
+	if got := Studio.Name(); got != "the HTML syntax" {
 		t.Errorf("Studio.Name() = %q", got)
 	}
 	if Blade.Ext() != ".blade.php" || Studio.Ext() != ".html" || Syntax("html").Ext() != "" {

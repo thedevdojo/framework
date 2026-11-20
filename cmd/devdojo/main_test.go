@@ -417,7 +417,8 @@ var convertSite = map[string]string{
 	"src/data/site.json":                    `{"items": ["a", "b"]}`,
 }
 
-// TestConvertOnDisk: `convert <dir> --to studio` rewrites a site in place — the
+// TestConvertOnDisk: `convert <dir> --to studio` (the HTML syntax's older
+// name, still taken) rewrites a site in place — the
 // new files appear, the old ones go, everything else is left alone — and
 // `--to blade` brings it back byte for byte.
 func TestConvertOnDisk(t *testing.T) {
@@ -434,7 +435,7 @@ func TestConvertOnDisk(t *testing.T) {
 	if want := "<Layout src=\"main.html\">\n<Foreach site.items=\"item\">\n<Card :title=\"item\" />\n</Foreach>\n</Layout>\n"; string(page) != want {
 		t.Errorf("index.html = %q\nwant %q", page, want)
 	}
-	if !strings.Contains(stdout, "Converted 3 files to the DevDojo Studio syntax") {
+	if !strings.Contains(stdout, "Converted 3 files to the HTML syntax") {
 		t.Errorf("stdout = %q", stdout)
 	}
 
@@ -454,7 +455,7 @@ func TestConvertOnDisk(t *testing.T) {
 }
 
 // TestConvertDryRun: --dry-run says what would happen and touches nothing.
-// It asks with `--to html`, the Studio syntax's older name, which still works.
+// It asks with `--to html`, the HTML syntax's name.
 func TestConvertDryRun(t *testing.T) {
 	dir := tempSite(t, convertSite)
 	before := tree(t, dir)
@@ -467,7 +468,7 @@ func TestConvertDryRun(t *testing.T) {
 	}
 	for _, want := range []string{
 		"src/pages/index.blade.php → src/pages/index.html",
-		"Would convert 3 files to the DevDojo Studio syntax",
+		"Would convert 3 files to the HTML syntax",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout is missing %q:\n%s", want, stdout)
@@ -493,7 +494,7 @@ func TestConvertRefusedTouchesNothing(t *testing.T) {
 		t.Errorf("a refused conversion changed the site:\n%s", got)
 	}
 	for _, want := range []string{
-		"src/components/gate.blade.php:2:1 @auth needs real Laravel, which the DevDojo Studio syntax does not have",
+		"src/components/gate.blade.php:2:1 @auth needs real Laravel, which the HTML syntax does not have",
 		"Nothing was converted",
 	} {
 		if !strings.Contains(stdout, want) {
@@ -529,7 +530,7 @@ func TestConvertUsage(t *testing.T) {
 		}
 	}
 	_, stderr, _ := runCLI(t, "", "convert", dir, "--to", "twig")
-	for _, want := range []string{`unknown syntax "twig"`, "--to studio or --to blade", "--to studio|blade"} {
+	for _, want := range []string{`unknown syntax "twig"`, "--to html or --to blade", "--to html|blade"} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("an unknown syntax should name the two it can use; stderr is missing %q:\n%s", want, stderr)
 		}
@@ -543,7 +544,7 @@ func TestUsageNamesBothSyntaxes(t *testing.T) {
 	if code != 2 {
 		t.Fatalf("exit code = %d, want 2", code)
 	}
-	for _, want := range []string{"convert <dir> --to studio|blade", ".blade.php     Blade ", ".html          DevDojo Studio "} {
+	for _, want := range []string{"convert <dir> --to html|blade", ".blade.php     Blade ", ".html          HTML "} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("usage is missing %q:\n%s", want, stderr)
 		}
