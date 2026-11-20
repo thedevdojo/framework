@@ -727,7 +727,10 @@ JavaScript: "this block has `open`, it starts false, this button flips it,
 this panel shows while it is true." The catalog needs two patterns almost
 everywhere (on/off, pick one of several); a value kept in step with an input
 is rare. Tony's direction is DevDojo's own small layer on top of `<Script>`,
-not Alpine. Livewire export would follow from the same work.
+not Alpine. Livewire export would follow from the same work. The direction
+for that layer is written down in
+[`2026-11-20-reactivity-direction.md`](2026-11-20-reactivity-direction.md);
+it is not a spec yet, and nothing in it is built.
 
 Also later: `props` inside a `<Script>`; cutting `devdojo-theme.css` down to one
 block; export from MCP and the `@devdojo/sites` CLI; exporting in the browser
