@@ -1,7 +1,8 @@
 # DevDojo Framework: HTML-first components and optional reactivity
 
-**Status:** Direction, written down so we know where we are going. **Nothing
-here is built, and none of it is scheduled yet.** It is not a specification.
+**Status:** Direction, written down so we know where we are going. It is
+not a specification. **Single braces (decisions 1 and 3, §12.2.1) are built**,
+in engine 1.1.0; everything else here is not built and not scheduled.
 **Date:** November 20, 2026
 
 Sections 1 to 11 are the direction as Tony wrote it, brought in line with the
@@ -11,13 +12,13 @@ what is still open before a spec is written.
 ## Decided (Tony, 2026-11-20)
 
 1. **A value is printed with single braces in an `.html` file:**
-   `{post.title}`. Today the engine reads `{{ post.title }}`; that keeps
-   working for a while, with a notice (§12.2.1 has the rules).
+   `{post.title}`. *Built.* `{{ post.title }}` keeps working for a while,
+   with a notice, and `devdojo migrate` rewrites it (§12.2.1 has the rules).
 2. **A live value is `@{count}` and an event is `@click`.** In an `.html`
    file, `@` means "this happens in the browser". Plain `{title}` is filled
    in when the page is built.
 3. **A literal brace is written `\{`.** `\{title}` prints `{title}`.
-   (Proposed by the reviewer, since `@{` is taken by 2.)
+   (Proposed by the reviewer, since `@{` is taken by 2.) *Built.*
 4. **Two syntaxes stay.** `.html` is the one people write: `<Foreach>`,
    `<If>`, `{post.title}`. Blade (`.blade.php`: `@foreach`, `@if`,
    `{{ $post->title }}`) stays in the engine as something a site can always
@@ -61,7 +62,7 @@ not a second full application framework.
 | Prop defaults | Defined in YAML, not duplicated in HTML |
 | `<Props>` tag | Remove; no duplicate prop declarations |
 | Passing props | Parent component passes attributes; explicit values override YAML defaults |
-| Compile-time interpolation | Single braces, e.g. `{title}` or `{site.name}`. Decided; the engine reads `{{ title }}` today (§12.2.1) |
+| Compile-time interpolation | Single braces, e.g. `{title}` or `{site.name}`. Built (§12.2.1); `{{ title }}` is still read, with a notice |
 | Compile-time structure | Keep the existing loops and conditions (`<Foreach>` / `<If>` in an `.html` file, `@foreach` / `@if` in Blade) and preserve their structure for exports |
 | Local reactive state | Declare inside an optional `<Script>` block using a compiler-recognized `state()` primitive |
 | Reactive text | `@{count}` |
@@ -246,8 +247,8 @@ framework-specific adapters or explicit non-portable fallbacks on export.
 ## 9. Technical issues to resolve
 
 1. **Interpolation syntax.** Settled: single braces for compile-time output,
-   `@{value}` for runtime output, `\{` for a literal brace. The engine reads
-   `{{ value }}` today; §12.2.1 says how it gets from one to the other.
+   `@{value}` for runtime output, `\{` for a literal brace. Single braces and
+   `\{` are built (§12.2.1); `@{value}` is not.
 2. **Define valid reactive expressions.** Decide which
    assignments/operators/functions are supported and parsed for framework
    export. Avoid promising arbitrary JS-to-React conversion.
@@ -332,8 +333,9 @@ before a spec", with a recommendation. None of them is decided.
 
 ### 12.2 What does not match today, and has to be decided
 
-**1. Single braces: decided, and what it takes.**
-The engine reads `{{ title }}` today. Single braces were turned down when the
+**1. Single braces: decided, and built.**
+*Built in the engine, 2026-11-20, as written below; see "As built" at the end
+of this item.* Before that the engine read only `{{ title }}`. Single braces were turned down when the
 HTML syntax was designed (`docs/html-syntax.md`, "Not built yet") because
 they collide with CSS, JavaScript and Alpine in the same file. The decision
 now is to take them anyway and say exactly where a brace is read. Svelte and
@@ -367,9 +369,67 @@ The rules:
 Where it has to be learned: the Go scanner; its two mirrors (PHP in the
 platform, JavaScript in the editor); how the platform writes literal markup
 into an `.html` file; the converter's printer; what the AI is taught; the 222
-library files. And it needs an engine version of its own, because an older
-engine prints `{title}` as text and says nothing, which the platform must
-refuse (as it does for `.html` views and an engine older than 1.0.0).
+library files. An older engine prints `{title}` as text and says nothing,
+which the platform must refuse (as it does for `.html` views and an engine
+older than 1.0.0). That was to be a version of its own; it is 1.1.0 instead,
+which is not released yet (see "As built").
+
+*As built (engine 1.1.0, Go only).* The engine version did not change:
+single braces ship in 1.1.0 beside `src/`, which is not released yet, so no
+released engine prints `{title}` as text. What the rules above leave open was
+settled this way, and the PHP and JavaScript mirrors should copy it:
+
+- *Where a brace is read* is a small HTML state machine
+  (`blade/htmlscan/context.go`). Not read: inside `<script>…</script>` and
+  `<style>…</style>` (raw text from the `>` of the start tag to `</script` or
+  `</style` followed by a space, `/` or `>`, case-insensitive), inside
+  `<!-- … -->`, `<!…>` declarations, and the value of a code attribute on a
+  plain tag. A code attribute is one whose lowercased name starts `x-`, `v-`,
+  `:` or `@`, or starts `on` and is longer than two letters. Everywhere else
+  in text and in attribute values a brace is read. A construct of the
+  template's own (an echo, a tag) counts as one ordinary byte to the machine.
+- *On a component or built-in tag*, `:name` is the engine's bound attribute
+  and is never interpolated. A plain value interpolates `{x}` and `\{`;
+  `x-…`, `v-…`, `on…` and `@name` values are passed as written. A `<Layout>`'s
+  or `<Include>`'s `src` is a path.
+- *What counts as a value:* the inside runs from `{` to the next brace. If
+  that is another `{`, or there is none, the `{` is text. The inside is
+  trimmed (so `{ title }` is a value) and must be non-empty, hold no brace,
+  and either parse as an expression of the engine's grammar or be a
+  `class(…)`/`style(…)` call whose list does (or is empty). Anything else is text, silently;
+  lint warns only when the inside is a function or method call
+  (`{route('home')}`).
+- *Order at a `{`:* `@{{` (the old escape), `{{--`, `{!!` (a raw echo when
+  `!!}` follows, else literal text), `{{` (an echo when `}}` follows, else
+  literal text), then `\{` (a literal `{`, where a brace is read), then a
+  single-brace value. So `{!! x !!}` is told from `{!x}` by its second and
+  third bytes, and `{{ x }}` from `{x}` by its second. `\{` is only an escape
+  where a brace is read; elsewhere the backslash is printed. A backslash
+  before anything but `{` is text.
+- *`{{ x }}`* is still read everywhere it was. Where a brace is read and the
+  inside is a single-brace value, the file gets one `double-braces` notice
+  (never a diagnostic). `@{{ x }}` is still read and prints `{{ x }}`.
+- *The converter:* Blade → HTML writes `{{ $x }}` as `{x}` where a brace is
+  read and `{x}` scans back to the same token (no space at either end of the
+  expression, no leading `!!`, no brace inside); else `{{ x }}`. A literal `{` that would be read is
+  written `\{`, and a literal `\` right before a brace is printed through
+  `{!! '\\' !!}`. HTML → Blade writes `{x}` as `{{ $x }}` and `\{` as `{`.
+- *`devdojo migrate`* rewrites `{{ x }}` to `{x}` where a brace is read and
+  `{x}` can say it (a `}` inside a string cannot), and leaves it in script,
+  style, comments and code attributes. `@{{ x }}` becomes `\{\{ x }}` where a
+  brace is read. Text that would now open a value is escaped: a `{` that
+  starts a valid single-brace value, a `{` right after a backslash (the
+  backslash is kept, so `a\{b}` becomes `a\\{b}`), and an opener that
+  closes later in the same text. Each file is checked to read, with single
+  braces, exactly as it read before, and the site is rendered before and
+  after. A second run changes nothing.
+
+The proof: all 79 catalog templates converted with the new converter build
+byte for byte as their Blade originals (2,121 files, 16,432 single-brace
+values, no double braces left where a brace is read); the five sites in
+`devdojo-templates` (starter, artisan, current, mercury, thrive), migrated
+from their committed state, build byte for byte as before with no `{{ ` left
+in an `.html` view (1,475 values rewritten).
 
 **2. Loops and conditions: nothing to change.**
 In an `.html` file they are `<Foreach>` and `<If>`; `@foreach` and `@if` are

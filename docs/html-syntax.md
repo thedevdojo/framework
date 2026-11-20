@@ -5,7 +5,7 @@ guide to the second: the **HTML syntax**, in files ending `.html`.
 (The other is [Blade](blade-syntax.md), in `.blade.php` files.)
 
 The HTML syntax says what Blade says with tags instead of directives:
-`<Foreach posts="post">` for `@foreach ($posts as $post)`, `{{ post.title }}`
+`<Foreach posts="post">` for `@foreach ($posts as $post)`, `{post.title}`
 for `{{ $post->title }}`, `<SectionsHero />` for `<x-sections.hero />`. It is
 for people who know HTML and nothing else — a template is HTML with a few
 extra tags. The tags follow DevDojo Static's (`<Layout>`, `<Include>`,
@@ -51,7 +51,7 @@ component. The reverse is not true — a Blade `<x-card>` finds only
 
 | The HTML syntax | Blade |
 |---|---|
-| `{{ post.title }}` | `{{ $post->title }}` |
+| `{post.title}` | `{{ $post->title }}` |
 | `{!! post.body !!}` | `{!! $post->body !!}` |
 | `{{-- note --}}` | `{{-- note --}}` |
 | `<If condition="plan == 'pro'">` … `</If>` | `@if ($plan == 'pro')` … `@endif` |
@@ -69,18 +69,71 @@ component. The reverse is not true — a Blade `<x-card>` finds only
 | `<Slot name="head" />` (inside a component file) | `{{ $head ?? '' }}` |
 | `<Props title="Untitled" :count="3" badge />` | `@props(['title' => 'Untitled', 'count' => 3, 'badge' => null])` |
 | `<Vite src="src/css/site.css" />` | `@vite(['src/css/site.css'])` |
-| `<a {{ class(['btn', 'on' => active]) }}>` | `<a @class(['btn', 'on' => $active])>` |
-| `<Card title="Hi {{ name }}" />` | `<x-card :title="'Hi ' . $name" />` |
+| `<a {class(['btn', 'on' => active])}>` | `<a @class(['btn', 'on' => $active])>` |
+| `<Card title="Hi {name}" />` | `<x-card :title="'Hi ' . $name" />` |
+| `\{title}` | `{title}` |
 
 **The one rule to remember: a tag that starts with a capital letter belongs to
 the template.** Plain HTML is lowercase and is never touched.
 
+## Braces: where `{` is read
+
+A value is printed with single braces: `<h2>{post.title}</h2>`. The same works
+in an attribute's value: `href="{link.url}"`, `class="btn btn-{variant}"`,
+`style="height: {height}px"`. It is escaped as Blade's `{{ }}` is; raw HTML is
+still `{!! post.body !!}`.
+
+An `.html` file also holds CSS, JavaScript and Alpine, which use braces of
+their own, so a brace is the template's only where it can be:
+
+- **Read:** in text, and in the value of an attribute that does not hold code.
+- **Never read:** inside `<style>`, `<script>` and `<Script>`, inside an HTML
+  comment, and in a code attribute on a plain tag: `on…` handlers (`onclick`),
+  Alpine's and Vue's `x-…` and `v-…`, and the `:name` and `@name` shorthands.
+  `<div x-data="{ open: false }">` reaches the browser as written.
+- **On a component tag** (`<Card>`) and the built-in tags, `:name` is the
+  engine's bound attribute, as always. A plain attribute (`title="Hi {name}"`)
+  reads braces; `x-…`, `v-…`, `on…` and `@name` are passed as written.
+- **Only a value counts.** What is between the braces must be an expression
+  the engine reads (see below), or a `class([…])` or `style([…])` list.
+  Anything else is text, printed as written with no error: `{ open: false }`,
+  `{}`, `{ color: red }`. The inside may have spaces around it (`{ title }`)
+  and holds no brace of its own.
+- **`\{` prints a brace.** `\{title}` is the text `{title}`. Anywhere a brace
+  is not read, a backslash is just a backslash. (`&#123;` works too.)
+
+`devdojo lint` warns when a brace in text looks like a value but cannot be
+one, a function call such as `{route('home')}`: it prints as text.
+
+**Double braces still work.** `{{ post.title }}` prints the same as
+`{post.title}`. A file that uses them where a single brace would do gets a
+notice (on stderr, never an error) that names the file, and
+`devdojo migrate` rewrites them:
+
+```bash
+devdojo migrate my-site            # rewrite {{ x }} as {x}, in place
+devdojo migrate my-site --dry-run  # say what would change, touch nothing
+```
+
+Migrate changes only what it must, and checks every page renders byte for
+byte the same before it writes anything:
+
+- `{{ x }}` becomes `{x}` where a brace is read and `{x}` can say it (a value
+  with `}` inside a string stays as it is). In `<script>`, `<style>`, a
+  comment or a code attribute, `{{ }}` stays: it is still how a value is
+  written there.
+- `@{{ x }}`, the old escape for literal braces, becomes `\{\{ x }}`.
+- Text that would now open a value is escaped: a code sample's `{title}`
+  becomes `\{title}`, and a backslash already before a brace is doubled.
+- Running it again changes nothing. It also does the move from `resources/`
+  to `src/`, if the site still needs it.
+
 ## Values and conditions
 
-Inside `{{ }}`, `condition="…"` and any `:bound` attribute:
+Inside `{ }`, `condition="…"` and any `:bound` attribute:
 
 - A bare word is a variable: `title`. A dot reads into it: `post.author.name`.
-  `posts[0]` and `??` work as in Blade (`{{ tagline ?? 'Welcome' }}`).
+  `posts[0]` and `??` work as in Blade (`{tagline ?? 'Welcome'}`).
 - `=`, `==` and `===` all mean "equals"; `!=` and `!==` mean "not equals";
   `<`, `>`, `<=`, `>=` compare.
 - `and`, `or`, `not` are accepted beside `&&`, `||`, `!`.
@@ -91,13 +144,13 @@ Inside `{{ }}`, `condition="…"` and any `:bound` attribute:
 - Blade spelling still works (`$post->title`), so a pasted expression is fine.
 
 That is the whole expression language — the same closed subset Blade files
-get. No math, no `? :`, no function calls; use `<If>` and `{{ }}` side by side
-instead (`class="btn btn-{{ variant }}"`).
+get. No math, no `? :`, no function calls; use `<If>` and `{ }` side by side
+instead (`class="btn btn-{variant}"`).
 
-`{{ class([...]) }}` and `{{ style([...]) }}` are Blade's `@class` and
+`{class([...])}` and `{style([...])}` are Blade's `@class` and
 `@style`: inside a plain HTML tag, they print the whole attribute from a list
 of names, each kept when its condition holds —
-`<a {{ class(['btn', 'btn-on' => active]) }}>`.
+`<a {class(['btn', 'btn-on' => active])}>`.
 
 `<If>` also has shorthands, so the common cases need no expression at all:
 
@@ -123,7 +176,7 @@ The list can be a path: `<Foreach post.tags="tag">`.
 
 The long form from DevDojo Static works too: `<Foreach collection="posts"
 as="post" key="i">`. With no `as`, each item takes the collection's own name
-(`<Foreach collection="posts">` … `{{ posts.title }}`), as Static does.
+(`<Foreach collection="posts">` … `{posts.title}`), as Static does.
 
 `limit="3"` (alias `count`) shows the first three. It is a true slice:
 `loop.count` is 3 and `loop.last` is true on the third. Blade has no limit; its
@@ -163,12 +216,14 @@ error lists where it looked. `devdojo lint` warns when a tag matches more
 than one file.
 
 **Attributes.** `heading="Hi"` passes text. `:items="posts"` passes a value.
-A bare `open` passes `true`. `{{ }}` works inside a text attribute:
-`title="Hi {{ name }}"` is exactly `:title="'Hi ' . name"`, so the result is
-always text (`data-id="{{ id }}"` passes `"7"`, not the number). Anything the
+A bare `open` passes `true`. `{ }` works inside a text attribute:
+`title="Hi {name}"` is exactly `:title="'Hi ' . name"`, so the result is
+always text (`data-id="{id}"` passes `"7"`, not the number). A code
+attribute on a component tag (`x-…`, `v-…`, `on…`, `@name`) is passed as
+written, braces and all. Anything the
 component does not declare in `<Props>`
-lands in `attributes`, as in Blade: `<div {{ attributes }}>` or
-`{{ attributes.merge(['class' => 'btn']) }}`.
+lands in `attributes`, as in Blade: `<div {attributes}>` or
+`{attributes.merge(['class' => 'btn'])}`.
 
 **`<Props>`** declares what a component accepts and must be the first thing in
 its file: `<Props title="Untitled" badge :count="3" logo-text="Hi" />` — a text
@@ -184,23 +239,24 @@ makes the prop required and a tag without it fails on an undefined variable.
 `<Props badge />` is `@props(['badge' => null])`.
 
 **Slots.** Content between a component's tags is its default slot; the file
-prints it with `<Slot />` (or `{{ slot }}`). `<Slot name="head">…</Slot>`
+prints it with `<Slot />` (or `{slot}`). `<Slot name="head">…</Slot>`
 inside the component's tags fills a named slot; the file prints it with
 `<Slot name="head" />`, which is empty when nothing filled it.
 
 ## What is left alone in an `.html` file
 
 - **`@` is plain text.** No directives exist here, so Alpine's `@click`, CSS
-  `@media` and e-mail addresses need no escaping. (`@{{ x }}` still prints a
-  literal `{{ x }}`.)
+  `@media` and e-mail addresses need no escaping.
 - **Lowercase tags**, including `<slot>`, SVG's `<linearGradient>` and custom
   elements.
 - **Shouted HTML.** A real HTML element in ALL CAPS (`<BR>`, `<TABLE>`) is
   HTML, not a component.
-- **HTML comments.** Everything inside `<!-- -->` is copied through untouched.
+- **HTML comments.** Everything inside `<!-- -->` is copied through untouched,
+  braces included.
 - **`<script>` and `<style>`.** A capitalized tag inside them is code
-  (`a<B>c`), not a component. `{{ }}` and the built-in tags still work there,
-  so a JSON-LD block can loop.
+  (`a<B>c`), not a component, and a single brace there is the script's or the
+  style sheet's own. `{{ }}` and the built-in tags still work there, so a
+  JSON-LD block can loop.
 - **A half-typed tag** costs only its `<`; the rest of the file still renders.
 
 Reserved tag names (any capitalization): `If`, `ElseIf`, `Else`, `Foreach`,
@@ -217,6 +273,9 @@ Same shape, same positions, worded the way the file is written: `unclosed
 An `.html` file has **no app tier**. In Blade, `{{ route('home') }}` is
 `app-tier` — real Laravel can run it. Real Laravel cannot read an `.html`
 view, so there the same construct is an `error`.
+
+A file still written with `{{ x }}` gets a `double-braces` notice, not a
+diagnostic: the page renders, and `devdojo migrate` rewrites it.
 
 One inherited behavior worth knowing: a tag that ends a line swallows that
 line break, exactly as a Blade directive does. It is what keeps the two
@@ -262,10 +321,13 @@ printed as `file:line:col message` and the exit code is 1.
 
 **Blade → HTML** picks the shortest spelling that reads back the same:
 `<If post.featured>` over `<If condition="post.featured">`, `<SectionsHero>`
-over `<Include src="…">`, `title="Hi {{ name }}"` over
+over `<Include src="…">`, `title="Hi {name}"` over
 `:title="'Hi ' . name"`, `<Foreach posts="post" limit="3">` over a leading
-`<Break>`. Text that only Blade had to escape goes back to plain: `@@click` is
-`@click` again.
+`<Break>`. `{{ $post->title }}` is written `{post.title}` wherever a brace is
+read, and stays `{{ post.title }}` inside `<script>`, `<style>` and code
+attributes. A brace that is text in Blade and would be read in the HTML syntax
+(a code sample's `{title}`) is written `\{title}`. Text that only Blade had to
+escape goes back to plain: `@@click` is `@click` again.
 
 **HTML → Blade** writes Blade that real Laravel prints the same way — that is
 the reason to convert. An `.html` file has no directives, so its text can hold
@@ -278,9 +340,11 @@ things Blade would act on. Each is defused:
 | `<x-card>` as text | `{!! '<' !!}x-card>` | Blade would read a component tag |
 | `yes</If>` | `yes{{ '' }}@endif` | `yes@endif` is not a directive; the empty echo holds them apart |
 | `<Foreach posts="post" limit="3">` | `@foreach ($posts as $post)` then `@break($loop->index >= 3)` | Blade has no limit |
-| `title="Hi {{ name }}"` | `:title="'Hi ' . $name"` | the same joined text |
+| `title="Hi {name}"` | `:title="'Hi ' . $name"` | the same joined text |
 | `<Props badge />` | `@props(['badge' => null])` | an optional prop |
-| `{{ class() }}` | `@class` | Laravel fails on `@class()` |
+| `{class()}` | `@class` | Laravel fails on `@class()` |
+| `{post.title}` | `{{ $post->title }}` | Blade's echo |
+| `\{title}` | `{title}` | a brace is only text in Blade |
 
 Converting back to the HTML syntax takes all of that out again, so
 HTML → Blade → HTML returns the file as it was written — bar an escape the
@@ -337,7 +401,12 @@ Proof, since the PHP oracle cannot read an `.html` view:
 - `example-studio/` renders byte-identical to `example/`, and is exactly what
   `devdojo convert example --to html` writes
   (`TestExampleStudioIsTheConversion`).
-- Fuzzers: `FuzzScan` (plain HTML comes back unchanged), `FuzzExpr`,
+- `htmlscan.TestSingleBracesMatchBlade` — `{x}` in each place a brace is read
+  scans to the tokens of `{{ $x }}`; `TestSingleBracesLeftAlone` pins the
+  places it is not.
+- Fuzzers: `FuzzScan` (plain HTML comes back unchanged), `FuzzLiteral` (any
+  text written by the converter reads back as that text), `FuzzMigrate`
+  (migrated files read today as the original read before), `FuzzExpr`,
   `FuzzParseHTML`, `FuzzCompileHTML`.
 
 The converter (`blade/convert`) has its own:
@@ -361,8 +430,6 @@ The converter (`blade/convert`) has its own:
   (`devdojo convert <dir> --to blade`).
 - **A required prop.** `<Props badge />` is optional; there is no way to say
   "fail if this is missing".
-- **DevDojo Static's single-brace `{title}` tokens.** Double braces were kept:
-  single braces collide with CSS, JavaScript and Alpine in the same file.
 
 ## More
 

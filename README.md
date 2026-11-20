@@ -9,7 +9,7 @@ It reads two template syntaxes, and they are the same language written two ways:
 | Syntax | Files | It looks like | Full guide |
 |---|---|---|---|
 | **Blade** | `.blade.php` | `@if`, `{{ $post->title }}`, `<x-sections.hero />` | [**The Blade syntax →**](docs/blade-syntax.md) |
-| **HTML** | `.html` | `<If>`, `{{ post.title }}`, `<SectionsHero />` | [**The HTML syntax →**](docs/html-syntax.md) |
+| **HTML** | `.html` | `<If>`, `{post.title}`, `<SectionsHero />` | [**The HTML syntax →**](docs/html-syntax.md) |
 
 The same page in each:
 
@@ -24,10 +24,10 @@ The same page in each:
 
 ```html
 {{-- The HTML syntax — index.html --}}
-<h1>{{ site.name }}</h1>
+<h1>{site.name}</h1>
 
 <Foreach plans="plan">
-    <li>{{ loop.iteration }}. {{ plan.name }} — {{ plan.price }}</li>
+    <li>{loop.iteration}. {plan.name} — {plan.price}</li>
 </Foreach>
 ```
 
@@ -83,8 +83,8 @@ In the HTML syntax the same two files are:
 {{-- src/components/sections/hero.html --}}
 <Props heading="Hello" cta="Learn more" />
 <section class="hero">
-    <h1>{{ heading }}</h1>
-    <a href="/signup">{{ cta }}</a>
+    <h1>{heading}</h1>
+    <a href="/signup">{cta}</a>
 </section>
 ```
 
@@ -106,16 +106,17 @@ Side by side:
 
 | Blade | HTML |
 |---|---|
-| `{{ $post->title }}` | `{{ post.title }}` |
+| `{{ $post->title }}` | `{post.title}` |
 | `@if ($plan == 'pro')` | `<If condition="plan == 'pro'">` · `<If plan="pro">` · `<If featured>` |
 | `@elseif (…)` · `@else` · `@endif` | `<ElseIf condition="…">` · `<Else>` · `</If>` |
 | `@foreach ($posts as $post)` … `@endforeach` | `<Foreach posts="post">` … `</Foreach>` |
 | `<x-layouts.main>` | `<Layout src="main.html">` |
 | `<x-button>` · `<x-sections.hero heading="Hi" />` | `<Button>` · `<SectionsHero heading="Hi" />` |
 | `@props(['title' => 'Untitled'])` · `{{ $slot }}` | `<Props title="Untitled" />` · `<Slot />` |
-| `<a @class(['btn', 'on' => $active])>` | `<a {{ class(['btn', 'on' => active]) }}>` |
+| `<a @class(['btn', 'on' => $active])>` | `<a {class(['btn', 'on' => active])}>` |
+| `{title}` (text) | `\{title}` |
 
-In Blade, a directive starts with `@` and a component tag with `x-`. In the HTML syntax, a tag that starts with a capital letter belongs to the template; plain HTML is lowercase and is never touched, and `@` is plain text — so Alpine's `@click` and CSS `@media` need no escaping.
+In Blade, a directive starts with `@` and a component tag with `x-`. In the HTML syntax, a tag that starts with a capital letter belongs to the template; plain HTML is lowercase and is never touched, and `@` is plain text — so Alpine's `@click` and CSS `@media` need no escaping. A single brace is read only where it can be: in text and in attribute values, never inside `<script>`, `<style>`, a comment or a code attribute (`x-data="{ open: false }"`), and only when what is inside is a value — `{ color: red }` stays text. `\{` prints a brace. [Where a brace is read →](docs/html-syntax.md#braces-where--is-read)
 
 The full reference for each:
 
@@ -150,12 +151,14 @@ my-site/
 
 Two older shapes are still read, so a site written before `src/` builds exactly as it did: the folder may be called `resources/`, and pages and components may each sit one level down, in `views/pages` and `views/components`. A site has one source folder, one pages folder and one components folder: when two candidates both hold files the newer one is read and the other is ignored.
 
-The engine tells you about an older shape in a **notice**, never an error. Notices come back in their own `notices` list (`kind`, `code`, `message`, sometimes `file`), apart from `diagnostics`, so a build that fails on any diagnostic still passes; `devdojo lint` prints them to stderr and exits as it would have. Send `"options": {"notices": false}` to leave them out. The codes are `resources-folder`, `views-folder`, `folder-not-read` and `asset-path`.
+The engine tells you about an older shape in a **notice**, never an error. Notices come back in their own `notices` list (`kind`, `code`, `message`, sometimes `file`), apart from `diagnostics`, so a build that fails on any diagnostic still passes; `devdojo lint` prints them to stderr and exits as it would have. Send `"options": {"notices": false}` to leave them out. The codes are `resources-folder`, `views-folder`, `folder-not-read`, `asset-path` and `double-braces` (an `.html` view still writing `{{ x }}` where `{x}` would do).
 
 ```bash
-devdojo migrate my-site            # move it into src/, in place
-devdojo migrate my-site --dry-run  # say what would move, touch nothing
+devdojo migrate my-site            # move it into src/ and write {{ x }} as {x}, in place
+devdojo migrate my-site --dry-run  # say what would change, touch nothing
 ```
+
+`migrate` also brings `.html` views up to single braces: `{{ x }}` becomes `{x}`, the old escape `@{{ x }}` becomes `\{\{ x }}`, and text that would now open a value (a code sample's `{title}`) is escaped as `\{title}`. Running it twice changes nothing. Single braces came in engine 1.1.0, the same version as `src/`: the version number did not change for them.
 
 Like a conversion, a move is exact or it does not happen: the site is rendered before and after, every page must come out byte for byte the same, and one difference leaves every file where it was. A stylesheet named the old way (`@vite(['resources/css/site.css'])`) is rewritten with the move, and is found in `src/css/` even when it is not.
 
@@ -169,7 +172,7 @@ A collection can also be a **folder of entry files** — `src/data/collections/p
 
 ## What a template can say
 
-Output `{{ }}` / `{!! !!}` / `{{-- --}}` · conditions · loops with the full `$loop` object, break and continue · components with props, bound attributes (`:items="$plans"`), `$attributes`, default and named slots · conditional `class` and `style` lists · expressions with `->` / `[]` access, `??`, comparisons, booleans, text joined with `.` — all with PHP semantics (truthiness, loose equality, stringification) · `@vite` rendered as its static projection (Tailwind Play CDN + inlined CSS).
+Output `{{ }}` / `{!! !!}` / `{{-- --}}` (`{x}` in the HTML syntax) · conditions · loops with the full `$loop` object, break and continue · components with props, bound attributes (`:items="$plans"`), `$attributes`, default and named slots · conditional `class` and `style` lists · expressions with `->` / `[]` access, `??`, comparisons, booleans, text joined with `.` — all with PHP semantics (truthiness, loose equality, stringification) · `@vite` rendered as its static projection (Tailwind Play CDN + inlined CSS).
 
 No function calls, no assignments, no `@php`. Undefined variables are compile-time errors with file/line/col — `??` is the sanctioned default (`{{ $tagline ?? 'Welcome' }}`).
 

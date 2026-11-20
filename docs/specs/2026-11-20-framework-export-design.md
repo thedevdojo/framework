@@ -40,7 +40,7 @@ array literals). No math, no ternary, no function calls. See
 `docs/html-syntax.md`.
 
 **The tree does not know HTML.** A `Text` node is an opaque run of bytes.
-`<a href="{{ link.url }}">` is `Text` + `Echo` + `Text`. Anything that needs to
+`<a href="{link.url}">` is `Text` + `Echo` + `Text`. Anything that needs to
 know "this echo sits inside an attribute of an `<a>`" has to read the HTML
 itself. This is the largest piece of new engine work in this design.
 
@@ -212,7 +212,7 @@ from how the block uses the value.
 | `repeater` | an array of an item type built from `sub_fields` | `nestable` adds an optional `children` of the same item type |
 | no `.yml`, text default | `string` | |
 | no `.yml`, `:count="3"` / `:on="true"` | `number` / `boolean` | |
-| no `.yml`, bare `badge` | optional, type from use (`<Foreach badge>` → array, `{{ badge.x }}` → object, else `string`) | |
+| no `.yml`, bare `badge` | optional, type from use (`<Foreach badge>` → array, `{badge.x}` → object, else `string`) | |
 
 A dashed prop (`logo-text`) is `logoText`, as the engine already reads it.
 The `.yml`'s `label` and `description` become the prop's doc comment.
@@ -223,7 +223,7 @@ A component may read `site` and any collection without being handed them.
 The exporter finds every such free name and makes it a prop of the exported
 component, whose **default is the value the site has today**:
 
-- `{{ site.name }}` → a prop `site` whose default holds the members the block
+- `{site.name}` → a prop `site` whose default holds the members the block
   reads (`{ name: "Rowan Emerson" }`), not the whole of `site.json`.
 - `<Foreach posts="post">` → a prop `posts` whose default is today's entries,
   cut to the fields the block reads when that can be known from the source,
@@ -239,9 +239,9 @@ A repeater field with `source: site.nav_links` exports as its own prop
 
 | Source | React | Vue | Svelte 5 |
 |---|---|---|---|
-| `{{ x }}` in text | `{x}` | `{{ x }}` | `{x}` |
-| `href="{{ link.url }}"` | `href={link.url}` | `:href="link.url"` | `href={link.url}` |
-| `class="btn btn-{{ variant }}"` | ``className={`btn btn-${variant}`}`` | ``:class="`btn btn-${variant}`"`` | `class="btn btn-{variant}"` |
+| `{x}` in text | `{x}` | `{{ x }}` | `{x}` |
+| `href="{link.url}"` | `href={link.url}` | `:href="link.url"` | `href={link.url}` |
+| `class="btn btn-{variant}"` | ``className={`btn btn-${variant}`}`` | ``:class="`btn btn-${variant}`"`` | `class="btn btn-{variant}"` |
 | `<If a>…<ElseIf b>…<Else>…</If>` | `&&` for a lone `If`, a ternary chain otherwise | `v-if` / `v-else-if` / `v-else` (on the element, or a `<template>` when the branch is more than one node) | `{#if}{:else if}{:else}` |
 | `<Foreach items="item">` | `items.map((item, i) => …)` with `key={i}` | `v-for="(item, i) in items" :key="i"` | `{#each items as item, i}` |
 | `limit="3"` | `.slice(0, 3)` first | the same, in the `v-for` | the same, in the `#each` |
@@ -249,8 +249,8 @@ A repeater field with `source: site.nav_links` exports as its own prop
 | a component tag | an import and a tag | an import and a tag | an import and a tag |
 | `<Slot />` in a component file | `{children}` | `<slot />` | `{@render children?.()}` |
 | `<Slot name="head" />` | a `head` prop (`ReactNode`) | `<slot name="head" />` | `{@render head?.()}` |
-| `{{ class([...]) }}` | a class list filtered and joined, no library | `:class` with an array/object | `class={[…]}` |
-| `{{ attributes }}` / `attributes.merge([...])` | `{...rest}`, with `className` merged | `v-bind="$attrs"` (`inheritAttrs: false` when not on the root) | `{...rest}` |
+| `{class([...])}` | a class list filtered and joined, no library | `:class` with an array/object | `class={[…]}` |
+| `{attributes}` / `attributes.merge([...])` | `{...rest}`, with `className` merged | `v-bind="$attrs"` (`inheritAttrs: false` when not on the root) | `{...rest}` |
 | `{!! x !!}` | §5.6 | `v-html` | `{@html x}` |
 | `<Vite>` | dropped, with a note (the theme file replaces it) | same | same |
 
@@ -474,7 +474,7 @@ The standard, which a lint enforces (§7.6):
 3. State lives in the DOM (`data-*` and `aria-*` attributes), and CSS reads
    it. That is how the templates already work.
 4. Values the script needs from props go through the markup
-   (`data-period="{{ period }}"`, read as `root.dataset.period`).
+   (`data-period="{period}"`, read as `root.dataset.period`).
 5. No `import`, no `export`, no top-level `await`.
 6. The component has exactly one root element, and it is a plain HTML
    element (not a component tag). Otherwise there is nothing to call `root`.

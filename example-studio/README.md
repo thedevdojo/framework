@@ -26,12 +26,12 @@ Side by side:
 | This folder (`.html`) | `../example/` (`.blade.php`) |
 |---|---|
 | `<Layout src="main.html" title="…">` | `<x-layouts.main title="…">` |
-| `{{ site.name }}` | `{{ $site->name }}` |
+| `{site.name}` | `{{ $site->name }}` |
 | `<SectionsFeatureList :items="features"/>` | `<x-sections.feature-list :items="$features"/>` |
 | `<Props heading="Features" items />` | `@props(['heading' => 'Features', 'items' => null])` |
 | `<If items>` … `<Else>` … `</If>` | `@if ($items)` … `@else` … `@endif` |
 | `<Foreach items="item">` | `@foreach ($items as $item)` |
-| `{{ loop.iteration }} of {{ loop.count }}` | `{{ $loop->iteration }} of {{ $loop->count }}` |
+| `{loop.iteration} of {loop.count}` | `{{ $loop->iteration }} of {{ $loop->count }}` |
 | `<Slot />` | `{{ $slot }}` |
 
 ## Run it
