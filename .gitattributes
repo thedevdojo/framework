@@ -1,0 +1,31 @@
+# What `composer require devdojo/framework` downloads is an archive of a tag.
+# A Laravel app needs composer.json, laravel/src and laravel/config from it and
+# nothing else, so everything below is left out of that archive. A new folder
+# at the root goes here too (composer_test.go fails until it does).
+
+/.github            export-ignore
+/.goreleaser.yml    export-ignore
+/Makefile           export-ignore
+/blade              export-ignore
+/cmd                export-ignore
+/content            export-ignore
+/docs               export-ignore
+/example            export-ignore
+/example-studio     export-ignore
+/fixtures           export-ignore
+/migrate            export-ignore
+/npm                export-ignore
+/oracle             export-ignore
+/protocol           export-ignore
+/site               export-ignore
+/starter            export-ignore
+/vfs                export-ignore
+/framework.go       export-ignore
+/framework_test.go  export-ignore
+/composer_test.go   export-ignore
+/go.mod             export-ignore
+/go.sum             export-ignore
+
+/laravel/tests        export-ignore
+/laravel/phpunit.xml  export-ignore
+/laravel/README.md    export-ignore

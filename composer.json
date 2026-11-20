@@ -1,0 +1,16 @@
+{
+    "name": "devdojo/framework",
+    "description": "Run DevDojo Framework sites written in Blade in a real Laravel application",
+    "type": "library",
+    "license": "MIT",
+    "homepage": "https://github.com/thedevdojo/framework",
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "illuminate/view": "^11.0|^12.0|^13.0",
+        "league/commonmark": "^2.4"
+    },
+    "autoload": { "psr-4": { "Devdojo\\Framework\\": "laravel/src/" } },
+    "extra": { "laravel": { "providers": ["Devdojo\\Framework\\FrameworkServiceProvider"] } },
+    "prefer-stable": true
+}
