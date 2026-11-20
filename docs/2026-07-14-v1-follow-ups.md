@@ -1,5 +1,7 @@
 # Pocketknife v1 — Follow-ups & Open Decisions
 
+> **A note on names:** this was written when the project was called Pocketknife. It is now DevDojo Framework (`github.com/thedevdojo/framework`, binary `devdojo`). The names below are left as they were written.
+
 v1 shipped 2026-07-14 (final review verdict: READY-WITH-FOLLOW-UPS, zero criticals).
 This is the reviewable list of what remains. Items are ordered by weight.
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace Devdojo\Pocketknife;
+namespace Devdojo\Framework;
 
 use Illuminate\Foundation\Vite;
 use Illuminate\Support\HtmlString;
@@ -8,7 +8,7 @@ use Illuminate\Support\HtmlString;
 /**
  * StaticVite replaces Illuminate\Foundation\Vite's __invoke() with the static
  * projection: no Vite build, no manifest, no dev server. It is bound over the
- * real Vite class (see PocketknifeServiceProvider) so Blade's compiled
+ * real Vite class (see FrameworkServiceProvider) so Blade's compiled
  * `@vite(...)` — which resolves `app(Vite::class)(...)` regardless — renders
  * plain, self-contained HTML:
  *
@@ -42,12 +42,12 @@ class StaticVite extends Vite
     public function __invoke($entrypoints = null, $buildDirectory = null): HtmlString
     {
         // The static projection only applies when this app is actually
-        // hosting a Pocketknife site (site_root configured — the oracle sets
-        // it per render; the app tier sets POCKETKNIFE_SITE_ROOT). A host that
+        // hosting a DevDojo Framework site (site_root configured — the oracle sets
+        // it per render; the app tier sets DEVDOJO_SITE_ROOT). A host that
         // merely installs the package for its protocol client (the DevDojo
         // platform) must keep real Vite behavior for its own @vite calls, or
         // every page in the host app loses its build assets.
-        $root = rtrim((string) config('pocketknife.site_root'), '/');
+        $root = rtrim((string) config('devdojo-framework.site_root'), '/');
 
         if ($root === '') {
             return parent::__invoke($entrypoints ?? [], $buildDirectory);

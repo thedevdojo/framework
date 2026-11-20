@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/thedevdojo/pocketknife/blade"
-	"github.com/thedevdojo/pocketknife/blade/convert"
-	"github.com/thedevdojo/pocketknife/blade/render"
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/blade"
+	"github.com/thedevdojo/framework/blade/convert"
+	"github.com/thedevdojo/framework/blade/render"
+	"github.com/thedevdojo/framework/vfs"
 )
 
-// ConvertInput is the stdin document of `pocketknife convert`: a site's files
+// ConvertInput is the stdin document of `devdojo convert`: a site's files
 // and the syntax to convert its views to, "blade" or "studio" ("html", the
 // Studio syntax's older name, means the same). Data and options
 // mean what they mean to compile — they are what the site is rendered with,

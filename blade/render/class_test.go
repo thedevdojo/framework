@@ -3,7 +3,7 @@ package render
 import (
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 // @class / @style — Laravel's conditional class/style directives. Each

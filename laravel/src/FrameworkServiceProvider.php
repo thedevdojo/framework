@@ -1,6 +1,6 @@
 <?php
 
-namespace Devdojo\Pocketknife;
+namespace Devdojo\Framework;
 
 use Illuminate\Foundation\Vite;
 use Illuminate\Support\Facades\Blade;
@@ -8,16 +8,16 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
-class PocketknifeServiceProvider extends ServiceProvider
+class FrameworkServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/pocketknife.php', 'pocketknife');
+        $this->mergeConfigFrom(__DIR__.'/../config/devdojo-framework.php', 'devdojo-framework');
 
         // Replace the real Vite container entry with the static projection —
         // Blade's compiled `@vite(...)` always resolves `app(Vite::class)(...)`,
         // so binding over that class name is the whole seam (see StaticVite).
-        if (config('pocketknife.static_projection')) {
+        if (config('devdojo-framework.static_projection')) {
             $this->app->singleton(Vite::class, fn () => new StaticVite);
         }
     }
@@ -27,11 +27,11 @@ class PocketknifeServiceProvider extends ServiceProvider
         // Let a host app publish and override the package config.
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__.'/../config/pocketknife.php' => config_path('pocketknife.php'),
-            ], 'pocketknife-config');
+                __DIR__.'/../config/devdojo-framework.php' => config_path('devdojo-framework.php'),
+            ], 'devdojo-framework-config');
         }
 
-        if ($root = config('pocketknife.site_root')) {
+        if ($root = config('devdojo-framework.site_root')) {
             // View path precedence — DECIDED: the host APP's views win over the
             // site's. The finder searches locations in registration order and
             // returns the first hit; the app registered its own resources/views
@@ -53,7 +53,7 @@ class PocketknifeServiceProvider extends ServiceProvider
             // render-only (the oracle / protocol-client mode). The fallback is
             // an invokable controller (not a closure) so it survives
             // `php artisan route:cache`.
-            if (config('pocketknife.serve')) {
+            if (config('devdojo-framework.serve')) {
                 Route::fallback(SiteServer::class);
             }
         }

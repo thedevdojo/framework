@@ -1,15 +1,15 @@
 <?php
 
-namespace Devdojo\Pocketknife;
+namespace Devdojo\Framework;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\View;
 
 /**
- * SiteServer turns a resolved request into a served response for a Pocketknife
+ * SiteServer turns a resolved request into a served response for a DevDojo Framework
  * site rooted at $siteRoot. It is the body of the Route::fallback the service
- * provider registers when pocketknife.serve is on (spec: "App-Tier Serving"),
+ * provider registers when devdojo-framework.serve is on (spec: "App-Tier Serving"),
  * so it runs ONLY after every real app route has already failed to match — app
  * routes always win.
  *
@@ -27,13 +27,13 @@ use Illuminate\Support\Facades\View;
  * It is an INVOKABLE controller (registered as Route::fallback(SiteServer::class)),
  * not a closure, so the fallback survives `php artisan route:cache`. The site
  * root is read from config at request time — the provider only registers this
- * when pocketknife.serve AND site_root are set.
+ * when devdojo-framework.serve AND site_root are set.
  */
 class SiteServer
 {
     public function __invoke(Request $request): Response
     {
-        $siteRoot = (string) config('pocketknife.site_root');
+        $siteRoot = (string) config('devdojo-framework.site_root');
         if ($siteRoot === '') {
             abort(404); // serving without a root configured — nothing to serve
         }

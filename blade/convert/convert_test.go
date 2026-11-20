@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/blade/render"
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/blade/render"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 // have builds the "does this component exist" lookup File takes from a list of

@@ -3,10 +3,10 @@ package render
 import (
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/ast"
-	"github.com/thedevdojo/pocketknife/blade/parser"
-	"github.com/thedevdojo/pocketknife/blade/scanner"
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/blade/ast"
+	"github.com/thedevdojo/framework/blade/parser"
+	"github.com/thedevdojo/framework/blade/scanner"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 // Analyze is the lint-only analysis pass, separate from Compile by design. It
@@ -19,7 +19,7 @@ import (
 // diagnostic stream is consumed by hosts that treat ANY diagnostic as a hard
 // failure (the devdojo Sites template-sync gate rejects a template on a single
 // diagnostic of any kind). A warning must never reach that stream. Keeping the
-// analysis out of Compile entirely — only `pocketknife lint` calls Analyze —
+// analysis out of Compile entirely — only `devdojo lint` calls Analyze —
 // guarantees those any-diagnostic-fails semantics stay exactly as they were.
 //
 // Warnings are deduped by (file, line, col, message) so a component file

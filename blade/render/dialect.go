@@ -3,11 +3,11 @@ package render
 import (
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/htmlscan"
-	"github.com/thedevdojo/pocketknife/blade/scanner"
+	"github.com/thedevdojo/framework/blade/htmlscan"
+	"github.com/thedevdojo/framework/blade/scanner"
 )
 
-// Pocketknife reads two syntaxes, chosen per file by its extension:
+// DevDojo Framework reads two syntaxes, chosen per file by its extension:
 //
 //	.blade.php   Blade   — @if, {{ $post->title }}, <x-sections.hero/>
 //	.html        Studio  — <If>, {{ post.title }}, <SectionsHero />

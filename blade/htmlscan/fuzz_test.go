@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/blade/scanner"
+	"github.com/thedevdojo/framework/blade/scanner"
 )
 
 // templateTag matches the start of anything Scan may treat as a tag of the

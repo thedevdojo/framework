@@ -1,5 +1,5 @@
 // Package render compiles the Blade-subset AST into rendered bytes. It is the
-// point where Pocketknife's Go pipeline (scanner → parser → expr) meets real
+// point where DevDojo Framework's Go pipeline (scanner → parser → expr) meets real
 // Blade's output contract: echoes are escaped with Laravel's e(), values are
 // stringified the PHP-echo way, and the newline swallowed by a compiled `?>` is
 // reproduced exactly — a rule settled empirically against the oracle, NOT from
@@ -18,11 +18,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/ast"
-	"github.com/thedevdojo/pocketknife/blade/expr"
-	"github.com/thedevdojo/pocketknife/blade/parser"
-	"github.com/thedevdojo/pocketknife/blade/scanner"
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/blade/ast"
+	"github.com/thedevdojo/framework/blade/expr"
+	"github.com/thedevdojo/framework/blade/parser"
+	"github.com/thedevdojo/framework/blade/scanner"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 // DiagKind classifies a diagnostic. KindError marks something the engine cannot
@@ -34,7 +34,7 @@ import (
 // real Laravel, so it has no app tier: the same constructs are KindError there.
 //
 // KindWarning is LINT-ONLY: it is produced solely by Analyze (surfaced through
-// `pocketknife lint`), never by Compile. The compile protocol's diagnostic
+// `devdojo lint`), never by Compile. The compile protocol's diagnostic
 // stream carries only error/app-tier so that hosts which treat "any diagnostic"
 // as a hard failure (e.g. the devdojo Sites template-sync validation gate) are
 // untouched by warnings. See Analyze and the protocol package doc.

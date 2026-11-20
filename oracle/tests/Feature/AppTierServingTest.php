@@ -9,17 +9,17 @@ use PHPUnit\Framework\Attributes\DataProvider;
  * package at the fixture's input tree, enable serving, GET each page's URL
  * through Laravel's real HTTP stack, and assert the response body is
  * byte-identical to the fixture's expected/ output — the same bytes the Go
- * engine and real Blade (pocketknife:conformance) already agree on. Three-way
+ * engine and real Blade (framework:conformance) already agree on. Three-way
  * agreement: engine == Blade-render == Blade-over-HTTP.
  *
- * Fixture selection mirrors pocketknife:conformance exactly, minus one class:
+ * Fixture selection mirrors framework:conformance exactly, minus one class:
  *   - oracle:false fixtures are skipped (same as the render conformance).
  *   - fixtures with a case.json "data" override are skipped: that data is the
  *     protocol's per-render data map, injected by the render harness's --data
  *     flag. HTTP serving has no equivalent (SiteData binds only the site's own
  *     file-sourced $site / collections / content — never an ad-hoc data map),
  *     so those pages reference variables that simply don't exist over HTTP.
- *     They stay covered by pocketknife:conformance; serving covers the rest.
+ *     They stay covered by framework:conformance; serving covers the rest.
  */
 class AppTierServingTest extends ServingTestCase
 {
@@ -77,7 +77,7 @@ class AppTierServingTest extends ServingTestCase
 
     /**
      * Oracle-checked fixtures with no per-render data override. Mirrors
-     * pocketknife:conformance's selection (oracle !== false) minus data cases.
+     * framework:conformance's selection (oracle !== false) minus data cases.
      *
      * @return array<string, array{0: string, 1: array}>
      */

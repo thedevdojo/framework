@@ -1,6 +1,6 @@
 <?php
 
-// The oracle app defines no web routes of its own. When pocketknife.serve is
+// The oracle app defines no web routes of its own. When devdojo-framework.serve is
 // on, the package's Route::fallback serves the configured site tree (pages +
 // public/ assets); every request therefore flows through that fallback, which
 // is exactly what the app-tier serving conformance suite exercises. Tests that

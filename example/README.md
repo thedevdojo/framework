@@ -1,4 +1,4 @@
-# Pocketknife example
+# DevDojo Framework example
 
 The smallest useful Blade-dialect site: a page, a layout component with
 `@props` + `{{ $slot }}`, a section receiving collection data through a bound
@@ -29,13 +29,13 @@ directive used here is explained in the
 ## 1. Build the binary
 
 ```bash
-go build -o /usr/local/bin/pocketknife ./cmd/pocketknife   # from the repo root
+go build -o /usr/local/bin/devdojo ./cmd/devdojo   # from the repo root
 ```
 
 ## 2. Lint — the tier gate
 
 ```bash
-pocketknife lint example
+devdojo lint example
 ```
 
 Silence + exit 0 means every construct is inside the static subset. Add
@@ -57,7 +57,7 @@ engine — no disk, no eval, just bytes in and bytes out:
 ```bash
 jq -n --rawfile page example/resources/views/pages/index.blade.php \
   '{files: {"resources/views/pages/index.blade.php": $page}}' \
-  | pocketknife compile | jq -r '.files["index.html"]'
+  | devdojo compile | jq -r '.files["index.html"]'
 ```
 
 (That one-liner omits the layout/component files, so the output also carries a
@@ -69,7 +69,7 @@ The conformance oracle doubles as proof of the whole thesis — render the same
 folder through genuine Blade:
 
 ```bash
-cd oracle && php artisan pocketknife:render ../example pages.index
+cd oracle && php artisan framework:render ../example pages.index
 ```
 
 Byte-for-byte identical to the Go engine's output.

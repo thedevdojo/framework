@@ -22,9 +22,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/ast"
-	"github.com/thedevdojo/pocketknife/blade/internal/strscan"
-	"github.com/thedevdojo/pocketknife/blade/scanner"
+	"github.com/thedevdojo/framework/blade/ast"
+	"github.com/thedevdojo/framework/blade/internal/strscan"
+	"github.com/thedevdojo/framework/blade/scanner"
 )
 
 // Diag is a recoverable parse error. It mirrors the scanner's position model

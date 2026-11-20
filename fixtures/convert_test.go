@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/blade/convert"
-	"github.com/thedevdojo/pocketknife/blade/render"
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/blade/convert"
+	"github.com/thedevdojo/framework/blade/render"
+	"github.com/thedevdojo/framework/vfs"
 )
 
-// unconvertible lists every fixture that `pocketknife convert` must REFUSE,
+// unconvertible lists every fixture that `devdojo convert` must REFUSE,
 // keyed "fixture → syntax", with the reason. Everything not listed here must
 // convert — and a listed case that starts converting fails the test, so the
 // list cannot quietly go stale.

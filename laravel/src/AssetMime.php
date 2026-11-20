@@ -1,12 +1,12 @@
 <?php
 
-namespace Devdojo\Pocketknife;
+namespace Devdojo\Framework;
 
 /**
  * AssetMime resolves the Content-Type for a raw file served out of a site's
  * public/ directory. It is a package-local port of the approach devdojo/sites
  * uses (App\Services\Sites\UrlRewriter::assetMimeType) — kept package-local so
- * pocketknife carries no dependency on the platform.
+ * this package carries no dependency on the platform.
  *
  * Active document types (html/htm/xhtml/shtml) are forced to text/plain so a
  * stray .html file dropped in public/ can't be served as an active page from

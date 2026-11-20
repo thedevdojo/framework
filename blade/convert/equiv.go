@@ -3,9 +3,9 @@ package convert
 import (
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/htmlscan"
-	"github.com/thedevdojo/pocketknife/blade/internal/strscan"
-	"github.com/thedevdojo/pocketknife/blade/scanner"
+	"github.com/thedevdojo/framework/blade/htmlscan"
+	"github.com/thedevdojo/framework/blade/internal/strscan"
+	"github.com/thedevdojo/framework/blade/scanner"
 )
 
 // This file is the converter's referee. The two scanners emit the same tokens

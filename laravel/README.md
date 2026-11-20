@@ -1,15 +1,15 @@
-# devdojo/pocketknife (Laravel package)
+# devdojo/framework (Laravel package)
 
-Run Pocketknife sites written in Blade from a real Laravel application. The
+Run DevDojo Framework sites written in Blade from a real Laravel application. The
 package has two independent roles:
 
-1. **Protocol client** — `Devdojo\Pocketknife\Engine\Engine`, a thin, typed
-   wrapper that shells out to the compiled `pocketknife` Go binary
-   (`pocketknife compile`, JSON over stdin/stdout). This is how a host whose
+1. **Protocol client** — `Devdojo\Framework\Engine\Engine`, a thin, typed
+   wrapper that shells out to the compiled `devdojo` Go binary
+   (`devdojo compile`, JSON over stdin/stdout). This is how a host whose
    site files live in a database talks to the static-tier engine.
-2. **Site rendering & serving** — point `pocketknife.site_root` at a site tree
+2. **Site rendering & serving** — point `devdojo-framework.site_root` at a site tree
    and the service provider wires its views, components, and data contract
-   into real Blade. Opt in with `pocketknife.serve` and a `Route::fallback`
+   into real Blade. Opt in with `devdojo-framework.serve` and a `Route::fallback`
    serves the whole tree as a live app (pages + `public/` assets).
 
 Either role works without the other: the client needs only `binary`; rendering
@@ -23,36 +23,36 @@ Packagist). In the host app's `composer.json`:
 ```json
 {
     "repositories": [
-        { "type": "path", "url": "../pocketknife/laravel", "options": { "symlink": true } }
+        { "type": "path", "url": "../framework/laravel", "options": { "symlink": true } }
     ]
 }
 ```
 
 ```sh
-composer require devdojo/pocketknife:@dev
+composer require devdojo/framework:@dev
 ```
 
-`Devdojo\Pocketknife\PocketknifeServiceProvider` is auto-discovered.
+`Devdojo\Framework\FrameworkServiceProvider` is auto-discovered.
 
-## Configuration (`config/pocketknife.php`)
+## Configuration (`config/devdojo-framework.php`)
 
-Publish with `php artisan vendor:publish --tag=pocketknife-config`.
+Publish with `php artisan vendor:publish --tag=devdojo-framework-config`.
 
 | Key | Env | Default | Meaning |
 |---|---|---|---|
-| `site_root` | `POCKETKNIFE_SITE_ROOT` | `null` | Absolute path to a site tree (the directory holding `resources/` and `public/`). Setting it registers the site's views + data bindings — render-only, no routes. |
-| `serve` | `POCKETKNIFE_SERVE` | `false` | With `site_root`, also register the `Route::fallback` that serves the tree as a live app. |
-| `static_projection` | `POCKETKNIFE_STATIC_PROJECTION` | `true` | Render `@vite(...)` as the static projection (Tailwind v4 Play CDN `<script>` + each CSS entry inlined in a `<style type="text/tailwindcss">` block) instead of requiring a Vite build. Byte-identical to the Go engine's `@vite` emission. |
-| `binary` | `POCKETKNIFE_BINARY` | `null` | Absolute path to the compiled `pocketknife` binary. Null/empty disables the client (`Engine::isAvailable()` is false). |
-| `timeout` | `POCKETKNIFE_TIMEOUT` | `30` | Seconds one compile may run before the client kills the process. |
-| `minimum_version` | `POCKETKNIFE_MINIMUM_VERSION` | `0.1.0` | The client refuses a binary whose reported engine version is lower. |
+| `site_root` | `DEVDOJO_SITE_ROOT` | `null` | Absolute path to a site tree (the directory holding `resources/` and `public/`). Setting it registers the site's views + data bindings — render-only, no routes. |
+| `serve` | `DEVDOJO_SERVE` | `false` | With `site_root`, also register the `Route::fallback` that serves the tree as a live app. |
+| `static_projection` | `DEVDOJO_STATIC_PROJECTION` | `true` | Render `@vite(...)` as the static projection (Tailwind v4 Play CDN `<script>` + each CSS entry inlined in a `<style type="text/tailwindcss">` block) instead of requiring a Vite build. Byte-identical to the Go engine's `@vite` emission. |
+| `binary` | `DEVDOJO_BINARY` | `null` | Absolute path to the compiled `devdojo` binary. Null/empty disables the client (`Engine::isAvailable()` is false). |
+| `timeout` | `DEVDOJO_TIMEOUT` | `30` | Seconds one compile may run before the client kills the process. |
+| `minimum_version` | `DEVDOJO_MINIMUM_VERSION` | `0.1.0` | The client refuses a binary whose reported engine version is lower. |
 
 ## The protocol client
 
 ```php
-use Devdojo\Pocketknife\Engine\{Engine, CompileRequest};
+use Devdojo\Framework\Engine\{Engine, CompileRequest};
 
-$engine = Engine::fromConfig();          // reads pocketknife.binary/timeout/minimum_version
+$engine = Engine::fromConfig();          // reads devdojo-framework.binary/timeout/minimum_version
 
 if ($engine->isAvailable()) {
     $result = $engine->compile(new CompileRequest(
@@ -70,7 +70,7 @@ if ($engine->isAvailable()) {
 }
 ```
 
-On the wire this is one `pocketknife compile` process per call: the request
+On the wire this is one `devdojo compile` process per call: the request
 JSON `{"files": {...}, "data": {...}?, "entries": [...]?, "options": {...}?}`
 on stdin, the response
 `{"engine": "x.y.z", "files": {...}, "deps": {...}, "diagnostics": [...]}`
@@ -120,7 +120,7 @@ With `site_root` set, the provider registers at boot:
 Pages are plain `.blade.php` views rendered by real Blade — this is the mode
 the conformance oracle and the DevDojo platform use.
 
-## Serving (`pocketknife.serve`)
+## Serving (`devdojo-framework.serve`)
 
 When `serve` and `site_root` are both set, the provider registers
 `Route::fallback(SiteServer::class)` — an invokable controller (survives
@@ -149,6 +149,6 @@ Go engine's `protocol.ResolveURL` (and Folio):
 composer test
 ```
 
-The bootstrap builds a fresh `pocketknife` binary from the Go source in this
+The bootstrap builds a fresh `devdojo` binary from the Go source in this
 repo for the end-to-end `Engine` tests; without a Go toolchain those tests
 skip themselves and the pure unit tests still run.

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 // FuzzCompile asserts Compile never panics on arbitrary page bytes, exercising

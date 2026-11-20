@@ -3,9 +3,9 @@ package convert
 import (
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/htmlscan"
-	"github.com/thedevdojo/pocketknife/blade/render"
-	"github.com/thedevdojo/pocketknife/blade/scanner"
+	"github.com/thedevdojo/framework/blade/htmlscan"
+	"github.com/thedevdojo/framework/blade/render"
+	"github.com/thedevdojo/framework/blade/scanner"
 )
 
 // printBlade writes a Studio-syntax file's tokens as Blade.

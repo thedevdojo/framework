@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "48519b5597ff1ab97bd09bf700b6f1a1",
+    "content-hash": "3b3464192ab21156e792654049ba4b6b",
     "packages": [
         {
             "name": "brick/math",
@@ -136,12 +136,12 @@
             "time": "2024-02-09T16:56:22+00:00"
         },
         {
-            "name": "devdojo/pocketknife",
+            "name": "devdojo/framework",
             "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "../laravel",
-                "reference": "22b06aaa6c759cd2aa909b4553eb34731740a226"
+                "reference": "e378367ce3a1720f461a3c47496339791642c1f4"
             },
             "require": {
                 "illuminate/support": "^11.0|^12.0|^13.0",
@@ -156,18 +156,18 @@
             "extra": {
                 "laravel": {
                     "providers": [
-                        "Devdojo\\Pocketknife\\PocketknifeServiceProvider"
+                        "Devdojo\\Framework\\FrameworkServiceProvider"
                     ]
                 }
             },
             "autoload": {
                 "psr-4": {
-                    "Devdojo\\Pocketknife\\": "src/"
+                    "Devdojo\\Framework\\": "src/"
                 }
             },
             "autoload-dev": {
                 "psr-4": {
-                    "Devdojo\\Pocketknife\\Tests\\": "tests/"
+                    "Devdojo\\Framework\\Tests\\": "tests/"
                 }
             },
             "scripts": {
@@ -178,7 +178,7 @@
             "license": [
                 "MIT"
             ],
-            "description": "Run Pocketknife sites written in Blade in a real Laravel application",
+            "description": "Run DevDojo Framework sites written in Blade in a real Laravel application",
             "transport-options": {
                 "relative": true
             }
@@ -8425,7 +8425,7 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "devdojo/pocketknife": 20
+        "devdojo/framework": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

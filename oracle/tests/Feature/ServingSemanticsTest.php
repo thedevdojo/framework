@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use Devdojo\Pocketknife\SiteServer;
+use Devdojo\Framework\SiteServer;
 use Illuminate\Support\Facades\Route;
 
 /**

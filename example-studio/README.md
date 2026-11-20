@@ -1,10 +1,10 @@
-# Pocketknife example — DevDojo Studio syntax
+# DevDojo Framework example — DevDojo Studio syntax
 
 [`../example/`](../example/) again, written with tags instead of Blade
 directives. Same data, same CSS, **the same rendered bytes** — a test
 (`TestExamplesRenderAlike`) holds the two outputs identical.
 
-Nobody typed these views: they are what `pocketknife convert example --to studio`
+Nobody typed these views: they are what `devdojo convert example --to studio`
 writes, and a second test (`TestExampleStudioIsTheConversion`) keeps them that
 way. Run it the other way (`--to blade`) and you are back at `../example/`.
 
@@ -38,8 +38,8 @@ Side by side:
 ## Run it
 
 ```bash
-go build -o /usr/local/bin/pocketknife ./cmd/pocketknife   # from the repo root
-pocketknife lint example-studio                            # silence = clean
+go build -o /usr/local/bin/devdojo ./cmd/devdojo   # from the repo root
+devdojo lint example-studio                            # silence = clean
 example/render.sh example-studio                           # writes example-studio/_out/index.html
 ```
 
@@ -52,6 +52,6 @@ in real Laravel) does not apply here — the Laravel package reads Blade only.
 To take this site to Laravel, convert it first:
 
 ```bash
-pocketknife convert example-studio --to blade --dry-run   # show what would change
-pocketknife convert example-studio --to blade             # rewrite the views in place
+devdojo convert example-studio --to blade --dry-run   # show what would change
+devdojo convert example-studio --to blade             # rewrite the views in place
 ```

@@ -1,16 +1,16 @@
 <?php
 
-namespace Devdojo\Pocketknife\Tests;
+namespace Devdojo\Framework\Tests;
 
-use Devdojo\Pocketknife\Engine\CompileRequest;
-use Devdojo\Pocketknife\Engine\Engine;
-use Devdojo\Pocketknife\Engine\Exceptions\BinaryFailedException;
-use Devdojo\Pocketknife\Engine\Exceptions\BinaryNotFoundException;
+use Devdojo\Framework\Engine\CompileRequest;
+use Devdojo\Framework\Engine\Engine;
+use Devdojo\Framework\Engine\Exceptions\BinaryFailedException;
+use Devdojo\Framework\Engine\Exceptions\BinaryNotFoundException;
 use PHPUnit\Framework\TestCase;
 
 /**
  * The Engine's failure paths — a missing/empty binary path, and a binary that
- * exists but exits non-zero. None of these needs the real `pocketknife` binary:
+ * exists but exits non-zero. None of these needs the real `devdojo` binary:
  * the missing/empty cases never exec anything, and the failure cases run a tiny
  * self-written shell script. So, unlike EngineTest, they carry no skip gate and
  * run everywhere — including PHP-only CI without the Go toolchain.
@@ -19,7 +19,7 @@ class EngineExceptionPathsTest extends TestCase
 {
     public function test_missing_binary_path_throws_binary_not_found(): void
     {
-        $engine = new Engine('/does/not/exist/pocketknife', 30, '0.1.0');
+        $engine = new Engine('/does/not/exist/devdojo', 30, '0.1.0');
 
         $this->assertFalse($engine->isAvailable());
         $this->expectException(BinaryNotFoundException::class);
@@ -44,7 +44,7 @@ class EngineExceptionPathsTest extends TestCase
         // A binary that exists and is executable (so it passes isAvailable())
         // but exits non-zero with no JSON on stdout. Written into the temp dir
         // rather than hardcoding /bin/false, whose path differs across OSes.
-        $garbage = sys_get_temp_dir().'/pocketknife-garbage-'.getmypid();
+        $garbage = sys_get_temp_dir().'/devdojo-garbage-'.getmypid();
         file_put_contents($garbage, "#!/bin/sh\nexit 1\n");
         chmod($garbage, 0755);
 
@@ -65,7 +65,7 @@ class EngineExceptionPathsTest extends TestCase
     {
         // A binary that writes to stderr then exits non-zero — the failure
         // message must surface that noise so the cause is diagnosable.
-        $noisy = sys_get_temp_dir().'/pocketknife-noisy-'.getmypid();
+        $noisy = sys_get_temp_dir().'/devdojo-noisy-'.getmypid();
         file_put_contents($noisy, "#!/bin/sh\necho 'boom on stderr' >&2\nexit 3\n");
         chmod($noisy, 0755);
 

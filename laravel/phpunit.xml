@@ -6,7 +6,7 @@
          failOnWarning="true"
          cacheDirectory=".phpunit.cache">
     <testsuites>
-        <testsuite name="Pocketknife">
+        <testsuite name="DevDojo Framework">
             <directory>tests</directory>
         </testsuite>
     </testsuites>

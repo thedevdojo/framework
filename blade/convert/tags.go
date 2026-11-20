@@ -3,7 +3,7 @@ package convert
 import (
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/scanner"
+	"github.com/thedevdojo/framework/blade/scanner"
 )
 
 // A component tag is rewritten in place: its name changes, a bound value is

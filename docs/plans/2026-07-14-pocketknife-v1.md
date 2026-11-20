@@ -1,5 +1,7 @@
 # Pocketknife v1 Implementation Plan
 
+> **A note on names:** this was written when the project was called Pocketknife. It is now DevDojo Framework (`github.com/thedevdojo/framework`, binary `devdojo`). The names below are left as they were written.
+
 > **Superseded note (ProjectBlade, 2026-07-16):** the template extension was
 > renamed `.blade.html` → `.blade.php` (a naming change only). This plan's file
 > paths have been updated to `.blade.php`; the one behavioural consequence is

@@ -3,9 +3,9 @@ package render
 import (
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/blade/ast"
-	"github.com/thedevdojo/pocketknife/blade/scanner"
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/blade/ast"
+	"github.com/thedevdojo/framework/blade/scanner"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 // data is the render-test shorthand for Options.Data (the protocol's decoded

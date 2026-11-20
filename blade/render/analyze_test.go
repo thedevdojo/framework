@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 // warningsFor runs Analyze over a single page entry against an in-memory tree

@@ -1,4 +1,4 @@
-// Package main_test drives the built pocketknife binary end to end via
+// Package main_test drives the built devdojo binary end to end via
 // os/exec — the CLI's contract is its process behavior (stdin/stdout/stderr,
 // exit code), not any Go API, so that is what these tests exercise. TestMain
 // builds the binary once into a temp dir and every test shells out to it.
@@ -14,21 +14,21 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/blade"
+	"github.com/thedevdojo/framework/blade"
 )
 
 var binPath string
 
 func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "pocketknife-cli-test")
+	dir, err := os.MkdirTemp("", "devdojo-cli-test")
 	if err != nil {
 		panic(err)
 	}
 	defer os.RemoveAll(dir)
-	binPath = filepath.Join(dir, "pocketknife")
+	binPath = filepath.Join(dir, "devdojo")
 	build := exec.Command("go", "build", "-o", binPath, ".")
 	if out, err := build.CombinedOutput(); err != nil {
-		panic("go build ./cmd/pocketknife failed: " + err.Error() + "\n" + string(out))
+		panic("go build ./cmd/devdojo failed: " + err.Error() + "\n" + string(out))
 	}
 	os.Exit(m.Run())
 }
@@ -58,7 +58,7 @@ func TestVersion(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
 	}
-	want := "pocketknife " + blade.Version + "\n"
+	want := "devdojo " + blade.Version + "\n"
 	if stdout != want {
 		t.Errorf("stdout = %q, want %q", stdout, want)
 	}

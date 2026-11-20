@@ -3,7 +3,7 @@ package htmlscan
 import (
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/scanner"
+	"github.com/thedevdojo/framework/blade/scanner"
 )
 
 // This file turns each built-in tag into the Blade token it is another

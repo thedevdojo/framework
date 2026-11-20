@@ -1,5 +1,7 @@
 # Attribute bag + conditional classes (engine 0.2.0)
 
+> **A note on names:** this was written when the project was called Pocketknife. It is now DevDojo Framework (`github.com/thedevdojo/framework`, binary `devdojo`). The names below are left as they were written.
+
 **Date:** 2026-08-13
 **Status:** Shipped. Oracle-verified (all `oracle: true` fixtures byte-identical
 against real Blade, Laravel 12, `make conformance`).

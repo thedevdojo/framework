@@ -1,8 +1,8 @@
-# Pocketknife
+# DevDojo Framework
 
 <img src="https://cdn.devdojo.com/images/august2026/pocketknife-banner.jpg" style="height:auto; width:100%">
 
-**An HTML compiler.** Pocketknife takes templates and data and returns static HTML. It is a Go engine — no PHP, no `eval`, no runtime — so it is safe to run on templates you did not write.
+**An HTML compiler.** DevDojo Framework takes templates and data and returns static HTML. It is a Go engine — no PHP, no `eval`, no runtime — so it is safe to run on templates you did not write.
 
 It reads two template syntaxes, and they are the same language written two ways:
 
@@ -34,7 +34,7 @@ The same page in each:
 Both compile to the same bytes:
 
 ```html
-<h1>Pocketknife</h1>
+<h1>DevDojo Framework</h1>
 
     <li>1. Starter — Free</li>
     <li>2. Pro — $12/mo</li>
@@ -42,9 +42,9 @@ Both compile to the same bytes:
 
 ## Why
 
-A template language that can run code cannot be handed to your users: there is no safe way to let them edit a template and guarantee nothing malicious runs. Pocketknife compiles a **closed language**. A template can read values, compare them, loop and use components — and nothing else. No function calls, no assignments, no PHP. What it cannot say, it cannot do.
+A template language that can run code cannot be handed to your users: there is no safe way to let them edit a template and guarantee nothing malicious runs. DevDojo Framework compiles a **closed language**. A template can read values, compare them, loop and use components — and nothing else. No function calls, no assignments, no PHP. What it cannot say, it cannot do.
 
-Nothing is invented, either. The Blade syntax is a subset of real Laravel Blade, and a conformance suite renders every Blade case through both Pocketknife and genuine Laravel and compares the output byte for byte. So a Pocketknife site is literally a slice of a Laravel app: move the files into one and they keep working.
+Nothing is invented, either. The Blade syntax is a subset of real Laravel Blade, and a conformance suite renders every Blade case through both DevDojo Framework and genuine Laravel and compares the output byte for byte. So a DevDojo Framework site is literally a slice of a Laravel app: move the files into one and they keep working.
 
 ## The two syntaxes
 
@@ -116,9 +116,9 @@ The full reference for each:
 A site written in one syntax can be rewritten in the other, in place:
 
 ```bash
-pocketknife convert my-site --to studio           # Blade → DevDojo Studio
-pocketknife convert my-site --to blade            # DevDojo Studio → Blade
-pocketknife convert my-site --to blade --dry-run  # say what would change, touch nothing
+devdojo convert my-site --to studio           # Blade → DevDojo Studio
+devdojo convert my-site --to blade            # DevDojo Studio → Blade
+devdojo convert my-site --to blade --dry-run  # say what would change, touch nothing
 ```
 
 A conversion is exact or it does not happen: every converted file is read back and compared token for token, the site is rendered before and after and every page must come out byte for byte the same, and one problem anywhere leaves every file untouched. Blade that needs real Laravel (`@auth`, `route()`) is refused on its way to DevDojo Studio. The Laravel package renders Blade only, so converting to Blade is also how an `.html` site moves into a real Laravel app. [More on converting →](docs/studio-syntax.md#converting-between-the-two)
@@ -138,20 +138,20 @@ No function calls, no assignments, no `@php`. Undefined variables are compile-ti
 ## Usage
 
 ```bash
-go build -o /usr/local/bin/pocketknife ./cmd/pocketknife
+go build -o /usr/local/bin/devdojo ./cmd/devdojo
 ```
 
 **Lint** a site directory — silence means every page compiles cleanly:
 
 ```bash
-pocketknife lint example
+devdojo lint example
 ```
 
 **Compile** speaks one JSON document on stdin, one on stdout — files in, files + deps + diagnostics out. No disk, no eval:
 
 ```bash
 echo '{"files": {"resources/views/pages/index.blade.php": "<h1>{{ $title }}</h1>", "resources/data/site.json": "{}"}, "data": {"title": "Hi"}}' \
-  | pocketknife compile | jq -r '.files["index.html"]'
+  | devdojo compile | jq -r '.files["index.html"]'
 # <h1>Hi</h1>
 ```
 
@@ -159,14 +159,14 @@ A dynamic page — one template, one document per collection entry — renders i
 
 ```bash
 echo '{"files": {"resources/views/pages/post/[post.slug].blade.php": "<h1>{{ $post->title }}</h1>"}, "variants": [{"entry": "resources/views/pages/post/[post.slug].blade.php", "data": {"post": {"title": "Hi"}}, "output": "post/hi/index.html"}]}' \
-  | pocketknife compile | jq -r '.files["post/hi/index.html"]'
+  | devdojo compile | jq -r '.files["post/hi/index.html"]'
 # <h1>Hi</h1>
 ```
 
 Or embed the engine directly from Go:
 
 ```go
-result := pocketknife.Compile(vfs.Dir("my-site"), []string{"resources/views/pages/index.blade.php"}, pocketknife.Options{})
+result := framework.Compile(vfs.Dir("my-site"), []string{"resources/views/pages/index.blade.php"}, framework.Options{})
 ```
 
 The [`example/`](example/) directory is the smallest useful site — a page, a layout, a component fed by collection data — with a `render.sh` that runs the whole pipeline. [`example-studio/`](example-studio/) is the same site in DevDojo Studio syntax, and a test holds the two outputs identical.
@@ -176,8 +176,12 @@ The [`example/`](example/) directory is the smallest useful site — a page, a l
 | Path | What it is |
 |---|---|
 | `blade/` | The Go engine: scanners, parser, renderer, expression evaluator. Stdlib-only, never panics on user input. `blade/scanner` reads Blade and `blade/htmlscan` reads DevDojo Studio; `blade/convert` rewrites a site from one syntax to the other. |
-| `laravel/` | The `devdojo/pocketknife` Composer package that makes the same Blade files render in a real Laravel app. |
+| `laravel/` | The `devdojo/framework` Composer package that makes the same Blade files render in a real Laravel app. |
 | `fixtures/` | The contract — conformance cases rendered by both engines. |
 | `oracle/` | A minimal Laravel app that runs the fixtures through genuine Blade in CI. |
-| `cmd/pocketknife/` | The CLI: `compile`, `lint`, `convert`, `version`. |
+| `cmd/devdojo/` | The CLI: `compile`, `lint`, `convert`, `version`. |
 | `docs/` | The two syntax guides ([Blade](docs/blade-syntax.md), [DevDojo Studio](docs/studio-syntax.md)) and the design specs in [`docs/specs/`](docs/specs/). |
+
+## License
+
+MIT. See [LICENSE](LICENSE).

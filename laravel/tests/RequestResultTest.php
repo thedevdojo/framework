@@ -1,10 +1,10 @@
 <?php
 
-namespace Devdojo\Pocketknife\Tests;
+namespace Devdojo\Framework\Tests;
 
-use Devdojo\Pocketknife\Engine\CompileRequest;
-use Devdojo\Pocketknife\Engine\CompileResult;
-use Devdojo\Pocketknife\Engine\Diagnostic;
+use Devdojo\Framework\Engine\CompileRequest;
+use Devdojo\Framework\Engine\CompileResult;
+use Devdojo\Framework\Engine\Diagnostic;
 use PHPUnit\Framework\TestCase;
 
 /**

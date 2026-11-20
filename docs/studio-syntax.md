@@ -1,6 +1,6 @@
 # The DevDojo Studio syntax
 
-Pocketknife compiles templates to HTML. It reads two syntaxes, and this is the
+DevDojo Framework compiles templates to HTML. It reads two syntaxes, and this is the
 guide to the second: the **DevDojo Studio syntax**, in files ending `.html`.
 (The other is [Blade](blade-syntax.md), in `.blade.php` files.)
 
@@ -159,7 +159,7 @@ folders are tried first:
 | `<FAQSection>` | `faq/section.html`, then `faq-section.html` |
 
 Each candidate is tried as `.html`, then `.blade.php`. A missing component's
-error lists where it looked. `pocketknife lint` warns when a tag matches more
+error lists where it looked. `devdojo lint` warns when a tag matches more
 than one file.
 
 **Attributes.** `heading="Hi"` passes text. `:items="posts"` passes a value.
@@ -225,9 +225,9 @@ syntaxes byte-identical; in HTML output it is invisible.
 ## Converting between the two
 
 ```bash
-pocketknife convert my-site --to studio           # Blade → DevDojo Studio
-pocketknife convert my-site --to blade            # DevDojo Studio → Blade
-pocketknife convert my-site --to blade --dry-run  # say what would change, touch nothing
+devdojo convert my-site --to studio           # Blade → DevDojo Studio
+devdojo convert my-site --to blade            # DevDojo Studio → Blade
+devdojo convert my-site --to blade --dry-run  # say what would change, touch nothing
 ```
 
 (`--to html` is the Studio syntax's older name and still works.)
@@ -239,7 +239,7 @@ JSON, for a host that keeps its files elsewhere:
 
 ```bash
 echo '{"to": "studio", "files": {"resources/views/pages/index.blade.php": "@if ($on) yes @endif"}, "data": {"on": true}}' \
-  | pocketknife convert
+  | devdojo convert
 # {"engine":"1.0.0","files":{"resources/views/pages/index.html":"<If on> yes </If>"},"removed":["resources/views/pages/index.blade.php"],"diagnostics":[]}
 ```
 
@@ -298,7 +298,7 @@ file never needed (`&amp;` in a `<Props>` default comes back as `&`).
   target file that already exists (`about.html` beside `about.blade.php`).
 
 A mistake that both syntaxes can spell is carried across as it is: an unclosed
-`<If>` becomes an unclosed `@if`. Run `pocketknife lint` first.
+`<If>` becomes an unclosed `@if`. Run `devdojo lint` first.
 
 **What a round trip changes.** Nothing that renders. Blade → Studio → Blade
 tidies spelling (`@if($a)` → `@if ($a)`, `@vite('a.css')` →
@@ -333,7 +333,7 @@ Proof, since the PHP oracle cannot read an `.html` view:
   Blade fixture must expect that fixture's exact bytes (enforced by the
   harness).
 - `example-studio/` renders byte-identical to `example/`, and is exactly what
-  `pocketknife convert example --to studio` writes
+  `devdojo convert example --to studio` writes
   (`TestExampleStudioIsTheConversion`).
 - Fuzzers: `FuzzScan` (plain HTML comes back unchanged), `FuzzExpr`,
   `FuzzParseHTML`, `FuzzCompileHTML`.
@@ -346,7 +346,7 @@ The converter (`blade/convert`) has its own:
   `@media (…)`, `<x-card>`, `@{{ }}`, an empty class list), written in the
   Studio syntax, converted, and rendered by **real Laravel**: it prints what the
   author wrote.
-- `convert.TestCorpus` (opt-in, `POCKETKNIFE_CORPUS=<dir of sites>`) — converts
+- `convert.TestCorpus` (opt-in, `DEVDOJO_CORPUS=<dir of sites>`) — converts
   each site to the Studio syntax and back twice over, requiring identical
   renders and a second trip that changes nothing.
 - `convert.FuzzFile` — on arbitrary input the converter may refuse, but what
@@ -356,7 +356,7 @@ The converter (`blade/convert`) has its own:
 
 - **The Laravel tier.** `laravel/` and the oracle render Blade only. An
   `.html` site moves into a real Laravel app by converting it first
-  (`pocketknife convert <dir> --to blade`).
+  (`devdojo convert <dir> --to blade`).
 - **A required prop.** `<Props badge />` is optional; there is no way to say
   "fail if this is missing".
 - **DevDojo Static's single-brace `{title}` tokens.** Double braces were kept:

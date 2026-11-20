@@ -1,11 +1,11 @@
 <?php
 
-namespace Devdojo\Pocketknife\Engine;
+namespace Devdojo\Framework\Engine;
 
 use JsonSerializable;
 
 /**
- * One `pocketknife compile` request: the site's source files keyed by their
+ * One `devdojo compile` request: the site's source files keyed by their
  * Laravel-layout path (`resources/views/pages/…`, `resources/data/…`),
  * optional global data merged over the site's own data sources, and an
  * optional explicit entry list (omitted → every page is rendered).

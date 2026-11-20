@@ -1,6 +1,6 @@
 <?php
 
-namespace Devdojo\Pocketknife;
+namespace Devdojo\Framework;
 
 /**
  * PageResolver maps a request URL path to the page view that serves it, using

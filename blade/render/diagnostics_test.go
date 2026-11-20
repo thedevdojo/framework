@@ -3,8 +3,8 @@ package render
 import (
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/blade/parser"
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/blade/parser"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 // TestUnknownDirectiveAppTier: an ast.Unknown directive (any directive outside
@@ -68,7 +68,7 @@ func TestUnknownDirectiveDoesNotEatNewline(t *testing.T) {
 
 // TestUnknownDoubleAtRendersLiteral: real Blade renders `a@@b` verbatim — the
 // leading '@' is literal text and `@b` is an unregistered directive left
-// literal. Pocketknife now matches: Text "a@" + Unknown "@b" -> "a@@b".
+// literal. DevDojo Framework now matches: Text "a@" + Unknown "@b" -> "a@@b".
 func TestUnknownDoubleAtRendersLiteral(t *testing.T) {
 	entry := "resources/views/pages/index.blade.php"
 	fs := vfs.Mem{entry: "a@@b"}

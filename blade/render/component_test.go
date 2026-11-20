@@ -3,8 +3,8 @@ package render
 import (
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/blade/expr"
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/blade/expr"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 // TestParseProps drives the dedicated literal-array parser: string/number/bool/
@@ -283,7 +283,7 @@ func TestComponentMissingMarker(t *testing.T) {
 	res := compileMem(t, map[string]string{
 		pageEntry: `X<x-sections.hero/>Y`,
 	}, nil)
-	want := `X<!-- pocketknife:missing component "sections.hero" -->Y`
+	want := `X<!-- devdojo:missing component "sections.hero" -->Y`
 	if got := res.Files["index.html"]; got != want {
 		t.Fatalf("output = %q; want %q", got, want)
 	}

@@ -4,16 +4,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/ast"
-	"github.com/thedevdojo/pocketknife/blade/expr"
-	"github.com/thedevdojo/pocketknife/blade/parser"
-	"github.com/thedevdojo/pocketknife/blade/scanner"
+	"github.com/thedevdojo/framework/blade/ast"
+	"github.com/thedevdojo/framework/blade/expr"
+	"github.com/thedevdojo/framework/blade/parser"
+	"github.com/thedevdojo/framework/blade/scanner"
 )
 
 // componentMaxDepth caps component nesting. A component file rendered deeper than
 // this is refused with a component-recursion diagnostic. Real Blade has no such
 // cap (a self-including component loops forever), so the fixture for it is
-// oracle:false; the number is a Pocketknife safety bound.
+// oracle:false; the number is a DevDojo Framework safety bound.
 const componentMaxDepth = 16
 
 // rawHTML is a pre-rendered slot value. Real Blade passes slot content as an
@@ -452,7 +452,7 @@ func missingMessage(node *ast.Component) string {
 
 // missingMarker is the byte-stable output marker for an unresolved component.
 func missingMarker(name string) string {
-	return `<!-- pocketknife:missing component "` + name + `" -->`
+	return `<!-- devdojo:missing component "` + name + `" -->`
 }
 
 // attrBindingNames returns every scope name a passed attribute binds, in

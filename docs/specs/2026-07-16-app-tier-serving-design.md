@@ -1,5 +1,7 @@
 # Pocketknife Phase 4a — App-Tier Serving
 
+> **A note on names:** this was written when the project was called Pocketknife. It is now DevDojo Framework (`github.com/thedevdojo/framework`, binary `devdojo`). The names below are left as they were written.
+
 **Design spec · 2026-07-16 · Status: IMPLEMENTED (Phase 4a shipped 2026-07-16 — see "Implementation" below) · Repo: pocketknife (main)**
 
 The `devdojo/pocketknife` package learns to **serve** a Blade site tree as a

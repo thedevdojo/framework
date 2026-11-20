@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 #
-# Pack a Pocketknife site folder into the compile protocol, render it,
+# Pack a DevDojo Framework site folder into the compile protocol, render it,
 # and unpack the output into <site>/_out/. Requires jq.
 #
 #   ./render.sh          # render this example
 #   ./render.sh <dir>    # render any site folder, Blade or Studio syntax
 #                        # (./render.sh ../example-studio)
 #
-# The binary is found on PATH, or set POCKETKNIFE=/path/to/pocketknife.
+# The binary is found on PATH, or set DEVDOJO=/path/to/devdojo.
 set -euo pipefail
 
 site="$(cd "${1:-$(dirname "$0")}" && pwd)"
-bin="${POCKETKNIFE:-pocketknife}"
+bin="${DEVDOJO:-devdojo}"
 
 if ! command -v "$bin" >/dev/null; then
-    echo "pocketknife binary not found — build it first:" >&2
-    echo "  go build -o /usr/local/bin/pocketknife ./cmd/pocketknife" >&2
+    echo "devdojo binary not found — build it first:" >&2
+    echo "  go build -o /usr/local/bin/devdojo ./cmd/devdojo" >&2
     exit 1
 fi
 

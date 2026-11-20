@@ -7,7 +7,7 @@ use Illuminate\Foundation\Application;
 use Tests\TestCase;
 
 /**
- * Base for the app-tier serving suites. pocketknife.serve and site_root are
+ * Base for the app-tier serving suites. devdojo-framework.serve and site_root are
  * read by the package's service provider at BOOT (the fallback route is
  * registered there), so a test must have them in place before the app boots.
  *
@@ -32,8 +32,8 @@ abstract class ServingTestCase extends TestCase
         $app = require Application::inferBasePath().'/bootstrap/app.php';
 
         $app->booting(function ($app) {
-            $app['config']->set('pocketknife.serve', $this->serveEnabled);
-            $app['config']->set('pocketknife.site_root', $this->serveSiteRoot);
+            $app['config']->set('devdojo-framework.serve', $this->serveEnabled);
+            $app['config']->set('devdojo-framework.site_root', $this->serveSiteRoot);
         });
 
         $app->make(Kernel::class)->bootstrap();

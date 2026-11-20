@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/blade/expr"
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/blade/expr"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 func TestEscape(t *testing.T) {

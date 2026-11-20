@@ -1,6 +1,6 @@
 <?php
 
-namespace Devdojo\Pocketknife\Tests;
+namespace Devdojo\Framework\Tests;
 
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\View\FileViewFinder;
@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
  * Pins the DECIDED view-path precedence: the host APP's views win over the
  * site's.
  *
- * PocketknifeServiceProvider::boot() registers the site root by APPENDING it
+ * FrameworkServiceProvider::boot() registers the site root by APPENDING it
  * (View::addLocation), and Laravel's FileViewFinder resolves a view against its
  * locations in registration order — returning the FIRST hit. The app already
  * registered its own resources/views during framework boot, so a view the app

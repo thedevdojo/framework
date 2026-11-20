@@ -30,4 +30,4 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with: { php-version: '8.4' }
       - run: cd oracle && composer install --no-interaction --quiet
-      - run: cd oracle && php artisan pocketknife:conformance ../fixtures
+      - run: cd oracle && php artisan framework:conformance ../fixtures

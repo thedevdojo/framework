@@ -1,6 +1,6 @@
 {
-    "name": "devdojo/pocketknife",
-    "description": "Run Pocketknife sites written in Blade in a real Laravel application",
+    "name": "devdojo/framework",
+    "description": "Run DevDojo Framework sites written in Blade in a real Laravel application",
     "type": "library",
     "license": "MIT",
     "require": {
@@ -12,11 +12,11 @@
     "require-dev": {
         "phpunit/phpunit": "^11.0"
     },
-    "autoload": { "psr-4": { "Devdojo\\Pocketknife\\": "src/" } },
-    "autoload-dev": { "psr-4": { "Devdojo\\Pocketknife\\Tests\\": "tests/" } },
+    "autoload": { "psr-4": { "Devdojo\\Framework\\": "src/" } },
+    "autoload-dev": { "psr-4": { "Devdojo\\Framework\\Tests\\": "tests/" } },
     "scripts": {
         "test": "phpunit"
     },
-    "extra": { "laravel": { "providers": ["Devdojo\\Pocketknife\\PocketknifeServiceProvider"] } },
+    "extra": { "laravel": { "providers": ["Devdojo\\Framework\\FrameworkServiceProvider"] } },
     "prefer-stable": true
 }

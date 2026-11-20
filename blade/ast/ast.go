@@ -3,11 +3,11 @@
 // opening token) so diagnostics and render errors can point back at source.
 //
 // The node set is deliberately small and closed — it mirrors exactly the Blade
-// subset Pocketknife supports. Directives the parser does not structurally
+// subset DevDojo Framework supports. Directives the parser does not structurally
 // understand become Unknown nodes; the renderer classifies those app-tier.
 package ast
 
-import "github.com/thedevdojo/pocketknife/blade/scanner"
+import "github.com/thedevdojo/framework/blade/scanner"
 
 // Node is any element of the tree. Pos reports the source position of the
 // node's first byte.

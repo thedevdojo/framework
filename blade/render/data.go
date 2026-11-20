@@ -4,9 +4,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/expr"
-	"github.com/thedevdojo/pocketknife/content"
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/blade/expr"
+	"github.com/thedevdojo/framework/content"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 // Data-source layout under the site root. site.json is a global object; every

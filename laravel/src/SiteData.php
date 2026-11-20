@@ -1,6 +1,6 @@
 <?php
 
-namespace Devdojo\Pocketknife;
+namespace Devdojo\Framework;
 
 use Illuminate\Contracts\View\Factory;
 use League\CommonMark\Environment\Environment;

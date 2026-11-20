@@ -1,4 +1,4 @@
-module github.com/thedevdojo/pocketknife
+module github.com/thedevdojo/framework
 
 go 1.22
 

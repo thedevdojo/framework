@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/blade"
+	"github.com/thedevdojo/framework/blade"
 )
 
 // TestRunConvert: one JSON document in — the site's files and the syntax to

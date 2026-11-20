@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 const dataEntry = "resources/views/pages/index.blade.php"

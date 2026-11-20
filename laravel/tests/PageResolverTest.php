@@ -1,8 +1,8 @@
 <?php
 
-namespace Devdojo\Pocketknife\Tests;
+namespace Devdojo\Framework\Tests;
 
-use Devdojo\Pocketknife\PageResolver;
+use Devdojo\Framework\PageResolver;
 use PHPUnit\Framework\TestCase;
 
 /**

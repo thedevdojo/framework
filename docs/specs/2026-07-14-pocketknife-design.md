@@ -1,5 +1,7 @@
 # Pocketknife — the portable Blade engine
 
+> **A note on names:** this was written when the project was called Pocketknife. It is now DevDojo Framework (`github.com/thedevdojo/framework`, binary `devdojo`). The names below are left as they were written.
+
 **Design spec · 2026-07-14 · Status: approved (Tony Lea) · Scope: v1**
 
 > **Pocketknife** — *the portable Blade.* A Go engine that statically renders a closed

@@ -6,9 +6,9 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 
-class PocketknifeConformance extends Command
+class FrameworkConformance extends Command
 {
-    protected $signature = 'pocketknife:conformance {fixtures} {--case= : run a single case}';
+    protected $signature = 'framework:conformance {fixtures} {--case= : run a single case}';
 
     protected $description = 'Render fixture entries through real Blade (one fresh process per entry) and byte-diff against expected/';
 
@@ -33,7 +33,7 @@ class PocketknifeConformance extends Command
                 $out = preg_replace('#^pages\.#', '', $view);
                 $outFile = str_replace('.', '/', $out).'.html';
 
-                // Real per-case isolation: `pocketknife:render` runs as a
+                // Real per-case isolation: `framework:render` runs as a
                 // fresh `php artisan` process for every entry rather than
                 // rendering in this long-lived process. Laravel's view
                 // finder and anonymous-component paths are additive with no
@@ -46,7 +46,7 @@ class PocketknifeConformance extends Command
                 $result = Process::path(base_path())->run([
                     PHP_BINARY,
                     'artisan',
-                    'pocketknife:render',
+                    'framework:render',
                     "$dir/input",
                     $view,
                     '--data='.json_encode($case['data'] ?? []),

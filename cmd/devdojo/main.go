@@ -1,4 +1,4 @@
-// Command pocketknife is the CLI surface over the Go engine: `compile` speaks
+// Command devdojo is the CLI surface over the Go engine: `compile` speaks
 // the JSON protocol (package protocol) over stdin/stdout for host embedding,
 // `lint` gives a human a readable diagnostics report for a site directory on
 // disk, `convert` rewrites a site from one syntax into the other, and
@@ -13,11 +13,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade"
-	"github.com/thedevdojo/pocketknife/blade/convert"
-	"github.com/thedevdojo/pocketknife/blade/render"
-	"github.com/thedevdojo/pocketknife/protocol"
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/blade"
+	"github.com/thedevdojo/framework/blade/convert"
+	"github.com/thedevdojo/framework/blade/render"
+	"github.com/thedevdojo/framework/protocol"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 func main() {
@@ -40,7 +40,7 @@ func run(args []string) int {
 	case "convert":
 		return cmdConvert(args[1:])
 	case "version":
-		fmt.Printf("pocketknife %s\n", blade.Version)
+		fmt.Printf("devdojo %s\n", blade.Version)
 		return 0
 	default:
 		usage()
@@ -49,7 +49,7 @@ func run(args []string) int {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, `usage: pocketknife <command> [arguments]
+	fmt.Fprintln(os.Stderr, `usage: devdojo <command> [arguments]
 
 Commands:
   compile        Compile a site from the JSON protocol on stdin, write the result to stdout
@@ -73,7 +73,7 @@ A file is read in the syntax its extension names:
 // that same contract means writing the output failed (e.g. a closed pipe).
 func cmdCompile() int {
 	if err := protocol.Run(os.Stdin, os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, "pocketknife compile:", err)
+		fmt.Fprintln(os.Stderr, "devdojo compile:", err)
 		return 1
 	}
 	return 0
@@ -92,7 +92,7 @@ func cmdCompile() int {
 // advisory: warnings alone leave the exit code at 0; only a KindError sets 1.
 func cmdLint(args []string) int {
 	if len(args) != 1 {
-		fmt.Fprintln(os.Stderr, "usage: pocketknife lint <dir>")
+		fmt.Fprintln(os.Stderr, "usage: devdojo lint <dir>")
 		return 2
 	}
 	dir := args[0]
@@ -101,11 +101,11 @@ func cmdLint(args []string) int {
 	// find no pages, and lint would silently exit 0 — hiding a typo'd path.
 	info, err := os.Stat(dir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "pocketknife lint: cannot access %q: %v\n", dir, err)
+		fmt.Fprintf(os.Stderr, "devdojo lint: cannot access %q: %v\n", dir, err)
 		return 2
 	}
 	if !info.IsDir() {
-		fmt.Fprintf(os.Stderr, "pocketknife lint: %q is not a directory\n", dir)
+		fmt.Fprintf(os.Stderr, "devdojo lint: %q is not a directory\n", dir)
 		return 2
 	}
 	fs := vfs.Dir(dir)
@@ -144,7 +144,7 @@ func cmdLint(args []string) int {
 	return 0
 }
 
-const convertUsage = "usage: pocketknife convert <dir> --to studio|blade [--dry-run]"
+const convertUsage = "usage: devdojo convert <dir> --to studio|blade [--dry-run]"
 
 // cmdConvert rewrites a site's views from one syntax into the other.
 //
@@ -160,7 +160,7 @@ const convertUsage = "usage: pocketknife convert <dir> --to studio|blade [--dry-
 func cmdConvert(args []string) int {
 	if len(args) == 0 {
 		if err := protocol.RunConvert(os.Stdin, os.Stdout); err != nil {
-			fmt.Fprintln(os.Stderr, "pocketknife convert:", err)
+			fmt.Fprintln(os.Stderr, "devdojo convert:", err)
 			return 1
 		}
 		return 0
@@ -175,7 +175,7 @@ func cmdConvert(args []string) int {
 			dryRun = true
 		case arg == "--to":
 			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "pocketknife convert: --to needs a syntax, studio or blade\n"+convertUsage)
+				fmt.Fprintln(os.Stderr, "devdojo convert: --to needs a syntax, studio or blade\n"+convertUsage)
 				return 2
 			}
 			i++
@@ -183,12 +183,12 @@ func cmdConvert(args []string) int {
 		case strings.HasPrefix(arg, "--to="):
 			to = strings.TrimPrefix(arg, "--to=")
 		case strings.HasPrefix(arg, "-"):
-			fmt.Fprintf(os.Stderr, "pocketknife convert: unknown option %q\n%s\n", arg, convertUsage)
+			fmt.Fprintf(os.Stderr, "devdojo convert: unknown option %q\n%s\n", arg, convertUsage)
 			return 2
 		case dir == "":
 			dir = arg
 		default:
-			fmt.Fprintf(os.Stderr, "pocketknife convert: one site at a time (got %q and %q)\n%s\n", dir, arg, convertUsage)
+			fmt.Fprintf(os.Stderr, "devdojo convert: one site at a time (got %q and %q)\n%s\n", dir, arg, convertUsage)
 			return 2
 		}
 	}
@@ -196,18 +196,18 @@ func cmdConvert(args []string) int {
 	syntax, known := convert.ParseSyntax(to)
 	if dir == "" || !known {
 		if to != "" && !known {
-			fmt.Fprintf(os.Stderr, "pocketknife convert: unknown syntax %q — use --to studio or --to blade\n", to)
+			fmt.Fprintf(os.Stderr, "devdojo convert: unknown syntax %q — use --to studio or --to blade\n", to)
 		}
 		fmt.Fprintln(os.Stderr, convertUsage)
 		return 2
 	}
 	info, err := os.Stat(dir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "pocketknife convert: cannot access %q: %v\n", dir, err)
+		fmt.Fprintf(os.Stderr, "devdojo convert: cannot access %q: %v\n", dir, err)
 		return 2
 	}
 	if !info.IsDir() {
-		fmt.Fprintf(os.Stderr, "pocketknife convert: %q is not a directory\n", dir)
+		fmt.Fprintf(os.Stderr, "devdojo convert: %q is not a directory\n", dir)
 		return 2
 	}
 
@@ -272,7 +272,7 @@ func cmdConvert(args []string) int {
 			for _, done := range written[:i] {
 				os.Remove(filepath.Join(dir, filepath.FromSlash(done)))
 			}
-			fmt.Fprintf(os.Stderr, "pocketknife convert: %v\nNothing was converted.\n", err)
+			fmt.Fprintf(os.Stderr, "devdojo convert: %v\nNothing was converted.\n", err)
 			return 1
 		}
 	}
@@ -280,7 +280,7 @@ func cmdConvert(args []string) int {
 		if err := os.Remove(filepath.Join(dir, filepath.FromSlash(old))); err != nil {
 			// The converted file is in place; the stale original would shadow
 			// or collide with it, so say exactly which one is left.
-			fmt.Fprintf(os.Stderr, "pocketknife convert: converted, but could not remove %s: %v\n", old, err)
+			fmt.Fprintf(os.Stderr, "devdojo convert: converted, but could not remove %s: %v\n", old, err)
 			return 1
 		}
 	}

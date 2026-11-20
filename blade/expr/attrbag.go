@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/internal/phpesc"
+	"github.com/thedevdojo/framework/blade/internal/phpesc"
 )
 
 // AttrBag models Laravel's Illuminate\View\ComponentAttributeBag: the ordered

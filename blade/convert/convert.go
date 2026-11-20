@@ -1,4 +1,4 @@
-// Package convert rewrites a site from one of Pocketknife's two syntaxes into
+// Package convert rewrites a site from one of DevDojo Framework's two syntaxes into
 // the other: Blade (.blade.php) to the DevDojo Studio syntax (.html), and back.
 //
 // The two syntaxes are two spellings of one language — blade/htmlscan emits
@@ -26,8 +26,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/render"
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/blade/render"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 // Syntax names one of the two template syntaxes.
@@ -230,7 +230,7 @@ func needsLaravel(diags []render.Diagnostic) []render.Diagnostic {
 		// wording) is settled file by file, where every file is seen and not
 		// only the ones a page reaches: see htmlPrinter.settle.
 		if name, ok := strings.CutPrefix(d.Construct, "@"); ok &&
-			strings.HasPrefix(d.Message, "directive @"+name+" is outside the Pocketknife subset") {
+			strings.HasPrefix(d.Message, "directive @"+name+" is outside the DevDojo Framework subset") {
 			continue
 		}
 		what := strings.TrimSuffix(strings.TrimSuffix(d.Message, "; requires the PHP app tier"), " requires the PHP app tier")

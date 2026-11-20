@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/blade/render"
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/blade/render"
+	"github.com/thedevdojo/framework/vfs"
 )
 
-// TestCorpus runs the converter over real sites. Point POCKETKNIFE_CORPUS at a
+// TestCorpus runs the converter over real sites. Point DEVDOJO_CORPUS at a
 // folder of them — each site either the folder itself or its files/ subfolder —
 // and every one is converted to the Studio syntax, back to Blade, and round
 // again, in memory; nothing on disk is touched.
@@ -24,11 +24,11 @@ import (
 // original is compared for information only.) A site that is refused is
 // logged with the reason. Skipped when the variable is not set.
 //
-//	POCKETKNIFE_CORPUS=~/devdojo/devdojo/resources/sites-templates go test ./blade/convert -run TestCorpus -v
+//	DEVDOJO_CORPUS=~/devdojo/devdojo/resources/sites-templates go test ./blade/convert -run TestCorpus -v
 func TestCorpus(t *testing.T) {
-	root := os.Getenv("POCKETKNIFE_CORPUS")
+	root := os.Getenv("DEVDOJO_CORPUS")
 	if root == "" {
-		t.Skip("POCKETKNIFE_CORPUS is not set")
+		t.Skip("DEVDOJO_CORPUS is not set")
 	}
 	dirs, err := os.ReadDir(root)
 	if err != nil {

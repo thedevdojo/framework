@@ -3,8 +3,8 @@ package parser
 import (
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/blade/htmlscan"
-	"github.com/thedevdojo/pocketknife/blade/scanner"
+	"github.com/thedevdojo/framework/blade/htmlscan"
+	"github.com/thedevdojo/framework/blade/scanner"
 )
 
 // FuzzParse asserts the parser never panics on arbitrary input. Diags may be

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 const (
@@ -292,7 +292,7 @@ func TestHTMLComponentResolution(t *testing.T) {
 func TestHTMLComponentMissing(t *testing.T) {
 	const comps = "resources/views/components/"
 	res := compileHTML(t, map[string]string{htmlEntry: `X<SectionsHero />Y`})
-	if got, want := res.Files["index.html"], `X<!-- pocketknife:missing component "sections.hero" -->Y`; got != want {
+	if got, want := res.Files["index.html"], `X<!-- devdojo:missing component "sections.hero" -->Y`; got != want {
 		t.Errorf("output = %q; want %q", got, want)
 	}
 	if len(res.Diagnostics) != 1 {
@@ -328,7 +328,7 @@ func TestBladeTagsStayBlade(t *testing.T) {
 		bladeEntry:                               `<x-button />`,
 		"resources/views/components/button.html": "html button",
 	}, []string{bladeEntry}, Options{})
-	if got, want := res.Files["index.html"], `<!-- pocketknife:missing component "button" -->`; got != want {
+	if got, want := res.Files["index.html"], `<!-- devdojo:missing component "button" -->`; got != want {
 		t.Errorf("output = %q; want %q", got, want)
 	}
 	wantDeps := []string{bladeEntry, "resources/views/components/button.blade.php"}

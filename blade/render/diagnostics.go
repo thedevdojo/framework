@@ -1,8 +1,8 @@
 package render
 
 import (
-	"github.com/thedevdojo/pocketknife/blade/ast"
-	"github.com/thedevdojo/pocketknife/blade/parser"
+	"github.com/thedevdojo/framework/blade/ast"
+	"github.com/thedevdojo/framework/blade/parser"
 )
 
 // This file holds the diagnostic-shaping logic Task 11 adds on top of the
@@ -24,7 +24,7 @@ func unknownDiagnostic(node *ast.Unknown) Diagnostic {
 		Col:       node.P.Col,
 		Kind:      KindAppTier,
 		Construct: "@" + node.Name,
-		Message:   "directive @" + node.Name + " is outside the Pocketknife subset; requires the PHP app tier",
+		Message:   "directive @" + node.Name + " is outside the DevDojo Framework subset; requires the PHP app tier",
 	}
 }
 

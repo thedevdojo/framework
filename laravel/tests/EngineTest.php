@@ -1,14 +1,14 @@
 <?php
 
-namespace Devdojo\Pocketknife\Tests;
+namespace Devdojo\Framework\Tests;
 
-use Devdojo\Pocketknife\Engine\CompileRequest;
-use Devdojo\Pocketknife\Engine\Engine;
-use Devdojo\Pocketknife\Engine\Exceptions\EngineVersionException;
+use Devdojo\Framework\Engine\CompileRequest;
+use Devdojo\Framework\Engine\Engine;
+use Devdojo\Framework\Engine\Exceptions\EngineVersionException;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Drives the real `pocketknife` binary over the JSON protocol. Every test here
+ * Drives the real `devdojo` binary over the JSON protocol. Every test here
  * needs the compiled binary; without Go on the box they skip with a clear
  * message rather than fail. The binary-free failure paths (missing/empty/garbage
  * binary) live in EngineExceptionPathsTest so they run everywhere.
@@ -17,16 +17,16 @@ class EngineTest extends TestCase
 {
     protected function setUp(): void
     {
-        if (! POCKETKNIFE_BINARY_AVAILABLE) {
+        if (! DEVDOJO_BINARY_AVAILABLE) {
             $this->markTestSkipped(
-                'The pocketknife binary could not be built (is Go installed?): '.POCKETKNIFE_BUILD_OUTPUT
+                'The devdojo binary could not be built (is Go installed?): '.DEVDOJO_BUILD_OUTPUT
             );
         }
     }
 
     private function engine(string $minimumVersion = '0.1.0'): Engine
     {
-        return new Engine(POCKETKNIFE_TEST_BINARY, 30, $minimumVersion);
+        return new Engine(DEVDOJO_TEST_BINARY, 30, $minimumVersion);
     }
 
     public function test_it_reports_the_binary_as_available(): void

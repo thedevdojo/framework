@@ -1,6 +1,6 @@
 // Package scanner turns Blade-subset source into a flat token stream.
 //
-// It is the byte-faithful front of the Pocketknife engine: it recognizes only
+// It is the byte-faithful front of the DevDojo Framework engine: it recognizes only
 // the closed Blade dialect (echoes, raw echoes, comments, directives, and
 // <x-…> component/slot tags) and emits everything else as opaque Text spans,
 // verbatim. Malformed or unterminated constructs never error — they degrade to

@@ -3,7 +3,7 @@ package protocol
 import (
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 func routingTree() vfs.FS {

@@ -9,4 +9,4 @@ fuzz:
 	go test ./blade/render -fuzz='^FuzzCompileHTML$$' -fuzztime=30s
 	go test ./blade/convert -fuzz='^FuzzFile$$' -fuzztime=30s
 conformance:
-	cd oracle && php artisan pocketknife:conformance ../fixtures
+	cd oracle && php artisan framework:conformance ../fixtures

@@ -1,4 +1,4 @@
-// Package content is Pocketknife's markdown pipeline for content collections. It
+// Package content is DevDojo Framework's markdown pipeline for content collections. It
 // is the ONE place goldmark lives: the blade/* engine core stays stdlib-only, so
 // the markdown dependency is confined here (spec §4). Given a set of `.md` files
 // under resources/data/content/<dir>/, it parses a scalar-only YAML frontmatter

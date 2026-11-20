@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/blade/scanner"
+	"github.com/thedevdojo/framework/blade/scanner"
 )
 
 // shape renders the parts of a token stream both syntaxes must agree on —

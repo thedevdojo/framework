@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/blade"
-	"github.com/thedevdojo/pocketknife/blade/render"
+	"github.com/thedevdojo/framework/blade"
+	"github.com/thedevdojo/framework/blade/render"
 )
 
 // TestRunRoundTrip feeds a one-page site (one echo bound to `data`, one
@@ -66,8 +66,8 @@ func TestRunRoundTrip(t *testing.T) {
 		t.Fatalf("diagnostics = %#v, want 2 entries", got.Diagnostics)
 	}
 	wantDiags := []render.Diagnostic{
-		{File: "resources/views/pages/index.blade.php", Line: 2, Col: 1, Kind: render.KindAppTier, Construct: "@auth", Message: "directive @auth is outside the Pocketknife subset; requires the PHP app tier"},
-		{File: "resources/views/pages/index.blade.php", Line: 4, Col: 1, Kind: render.KindAppTier, Construct: "@endauth", Message: "directive @endauth is outside the Pocketknife subset; requires the PHP app tier"},
+		{File: "resources/views/pages/index.blade.php", Line: 2, Col: 1, Kind: render.KindAppTier, Construct: "@auth", Message: "directive @auth is outside the DevDojo Framework subset; requires the PHP app tier"},
+		{File: "resources/views/pages/index.blade.php", Line: 4, Col: 1, Kind: render.KindAppTier, Construct: "@endauth", Message: "directive @endauth is outside the DevDojo Framework subset; requires the PHP app tier"},
 	}
 	for i, want := range wantDiags {
 		if got.Diagnostics[i] != want {

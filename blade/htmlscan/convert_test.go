@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/blade/scanner"
+	"github.com/thedevdojo/framework/blade/scanner"
 )
 
 // TestScanClassAndStyle: {{ class([...]) }} and {{ style([...]) }} are the HTML

@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/ast"
-	"github.com/thedevdojo/pocketknife/blade/expr"
-	"github.com/thedevdojo/pocketknife/blade/scanner"
+	"github.com/thedevdojo/framework/blade/ast"
+	"github.com/thedevdojo/framework/blade/expr"
+	"github.com/thedevdojo/framework/blade/scanner"
 )
 
 // loopSignal is the non-local control state a @break/@continue raises inside a

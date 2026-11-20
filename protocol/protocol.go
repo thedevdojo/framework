@@ -1,8 +1,8 @@
-// Package protocol implements Pocketknife's embedding contract: one JSON
+// Package protocol implements DevDojo Framework's embedding contract: one JSON
 // document on stdin describing a site (its source files, optional extra
 // data, optional entry list), and one JSON document on stdout carrying the
 // rendered output, the dependency graph, and diagnostics. It is the seam
-// hosts (the DevDojo control plane, the `pocketknife compile` CLI, or a
+// hosts (the DevDojo control plane, the `devdojo compile` CLI, or a
 // future language binding) use to drive the Go engine without linking it
 // directly — see the design spec's §6, which pins this shape deliberately
 // close to sitebuilder's own JSON protocol so host wrappers transfer with
@@ -27,7 +27,7 @@
 // protocol does not validate it against an enum, so the set is additive and a
 // host iterates whatever kinds arrive. This compile path emits only `error` and
 // `app-tier`; the `warning` kind (undeclared component attributes) is produced
-// solely by `pocketknife lint` (render.Analyze), never here. That separation is
+// solely by `devdojo lint` (render.Analyze), never here. That separation is
 // deliberate: hosts that treat ANY diagnostic in this stream as a hard failure
 // (the devdojo Sites template-sync gate) stay correct because a warning can
 // never reach it — see render.DiagKind.
@@ -51,13 +51,13 @@ import (
 	"io"
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade"
-	"github.com/thedevdojo/pocketknife/blade/render"
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/blade"
+	"github.com/thedevdojo/framework/blade/render"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 // pagesPrefix is where entry discovery looks when Input.Entries is omitted,
-// and what `pocketknife lint <dir>` compiles.
+// and what `devdojo lint <dir>` compiles.
 const pagesPrefix = "resources/views/pages/"
 
 // Input is the stdin document: the site's source files, optional data to
@@ -120,7 +120,7 @@ func isPage(p string) bool {
 // DiscoverPages returns every page under resources/views/pages/ in fs — each
 // **.blade.php (Blade syntax) and **.html (Studio syntax) path — sorted. This is
 // the default entry set when a protocol Input omits entries, and it is what
-// `pocketknife lint <dir>` compiles — both callers share it so "what counts as
+// `devdojo lint <dir>` compiles — both callers share it so "what counts as
 // a page" has one definition.
 func DiscoverPages(fs vfs.FS) []string {
 	var out []string

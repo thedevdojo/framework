@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/htmlscan"
-	"github.com/thedevdojo/pocketknife/blade/render"
-	"github.com/thedevdojo/pocketknife/blade/scanner"
+	"github.com/thedevdojo/framework/blade/htmlscan"
+	"github.com/thedevdojo/framework/blade/render"
+	"github.com/thedevdojo/framework/blade/scanner"
 )
 
 // File converts one view's source into the syntax to, which must be the other

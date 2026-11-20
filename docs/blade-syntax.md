@@ -1,16 +1,16 @@
 # The Blade syntax
 
-Pocketknife compiles templates to HTML. It reads two syntaxes, and this is the
+DevDojo Framework compiles templates to HTML. It reads two syntaxes, and this is the
 guide to the first: **Blade**, in files ending `.blade.php`. (The other is the
 [DevDojo Studio syntax](studio-syntax.md), in `.html` files. A site can be
 [converted](studio-syntax.md#converting-between-the-two) from one to the other
 at any time.)
 
-What Pocketknife reads is a **closed subset of Laravel Blade**: the part of
+What DevDojo Framework reads is a **closed subset of Laravel Blade**: the part of
 Blade that turns data into HTML, and none of the part that runs PHP. Everything
 in this guide prints byte for byte what a real Laravel app prints from the same
 files — the conformance suite renders every case with both and compares. So a
-Pocketknife site is a slice of a Laravel app: move the files into one and they
+DevDojo Framework site is a slice of a Laravel app: move the files into one and they
 keep working.
 
 ```blade
@@ -311,13 +311,13 @@ It is reported as **`app-tier`**: valid Blade, to be run by a real app.
 - `?->`, math, `? :`, assignments, closures
 
 A directive nobody knows (`@media` in inline CSS, an `@handle` in a sentence)
-is printed as it was written, as Laravel prints it. `pocketknife lint` still
+is printed as it was written, as Laravel prints it. `devdojo lint` still
 lists it as `app-tier`.
 
 ## Checking a site
 
 ```bash
-pocketknife lint my-site
+devdojo lint my-site
 ```
 
 prints one line per finding — `file:line:col [kind] message` — and nothing at
@@ -330,12 +330,12 @@ all when the site is clean.
 | `warning` | a hint: an attribute the component never declared (probably a typo) | 0 |
 
 A missing component also leaves a marker in the page —
-`<!-- pocketknife:missing component "sections.hero" -->` — so it can be found
+`<!-- devdojo:missing component "sections.hero" -->` — so it can be found
 in the output. The engine never crashes on a template, however broken.
 
 ## In a real Laravel app
 
-The [`devdojo/pocketknife`](../laravel/) Composer package points Laravel at a
+The [`devdojo/framework`](../laravel/) Composer package points Laravel at a
 site folder and binds the same data, so the same files render through genuine
 Blade. Nothing moves and nothing is rewritten. From there the `app-tier` list
 above is simply available.

@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/expr"
-	"github.com/thedevdojo/pocketknife/blade/internal/strscan"
+	"github.com/thedevdojo/framework/blade/expr"
+	"github.com/thedevdojo/framework/blade/internal/strscan"
 )
 
 // parseProps parses a @props(...) argument — a PHP literal array — into declared
@@ -57,7 +57,7 @@ func parseProps(raw string) (props propSet, issues []string, ok bool) {
 				return nil, nil, false
 			}
 			if !supported {
-				issues = append(issues, "@props default for \""+name+"\" is a nested or associative array, outside the Pocketknife subset; requires the PHP app tier")
+				issues = append(issues, "@props default for \""+name+"\" is a nested or associative array, outside the DevDojo Framework subset; requires the PHP app tier")
 				out[name] = propDecl{hasDefault: false}
 				continue
 			}

@@ -4,7 +4,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 // ResolveURL maps a request URL path to the page entry that serves it, using

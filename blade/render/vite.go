@@ -3,7 +3,7 @@ package render
 import (
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/ast"
+	"github.com/thedevdojo/framework/blade/ast"
 )
 
 // viteTailwindCDN is the Tailwind v4 Play CDN script src the static

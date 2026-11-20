@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/blade/htmlscan"
-	"github.com/thedevdojo/pocketknife/blade/render"
-	"github.com/thedevdojo/pocketknife/blade/scanner"
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/blade/htmlscan"
+	"github.com/thedevdojo/framework/blade/render"
+	"github.com/thedevdojo/framework/blade/scanner"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 // fuzzData is what a fuzzed page is rendered with: enough for loops, paths

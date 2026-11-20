@@ -3,8 +3,8 @@ package parser
 import (
 	"testing"
 
-	"github.com/thedevdojo/pocketknife/blade/ast"
-	"github.com/thedevdojo/pocketknife/blade/scanner"
+	"github.com/thedevdojo/framework/blade/ast"
+	"github.com/thedevdojo/framework/blade/scanner"
 )
 
 func parseSrc(t *testing.T, src string) ([]ast.Node, []Diag) {

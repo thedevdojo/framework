@@ -1,6 +1,6 @@
 //go:build js && wasm
 
-// Command pocketknife-wasm is the WebAssembly surface over the engine: the
+// Command devdojo-wasm is the WebAssembly surface over the engine: the
 // same JSON compile protocol the CLI speaks over stdin/stdout, exposed to a
 // JavaScript host as a single synchronous function. It exists so a Node
 // program (the DevBlog CLI) can render a site with the exact engine DevDojo
@@ -8,8 +8,8 @@
 //
 // The host loads the module with Go's wasm_exec.js, runs it, and then calls
 //
-//	globalThis.__pocketknife.compile(inputJSON) → outputJSON
-//	globalThis.__pocketknife.version()          → "1.0.0"
+//	globalThis.__devdojo.compile(inputJSON) → outputJSON
+//	globalThis.__devdojo.version()          → "1.0.0"
 //
 // compile never throws for a bad INPUT: exactly like protocol.Run, malformed
 // JSON or a render-time problem is folded into the output document's
@@ -23,8 +23,8 @@ import (
 	"strings"
 	"syscall/js"
 
-	"github.com/thedevdojo/pocketknife/blade"
-	"github.com/thedevdojo/pocketknife/protocol"
+	"github.com/thedevdojo/framework/blade"
+	"github.com/thedevdojo/framework/protocol"
 )
 
 func compile(this js.Value, args []js.Value) any {
@@ -48,6 +48,6 @@ func main() {
 	api := js.Global().Get("Object").New()
 	api.Set("compile", js.FuncOf(compile))
 	api.Set("version", js.FuncOf(version))
-	js.Global().Set("__pocketknife", api)
+	js.Global().Set("__devdojo", api)
 	select {}
 }

@@ -1,19 +1,19 @@
 <?php
 
-namespace Devdojo\Pocketknife\Engine;
+namespace Devdojo\Framework\Engine;
 
-use Devdojo\Pocketknife\Engine\Exceptions\BinaryFailedException;
-use Devdojo\Pocketknife\Engine\Exceptions\BinaryNotFoundException;
-use Devdojo\Pocketknife\Engine\Exceptions\EngineVersionException;
-use Devdojo\Pocketknife\Engine\Exceptions\InvalidResponseException;
+use Devdojo\Framework\Engine\Exceptions\BinaryFailedException;
+use Devdojo\Framework\Engine\Exceptions\BinaryNotFoundException;
+use Devdojo\Framework\Engine\Exceptions\EngineVersionException;
+use Devdojo\Framework\Engine\Exceptions\InvalidResponseException;
 
 /**
- * The Pocketknife protocol client — a thin, typed wrapper around the
- * `pocketknife` Go binary.
+ * The DevDojo Framework protocol client — a thin, typed wrapper around the
+ * `devdojo` Go binary.
  *
  * The binary is the single source of truth for the static-tier Blade dialect.
  * Hosts whose site files live in a database or object store talk to it through
- * `pocketknife compile`: one JSON document on stdin, one on stdout. This class
+ * `devdojo compile`: one JSON document on stdin, one on stdout. This class
  * is the only place that protocol is spoken from PHP — consumers deal in
  * CompileRequest / CompileResult objects.
  *
@@ -34,9 +34,9 @@ final class Engine
     public static function fromConfig(): self
     {
         return new self(
-            (string) config('pocketknife.binary'),
-            (int) config('pocketknife.timeout', 30),
-            (string) config('pocketknife.minimum_version', '0.1.0'),
+            (string) config('devdojo-framework.binary'),
+            (int) config('devdojo-framework.timeout', 30),
+            (string) config('devdojo-framework.minimum_version', '0.1.0'),
         );
     }
 
@@ -52,7 +52,7 @@ final class Engine
     }
 
     /**
-     * Compile a site through `pocketknife compile`.
+     * Compile a site through `devdojo compile`.
      *
      * @throws BinaryNotFoundException|BinaryFailedException|InvalidResponseException|EngineVersionException
      */
@@ -64,7 +64,7 @@ final class Engine
 
         if (! is_array($decoded)) {
             throw new InvalidResponseException(
-                'The pocketknife binary returned malformed JSON: '.substr($stdout, 0, 200)
+                'The devdojo binary returned malformed JSON: '.substr($stdout, 0, 200)
             );
         }
 
@@ -86,7 +86,7 @@ final class Engine
 
         if (version_compare($reported, $this->minimumVersion, '<')) {
             throw new EngineVersionException(
-                "The pocketknife binary [{$this->binary}] reports version {$reported}, below the required minimum {$this->minimumVersion}."
+                "The devdojo binary [{$this->binary}] reports version {$reported}, below the required minimum {$this->minimumVersion}."
             );
         }
     }
@@ -105,8 +105,8 @@ final class Engine
         if (! $this->isAvailable()) {
             throw new BinaryNotFoundException(
                 $this->binary === ''
-                    ? 'No pocketknife binary is configured (set POCKETKNIFE_BINARY).'
-                    : "The pocketknife binary [{$this->binary}] does not exist or is not executable."
+                    ? 'No devdojo binary is configured (set DEVDOJO_BINARY).'
+                    : "The devdojo binary [{$this->binary}] does not exist or is not executable."
             );
         }
 
@@ -117,7 +117,7 @@ final class Engine
         );
 
         if (! is_resource($process)) {
-            throw new BinaryFailedException("Could not start the pocketknife binary [{$this->binary}].");
+            throw new BinaryFailedException("Could not start the devdojo binary [{$this->binary}].");
         }
 
         foreach ($pipes as $pipe) {
@@ -138,7 +138,7 @@ final class Engine
                     proc_terminate($process, 9);
 
                     throw new BinaryFailedException(
-                        "The pocketknife binary timed out after {$this->timeout}s."
+                        "The devdojo binary timed out after {$this->timeout}s."
                     );
                 }
 
@@ -218,7 +218,7 @@ final class Engine
 
         if ($exitCode !== 0) {
             throw new BinaryFailedException(
-                "The pocketknife binary exited with code {$exitCode}: ".trim($stderr !== '' ? $stderr : $stdout)
+                "The devdojo binary exited with code {$exitCode}: ".trim($stderr !== '' ? $stderr : $stdout)
             );
         }
 

@@ -1,18 +1,18 @@
-// Package pocketknife is the root facade over the HTML compiler's engine — the
+// Package framework is the root facade over the HTML compiler's engine — the
 // single public Go entry point a host embeds. It re-exports the render
 // pipeline's Compile call and its input/output types so callers depend on
-// `github.com/thedevdojo/pocketknife` rather than reaching into the internal
+// `github.com/thedevdojo/framework` rather than reaching into the internal
 // `blade/render` subpackage. This is the API spec §4 promises:
-// `pocketknife.Compile(fs, entries, opts) → files, deps, diagnostics`.
+// `framework.Compile(fs, entries, opts) → files, deps, diagnostics`.
 //
 // Everything here is a thin alias or forwarder — the behavior lives in
-// blade/render (and the CLI in cmd/pocketknife, the JSON contract in protocol).
-package pocketknife
+// blade/render (and the CLI in cmd/devdojo, the JSON contract in protocol).
+package framework
 
 import (
-	"github.com/thedevdojo/pocketknife/blade"
-	"github.com/thedevdojo/pocketknife/blade/render"
-	"github.com/thedevdojo/pocketknife/vfs"
+	"github.com/thedevdojo/framework/blade"
+	"github.com/thedevdojo/framework/blade/render"
+	"github.com/thedevdojo/framework/vfs"
 )
 
 // Version is the engine semver (blade.Version), surfaced so a host can pin or
@@ -55,7 +55,7 @@ func Compile(fs FS, entries []string, opts Options) Result {
 
 // Analyze is the lint-only analysis pass: it returns WARNING-kind diagnostics
 // (undeclared component attributes) that Compile deliberately never emits, so
-// the compile diagnostic stream stays free of warnings. `pocketknife lint`
+// the compile diagnostic stream stays free of warnings. `devdojo lint`
 // surfaces these; a host that wants the same hints calls Analyze directly.
 func Analyze(fs FS, entries []string) []Diagnostic {
 	return render.Analyze(fs, entries)

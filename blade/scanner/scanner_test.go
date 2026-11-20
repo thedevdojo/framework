@@ -322,7 +322,7 @@ func TestScanNonDirectiveHasNoSrc(t *testing.T) {
 // or the @@ escape ONLY when the previous source byte is not a word char
 // ([A-Za-z0-9_]); start-of-input counts as a boundary. The @{{ echo escape is
 // exempt (real Blade's echo regex has no \B). Every expectation below was probed
-// against real Blade via `pocketknife:render` (see task-14b report probe log).
+// against real Blade via `framework:render` (see task-14b report probe log).
 func TestScanWordBoundary(t *testing.T) {
 	cases := []struct {
 		name string

@@ -2,19 +2,20 @@
 
 namespace App\Console\Commands;
 
-use Devdojo\Pocketknife\SiteData;
+use Devdojo\Framework\SiteData;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\View;
 
-class PocketknifeRender extends Command
+class FrameworkRender extends Command
 {
-    protected $signature = 'pocketknife:render
+    protected $signature = 'framework:render
         {input : Absolute path to a site root (the directory holding resources/views)}
         {entry : Dot-notation view name, e.g. pages.index}
         {bindings?* : Optional key=value data bindings (value is JSON-decoded when valid JSON, else kept as a raw string)}
-        {--data= : JSON-encoded object merged over the key=value bindings, for structures they cannot express}';
+        {--data= : JSON-encoded object merged over the key=value bindings, for structures they cannot express}
+        {--objects : Decode --data (and JSON bindings) as stdClass objects, the shape the SiteData contract binds — needed for a dynamic page entry ($post->slug)}';
 
     protected $description = 'Render a single view from a site root through real Blade and print the raw rendered bytes (the manual conformance probe)';
 
@@ -31,25 +32,27 @@ class PocketknifeRender extends Command
                 return self::FAILURE;
             }
             [$key, $value] = explode('=', $pair, 2);
-            $decoded = json_decode($value, true);
+            $decoded = json_decode($value, ! $this->option('objects'));
             $data[$key] = json_last_error() === JSON_ERROR_NONE ? $decoded : $value;
         }
         if ($json = $this->option('data')) {
-            $decoded = json_decode($json, true);
+            $decoded = json_decode($json, ! $this->option('objects'));
             if (json_last_error() !== JSON_ERROR_NONE) {
                 $this->components->error('--data is not valid JSON.');
 
                 return self::FAILURE;
             }
-            $data = array_merge($data, $decoded);
+            // The bindings map itself is always an array; with --objects only
+            // the VALUES are stdClass (a dynamic page's entry, its siblings).
+            $data = array_merge($data, (array) $decoded);
         }
 
         // A fresh `php artisan` process per invocation is the isolation
-        // strategy (see PocketknifeConformance): the view finder and
+        // strategy (see FrameworkConformance): the view finder and
         // anonymous-component paths added here die with this process, so
         // one case can never leak into the next one's view resolution.
         File::ensureDirectoryExists(storage_path('framework/views'));
-        config(['pocketknife.site_root' => $input]);
+        config(['devdojo-framework.site_root' => $input]);
         View::addLocation("$input/resources/views");
         Blade::anonymousComponentPath("$input/resources/views/components");
 
@@ -58,7 +61,12 @@ class PocketknifeRender extends Command
         // here so $site / collections / content resolve for this render.
         SiteData::share($this->laravel->make('view'), $input);
 
-        $rendered = View::make($entry, $data)->render();
+        // A dynamic page ([posts.slug].blade.php) cannot be named in dot
+        // notation (the finder would split on the bracketed dot), so an entry
+        // given as a path relative to resources/views renders by file.
+        $rendered = str_ends_with($entry, '.blade.php')
+            ? View::file("$input/resources/views/$entry", $data)->render()
+            : View::make($entry, $data)->render();
 
         // Print the exact rendered bytes - no trailing newline, no console
         // formatting/escaping of the HTML. $this->line()/->info() would

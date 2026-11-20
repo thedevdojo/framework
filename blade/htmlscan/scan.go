@@ -1,4 +1,4 @@
-// Package htmlscan is the scanner for the DevDojo Studio syntax — Pocketknife's
+// Package htmlscan is the scanner for the DevDojo Studio syntax — DevDojo Framework's
 // second spelling of the template language, used by .html files.
 //
 // The Studio syntax is Blade written as tags. A capitalized tag is either one of
@@ -34,7 +34,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/thedevdojo/pocketknife/blade/scanner"
+	"github.com/thedevdojo/framework/blade/scanner"
 )
 
 // Scan tokenizes src in a single forward pass.

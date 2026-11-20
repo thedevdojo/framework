@@ -1,9 +1,9 @@
 <?php
 
-namespace Devdojo\Pocketknife\Engine;
+namespace Devdojo\Framework\Engine;
 
 /**
- * One `pocketknife compile` response. `files` and `deps` are keyed by OUTPUT
+ * One `devdojo compile` response. `files` and `deps` are keyed by OUTPUT
  * path (`pages/index.blade.php` renders to `index.html`) — not by the entry
  * that produced them. Template problems land on `diagnostics`; the process
  * exiting cleanly does not mean the site compiled without diagnostics.

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/thedevdojo/pocketknife/blade/expr"
-	"github.com/thedevdojo/pocketknife/blade/internal/phpesc"
+	"github.com/thedevdojo/framework/blade/expr"
+	"github.com/thedevdojo/framework/blade/internal/phpesc"
 )
 
 // Escape mirrors Laravel's e(): htmlspecialchars($s, ENT_QUOTES|ENT_SUBSTITUTE,

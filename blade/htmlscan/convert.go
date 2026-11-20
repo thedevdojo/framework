@@ -2,7 +2,7 @@ package htmlscan
 
 import "strings"
 
-// This file is the scanner's half of `pocketknife convert`: the three things
+// This file is the scanner's half of `devdojo convert`: the three things
 // only the scanner can know about its own syntax — how to spell a Blade
 // expression the friendly way, how to write text so it scans back as text, and
 // whether a name is a component tag.
