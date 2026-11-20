@@ -4,7 +4,8 @@
 // disk, `convert` rewrites a site from one syntax into the other, `migrate`
 // moves an older site into src/, `new` writes a site from a template on
 // GitHub (new.go),
-// `serve` shows a site in the browser as it is edited (serve.go), and
+// `serve` shows a site in the browser as it is edited (serve.go), `build`
+// writes it as static files (build.go), and
 // `version` prints the engine version. Argument handling is hand-rolled —
 // a handful of subcommands do not earn a flag-parsing framework.
 package main
@@ -50,6 +51,8 @@ func run(args []string) int {
 		return cmdNew(args[1:])
 	case "serve":
 		return cmdServe(args[1:])
+	case "build":
+		return cmdBuild(args[1:])
 	case "version":
 		fmt.Printf("devdojo %s\n", blade.Version)
 		return 0
@@ -83,6 +86,11 @@ Commands:
                  Serve the site in [dir] (default: this folder) at
                  http://localhost:8000. Each page is compiled when it is asked
                  for, and the browser reloads when a file changes
+  build [dir] [--out dist] [--url https://example.com]
+                 Write the site in [dir] (default: this folder) as static files
+                 into dist/: clean addresses, a folder for each entry of a
+                 dynamic page, public/ as it is, a built stylesheet, robots.txt
+                 and sitemap.xml. Nothing is written if a page does not compile
   version        Print the engine version
 
 A file is read in the syntax its extension names:
@@ -135,7 +143,18 @@ func cmdLint(args []string) int {
 	}
 	fs := vfs.Dir(dir)
 	entries := protocol.DiscoverPages(fs)
-	result := render.Compile(fs, entries, render.Options{})
+	// A dynamic page is compiled as serve and the platform compile it: one
+	// entry of its collection bound under the collection's name, the whole
+	// collection as `entries` (dynamicPagePreview, pages.go).
+	layout := site.Detect(fs)
+	variants := make([]render.Variant, len(entries))
+	for i, entry := range entries {
+		variants[i] = render.Variant{Entry: entry}
+		if data, dynamic := dynamicPagePreview(fs, layout, entry); dynamic {
+			variants[i].Data = data
+		}
+	}
+	result := render.CompileVariants(fs, variants, render.Options{})
 
 	diags := append([]render.Diagnostic(nil), result.Diagnostics...)
 	// Warnings are lint-only (undeclared attributes) and come from a separate

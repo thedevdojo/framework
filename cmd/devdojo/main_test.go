@@ -748,3 +748,27 @@ func TestUsageNamesMigrate(t *testing.T) {
 		t.Errorf("usage = %q", stderr)
 	}
 }
+
+// A dynamic page is linted the way serve and the platform compile it: its
+// collection's name bound to one entry, and `entries` to the whole list, so a
+// page that also lists the others lints clean. A page that names something
+// truly missing still does not.
+func TestLintBindsEntriesInADynamicPage(t *testing.T) {
+	files := map[string]string{
+		"src/pages/blog/[posts.slug].html":     "<h1>{{ posts.title }}</h1>\n<Foreach entries=\"post\">\n<a href=\"/blog/{{ post.slug }}\">{{ post.title }}</a>\n</Foreach>\n",
+		"src/pages/news/[news.slug].blade.php": "<h1>{{ $news->title }}</h1>\n@foreach ($entries as $item)\n{{ $item->title }}\n@endforeach\n",
+		"src/data/collections/posts.json":      `[{"slug": "a", "title": "A"}, {"slug": "b", "title": "B"}]`,
+		"src/data/collections/news.json":       `[{"slug": "n", "title": "N"}]`,
+	}
+	dir := tempSite(t, files)
+	stdout, stderr, code := runCLI(t, "", "lint", dir)
+	if code != 0 || stdout != "" || stderr != "" {
+		t.Errorf("exit %d, stdout %q, stderr %q; want a silent 0", code, stdout, stderr)
+	}
+
+	writeSite(t, dir, map[string]string{"src/pages/blog/[posts.slug].html": "<h1>{{ posts.title }}{{ nope }}</h1>\n"})
+	stdout, _, code = runCLI(t, "", "lint", dir)
+	if code != 1 || !strings.Contains(stdout, "nope") {
+		t.Errorf("a missing name in a dynamic page: exit %d, stdout %q", code, stdout)
+	}
+}
