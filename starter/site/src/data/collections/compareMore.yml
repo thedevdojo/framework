@@ -1,0 +1,8 @@
+# Column types for compareMore.json — the extra comparison rows behind Compare everything. groupStart marks the first row of each group (its label shows above that row); plan1/plan2/plan3 follow the plans in order: yes = check, no or empty = dash, anything else is shown as written (lowercase yes/no, exactly).
+fields:
+    group: { type: text }
+    groupStart: { type: toggle }
+    feature: { type: text }
+    plan1: { type: text }
+    plan2: { type: text }
+    plan3: { type: text }

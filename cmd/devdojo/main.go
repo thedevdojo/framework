@@ -1,9 +1,11 @@
 // Command devdojo is the CLI surface over the Go engine: `compile` speaks
 // the JSON protocol (package protocol) over stdin/stdout for host embedding,
 // `lint` gives a human a readable diagnostics report for a site directory on
-// disk, `convert` rewrites a site from one syntax into the other, and
+// disk, `convert` rewrites a site from one syntax into the other, `migrate`
+// moves an older site into src/, `new` writes a starter site (new.go),
+// `serve` shows a site in the browser as it is edited (serve.go), and
 // `version` prints the engine version. Argument handling is hand-rolled —
-// four subcommands do not earn a flag-parsing framework.
+// a handful of subcommands do not earn a flag-parsing framework.
 package main
 
 import (
@@ -43,6 +45,10 @@ func run(args []string) int {
 		return cmdConvert(args[1:])
 	case "migrate":
 		return cmdMigrate(args[1:])
+	case "new":
+		return cmdNew(args[1:])
+	case "serve":
+		return cmdServe(args[1:])
 	case "version":
 		fmt.Printf("devdojo %s\n", blade.Version)
 		return 0
@@ -67,6 +73,13 @@ Commands:
                  src/, with pages in src/pages and components in src/components.
                  The site must render exactly as before or nothing is moved.
                  With no <dir>: the same over the JSON protocol on stdin/stdout
+  new <folder>   Make <folder> and write a starter site into it: pages, components
+                 and data in src/, in the HTML syntax, with public/ beside it.
+                 A folder that already has something in it is left alone
+  serve [dir] [--port N] [--no-reload]
+                 Serve the site in [dir] (default: this folder) at
+                 http://localhost:8000. Each page is compiled when it is asked
+                 for, and the browser reloads when a file changes
   version        Print the engine version
 
 A file is read in the syntax its extension names:

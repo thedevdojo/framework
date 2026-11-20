@@ -1,0 +1,248 @@
+/*
+    Starter — the design system and the motion system.
+
+    Inlined right after Tailwind by @vite in the layout, so everything here
+    applies to every page. One palette and one type pairing, tuned together;
+    real values live here and only here. The tokens become utilities:
+    bg-background, text-foreground, text-muted-foreground, border-border,
+    bg-card, bg-primary, rounded-xl…
+
+    The mood: a near-white page, hairlines, soft black for the actions that
+    matter. Inter for everything, so the sections read as a neutral kit.
+*/
+
+/* ============================================================================
+   DevDojo global variables
+
+   The same names in every DevDojo template, so a section written for one
+   works in any other and a theme can change the whole site by rewriting the
+   :root values below. The @theme block only maps them onto utilities
+   (inline, so a later override of --background anywhere in the tree wins).
+
+   Text has four tiers from two variables: foreground, foreground/78 (body
+   copy and nav labels), muted-foreground (supporting copy), and
+   muted-foreground/80 (metadata, icons at rest).
+   ========================================================================== */
+@theme inline {
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    /* Tailwind's own rounded-* scale, derived from the three radius variables */
+    --radius-sm: calc(var(--radius) - 0.5rem);
+    --radius-md: calc(var(--radius) - 0.375rem);
+    --radius-lg: calc(var(--radius) - 0.25rem);
+    --radius-xl: var(--radius);
+    --radius-2xl: var(--radius-medium);
+    --radius-3xl: var(--radius-large);
+    --radius-medium: var(--radius-medium);
+    --radius-large: var(--radius-large);
+    --radius-control: var(--radius-control);
+}
+
+:root {
+    /* Surfaces: a near-white page, true white for cards, a toasted step for hover fills and wells */
+    --background: #fbfbfb;
+    --foreground: #0a0a0a;
+    --card: #ffffff;
+    --card-foreground: #0a0a0a;
+    --popover: #ffffff;
+    --popover-foreground: #0a0a0a;
+
+    /* Actions: primary buttons are soft black; the accent is the one blue, budgeted */
+    --primary: #0a0a0a;
+    --primary-foreground: #fbfbfb;
+    --secondary: #f2f2f2;
+    --secondary-foreground: #0a0a0a;
+    --muted: #f2f2f2;
+    --muted-foreground: #6b6b6b;
+    --accent: #1d4ed8;
+    --accent-foreground: #fbfbfb;
+    --destructive: #e7000b;
+
+    /* Hairlines: low-alpha ink, not a grey. The focus ring is the accent */
+    --border: rgba(10, 10, 10, 0.08);
+    --input: rgba(10, 10, 10, 0.08);
+    --ring: #1d4ed8;
+
+    /* Corners: controls and cards (rounded-xl), panels (rounded-2xl), framed images (rounded-3xl);
+       rounded-control is every text button, so one variable can square or pill them all */
+    --radius: 0.75rem;
+    --radius-medium: 1rem;
+    --radius-large: 1.5rem;
+    --radius-control: var(--radius);
+}
+
+/* ============================================================================
+   Starter — this template's own tokens
+   ========================================================================== */
+@theme {
+    --font-display: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    /* Type scale: the hero, section headings, and the big figures */
+    --text-hero: clamp(2.75rem, 1.5rem + 4.4vw, 4.75rem);
+    --text-hero--line-height: 1.02;
+    --text-h2: clamp(1.875rem, 1.35rem + 1.9vw, 2.5rem);
+    --text-h2--line-height: 1.1;
+    --text-figure: clamp(2.25rem, 1.75rem + 1.8vw, 3.25rem);
+    --text-figure--line-height: 1;
+
+    /* A stronger hairline for outlined buttons and window frames; a tinted well behind accent content */
+    --color-border-strong: color-mix(in srgb, var(--foreground) 16%, transparent);
+    --color-accent-soft: color-mix(in srgb, var(--accent) 8%, transparent);
+
+    /* Two named colours the drawn UI needs: star ratings and an upward delta */
+    --color-star: #fbbf24;
+    --color-up: #059669;
+
+    /* The dark counterpart of the page: the closing panel, the terminal, one dark band */
+    --color-shade: var(--foreground);
+    --color-shade-foreground: var(--background);
+    --color-shade-muted-foreground: color-mix(in srgb, var(--background) 63%, var(--foreground));
+    --color-shade-border: color-mix(in srgb, var(--background) 12%, transparent);
+
+    /* One depth recipe page-wide: a hairline plus this soft layered shadow */
+    --shadow-card: 0 1px 2px rgba(10, 10, 10, 0.05), 0 12px 32px -16px rgba(10, 10, 10, 0.18);
+
+    /* One easing family for everything interactive: fast in, long settle. */
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html { background-color: var(--background); color-scheme: light; }
+body { overflow-x: clip; }
+::selection { background-color: var(--primary); color: var(--primary-foreground); }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 3px; }
+h1, h2, h3, h4 { font-family: var(--font-display); }
+
+/* Cross-page fades — the whole site feels like one surface. */
+@view-transition { navigation: auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 220ms; animation-timing-function: ease; }
+
+/*
+    The reveal system. main.js adds .js to <html> before first paint, then an
+    IntersectionObserver flips .is-visible as each [data-reveal] scrolls in.
+    Without JavaScript nothing is ever hidden. Stagger with .reveal-N.
+*/
+.js [data-reveal] {
+    opacity: 0;
+    translate: 0 18px;
+    filter: blur(6px);
+    transition: opacity .9s var(--ease-spring), translate .9s var(--ease-spring), filter .9s var(--ease-spring);
+    transition-delay: var(--reveal-delay, 0ms);
+}
+.js [data-reveal].is-visible { opacity: 1; translate: 0 0; filter: blur(0); }
+.reveal-1 { --reveal-delay: 70ms; }
+.reveal-2 { --reveal-delay: 140ms; }
+.reveal-3 { --reveal-delay: 210ms; }
+.reveal-4 { --reveal-delay: 280ms; }
+.reveal-5 { --reveal-delay: 350ms; }
+.reveal-6 { --reveal-delay: 420ms; }
+
+/* The logo mark launches up from behind an invisible edge when the page loads. */
+.logo-mark { overflow: hidden; }
+.logo-mark path { transform-box: fill-box; animation: launch-up 1s cubic-bezier(.16, 1, .3, 1) both; }
+@keyframes launch-up { from { transform: translateY(120%); } }
+
+/* Nav dropdowns: in the DOM at full size, moved and faded from the trigger. Exit faster than entrance. */
+[data-dropdown-panel] {
+    opacity: 0; translate: 0 6px; scale: .98; visibility: hidden;
+    transform-origin: top center;
+    transition: opacity .18s ease-in, translate .18s ease-in, scale .18s ease-in, visibility 0s linear .18s;
+}
+[data-dropdown].is-open [data-dropdown-panel] {
+    opacity: 1; translate: 0 0; scale: 1; visibility: visible;
+    transition: opacity .24s var(--ease-out-quart), translate .24s var(--ease-out-quart), scale .24s var(--ease-out-quart), visibility 0s;
+}
+[data-dropdown] .dropdown-caret { transition: rotate .25s var(--ease-out-quart); }
+[data-dropdown].is-open .dropdown-caret { rotate: 180deg; }
+
+/* The mobile sheet slides down under the header bar. */
+[data-mobile-panel] {
+    opacity: 0; translate: 0 -8px; visibility: hidden;
+    transition: opacity .28s var(--ease-out-quart), translate .28s var(--ease-out-quart), visibility 0s linear .28s;
+}
+.menu-open [data-mobile-panel] { opacity: 1; translate: 0 0; visibility: visible; transition: opacity .32s var(--ease-out-quart), translate .32s var(--ease-out-quart), visibility 0s; }
+.menu-open { overflow: hidden; }
+
+/* Arrow nudge on links that carry one. */
+.arrow-link .arrow { transition: translate .22s var(--ease-out-quart); }
+.arrow-link:hover .arrow { translate: 3px 0; }
+
+/* Cards that link somewhere lift by a hair. */
+.lift { transition: translate .22s var(--ease-out-quart), box-shadow .22s var(--ease-out-quart), border-color .22s var(--ease-out-quart); }
+.lift:hover { translate: 0 -2px; box-shadow: var(--shadow-card); }
+
+/* Form fields: one recipe for every input on the site. */
+.field { transition: border-color .2s ease, box-shadow .2s ease; }
+.field:focus { outline: none; border-color: var(--color-border-strong); box-shadow: 0 0 0 3px var(--color-accent-soft); }
+
+/* The announcement banner (sections/banner.html): main.js removes it when the dismiss button is pressed. */
+[data-banner] { transition: opacity .2s ease; }
+[data-banner].is-dismissed { display: none; }
+
+/* Pricing: the section's data-billing decides which price shows; the pressed toggle option sits on a white pill. */
+[data-pricing]:not([data-billing="yearly"]) [data-price="yearly"] { display: none; }
+[data-pricing][data-billing="yearly"] [data-price="monthly"] { display: none; }
+.billing-option[aria-pressed="true"] { background-color: var(--card); color: var(--foreground); box-shadow: 0 1px 2px rgba(10, 10, 10, 0.08); }
+
+/* The closing panel's dot grid — faint points on the shade surface. */
+.dot-grid { background-image: radial-gradient(circle, var(--color-shade-border) 1px, transparent 1px); background-size: 24px 24px; }
+
+/* Smooth <details> opening (Chrome; instant elsewhere). The plus turns into a cross. */
+details.faq-item { interpolate-size: allow-keywords; }
+details.faq-item::details-content { block-size: 0; overflow: hidden; transition: block-size .35s var(--ease-out-quart), content-visibility .35s; transition-behavior: allow-discrete; }
+details.faq-item[open]::details-content { block-size: auto; }
+details.faq-item summary::-webkit-details-marker { display: none; }
+details.faq-item .faq-plus { transition: rotate .3s var(--ease-out-quart); }
+details.faq-item[open] .faq-plus { rotate: 45deg; }
+
+/* Reduced motion wins outright: everything visible, nothing moving. */
+@media (prefers-reduced-motion: reduce) {
+    .js [data-reveal] { opacity: 1; translate: 0 0; filter: none; transition: none; }
+    [data-dropdown-panel], [data-mobile-panel], details.faq-item::details-content { transition-duration: 0s; }
+    details.faq-item .faq-plus, .arrow-link .arrow, .lift, .field, [data-banner], .billing-option { transition: none; }
+    .lift:hover, .arrow-link:hover .arrow { translate: 0 0; }
+    ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+    .logo-mark path { animation: none; }
+}
+
+/*
+    Long-form text: blog posts, customer stories and changelog entries are stored HTML in their
+    collections, rendered inside .prose. Sizes and colours come from the same tokens as every section.
+*/
+.prose { color: color-mix(in srgb, var(--foreground) 78%, transparent); font-size: 17px; line-height: 1.75; }
+.prose > * + * { margin-top: 1.25em; }
+.prose h2 { margin-top: 2.25em; color: var(--foreground); font-size: 1.375rem; line-height: 1.3; font-weight: 600; letter-spacing: -0.015em; }
+.prose h2 + * { margin-top: 0.75em; }
+.prose h3 { margin-top: 1.75em; color: var(--foreground); font-size: 1.125rem; font-weight: 600; }
+.prose strong { color: var(--foreground); font-weight: 600; }
+.prose a { color: var(--foreground); text-decoration: underline; text-decoration-color: var(--color-border-strong); text-underline-offset: 3px; transition: text-decoration-color .2s ease; }
+.prose a:hover { text-decoration-color: var(--foreground); }
+.prose ul { padding-left: 1.25em; list-style: disc; }
+.prose ol { padding-left: 1.25em; list-style: decimal; }
+.prose li + li { margin-top: 0.5em; }
+.prose li::marker { color: var(--muted-foreground); }
+.prose code { font-family: var(--font-mono); font-size: 0.85em; padding: 0.15em 0.4em; border-radius: 0.375rem; background-color: var(--muted); color: var(--foreground); }
+.prose pre { overflow-x: auto; padding: 1.25rem 1.5rem; border: 1px solid var(--border); border-radius: var(--radius-medium); background-color: var(--card); font-size: 13.5px; line-height: 1.7; }
+.prose pre:focus-visible { outline-offset: -2px; }
+.prose pre code { padding: 0; background: none; font-size: inherit; }
+.prose code, .prose pre { font-variant-ligatures: none; }
+.prose blockquote { padding-left: 1.25em; border-left: 2px solid var(--foreground); color: var(--foreground); font-size: 1.125rem; }

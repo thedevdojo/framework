@@ -1,0 +1,7 @@
+# Column types for featureRows.json — the alternating rows on /features. points is a plain list of strings, one checklist line per entry; images are 3:2 screenshots.
+fields:
+    label: { type: text }
+    title: { type: text }
+    body: { type: textarea }
+    image: { type: image }
+    imageAlt: { type: text }

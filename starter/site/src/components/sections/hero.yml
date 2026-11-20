@@ -1,0 +1,50 @@
+title: Hero — centered
+description: Two-line headline, description, two buttons, a social proof row, and a product screenshot framed as a window
+category: heroes
+fields:
+    heading:
+        type: text
+        label: Heading
+        default: "Start building your next great idea."
+        required: true
+    text:
+        type: textarea
+        label: Description
+        rows: 3
+        default: "Build pages, content, and layouts with the visual design tool built for Laravel applications."
+    buttonText:
+        type: text
+        label: Primary button text
+        description: Clear to hide.
+        default: "Start building for free"
+    buttonLink:
+        type: url
+        label: Primary button link
+        default: "/pricing"
+    buttonText2:
+        type: text
+        label: Secondary button text
+        description: Clear to hide.
+        default: "Watch demo"
+    buttonLink2:
+        type: url
+        label: Secondary button link
+        default: "/#features"
+    socialProofText:
+        type: text
+        label: Social proof text
+        description: Clear to hide the avatars and stars row.
+        default: "Loved by 2,000+ developers"
+    showMockup:
+        type: toggle
+        label: Show dashboard window
+        default: "1"
+    mockupImage:
+        type: image
+        label: Dashboard image
+        description: Your screenshot, framed as a window. 16:10 works best.
+        default: "/images/mockup.png"
+    mockupAlt:
+        type: text
+        label: Dashboard image alt text
+        default: "The Starter dashboard: page views, conversions and top pages"

@@ -1,0 +1,30 @@
+<Props
+    eyebrow="Features"
+    heading="Everything a page needs, in one editor"
+    subheading="Sections, content, and layout live side by side, so nobody waits on a developer to change a headline."
+    :headingLevel="2"
+    :features="[]"
+/>
+<!-- Centered heading over a three-column grid of icon features. Rows live in src/data/collections/features.json; the icon column is inline SVG. -->
+<section id="features" class="scroll-mt-20 py-16 sm:py-28">
+    <div class="mx-auto w-full max-w-6xl px-6 lg:px-8">
+        <Heading
+            :eyebrow="eyebrow"
+            :heading="heading"
+            :paragraph="subheading"
+            :headingLevel="headingLevel"
+        />
+
+        <div class="mt-14 grid gap-x-8 gap-y-12 sm:mt-16 sm:grid-cols-2 lg:grid-cols-3">
+            <Foreach features="item">
+            <div {{ class(['reveal-1' => loop.iteration == 1, 'reveal-2' => loop.iteration == 2, 'reveal-3' => loop.iteration == 3, 'reveal-4' => loop.iteration == 4, 'reveal-5' => loop.iteration == 5, 'reveal-6' => loop.iteration >= 6]) }} data-reveal>
+                <div class="flex size-10 items-center justify-center rounded-xl bg-muted text-foreground/78">
+                    {!! item.icon !!}
+                </div>
+                <h3 class="mt-4 text-base font-medium text-foreground">{{ item.title }}</h3>
+                <p class="mt-2 text-[14px]/6 text-pretty text-muted-foreground">{{ item.description }}</p>
+            </div>
+            </Foreach>
+        </div>
+    </div>
+</section>

@@ -1,0 +1,8 @@
+# Column types for releases.json — the changelog, newest first. anchor is the id the version links to (v2-14 for 2.14). The body is HTML in content.
+fields:
+    version: { type: text }
+    anchor: { type: text }
+    date: { type: text }
+    kind: { type: select, options: { New: "New", Improved: "Improved", Fixed: "Fixed" } }
+    title: { type: text }
+    content: { type: richtext }

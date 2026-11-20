@@ -1,0 +1,50 @@
+title: Features — icon grid
+description: Centered heading with a three-column grid of icon features
+category: features
+fields:
+    eyebrow:
+        type: text
+        label: Eyebrow
+        description: Small label above the heading. Clear to hide.
+        default: "Features"
+    heading:
+        type: text
+        label: Heading
+        default: "Everything a page needs, in one editor"
+        required: true
+    subheading:
+        type: textarea
+        label: Subheading
+        description: Short line under the heading. Clear to hide.
+        rows: 2
+        default: "Sections, content, and layout live side by side, so nobody waits on a developer to change a headline."
+    headingLevel:
+        type: select
+        label: Heading level
+        description: Use H1 when this section opens the page, H2 everywhere else.
+        default: "2"
+        options:
+            "1": "H1 — the page title, set large"
+            "2": "H2 — a section heading"
+    features:
+        type: repeater
+        label: Features
+        source: "collections.features"
+        add_button_label: "Add feature"
+        item_label: title
+        description: Icons are inline SVG — a 24×24 viewBox at stroke-width 1.5 keeps them consistent.
+        sub_fields:
+            icon:
+                type: textarea
+                label: Icon (inline SVG)
+                rows: 3
+                default: "<svg viewBox='0 0 24 24' class='size-5' fill='none' stroke='currentColor' stroke-width='1.5' aria-hidden='true'><path stroke-linecap='round' stroke-linejoin='round' d='M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z'/></svg>"
+            title:
+                type: text
+                label: Title
+                default: "A feature"
+            description:
+                type: textarea
+                label: Description
+                rows: 2
+                default: "One sentence on what it does."

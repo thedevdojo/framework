@@ -1,0 +1,14 @@
+<Props value="" :featured="false" />
+<!--
+    One cell of the comparison table (sections/pricing-04.html): yes shows a check, no or an empty value
+    shows a dash, anything else is shown as written. The featured plan's cell is tinted.
+-->
+<td {{ class(['px-3 py-3.5 text-[15px] text-foreground/78 last:pr-6 lg:px-4 lg:last:pr-4', 'bg-muted/60' => featured]) }}>
+    <If value="yes">
+    <svg viewBox="0 0 24 24" class="size-5 text-foreground" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg><span class="sr-only">Included</span>
+    <ElseIf condition="value == '' or value == 'no'">
+    <span class="text-muted-foreground/80" aria-hidden="true">—</span><span class="sr-only">Not included</span>
+    <Else>
+    {{ value }}
+    </If>
+</td>

@@ -1,0 +1,22 @@
+title: Banner — announcement bar
+description: The thin dark announcement bar above the header — a message, an optional link, and a dismiss button
+category: banners
+fields:
+    message:
+        type: text
+        label: Message
+        description: Clear to remove the bar.
+        default: "Starter 2.14: collections get a table of their own."
+    linkText:
+        type: text
+        label: Link text
+        description: Clear to hide the link.
+        default: "See what shipped"
+    linkUrl:
+        type: url
+        label: Link URL
+        default: "/changelog"
+    dismissible:
+        type: toggle
+        label: Show dismiss button
+        default: "1"

@@ -1,0 +1,127 @@
+title: Pricing — comparison table
+description: A left opener over one table; plan prices and buttons in a sticky head row, feature rows grouped under mono labels, and a Compare everything button that reveals more rows in place
+category: pricing
+fields:
+    eyebrow:
+        type: text
+        label: Eyebrow
+        description: Small label above the heading. Clear to hide.
+        default: "Compare plans"
+    heading:
+        type: text
+        label: Heading
+        default: "Every plan, row by row"
+        required: true
+    intro:
+        type: textarea
+        label: Intro
+        description: One or two short sentences under the heading. Clear to hide.
+        rows: 2
+        default: "Three plans for shops that answer their own tickets. Start on Shop and move up when the inbox does."
+    period:
+        type: text
+        label: Period text after each price
+        default: "per month"
+    moreLabel:
+        type: text
+        label: Reveal button text
+        default: "Compare everything"
+    lessLabel:
+        type: text
+        label: Reveal button text once open
+        default: "Show fewer rows"
+    plans:
+        type: repeater
+        label: Plans
+        source: "collections.plans"
+        add_button_label: "Add plan"
+        item_label: name
+        description: One column per plan, in this order. The featured plan's column is tinted and gets the filled button.
+        sub_fields:
+            name:
+                type: text
+                label: Plan name
+                default: "New plan"
+            price:
+                type: text
+                label: Price
+                default: "$29"
+            ctaText:
+                type: text
+                label: Button text
+                default: "Start a trial"
+            ctaLink:
+                type: url
+                label: Button link
+                default: "#"
+            featured:
+                type: select
+                label: Featured plan
+                default: "no"
+                options:
+                    yes: "Yes"
+                    no: "No"
+    rows:
+        type: repeater
+        label: Feature rows
+        source: "collections.compareRows"
+        add_button_label: "Add row"
+        item_label: feature
+        description: Always shown. Starts a group shows the group label above the row. Per column, yes shows a check, no (or empty) shows a dash, anything else shows as written — lowercase yes/no, exactly.
+        sub_fields:
+            group:
+                type: text
+                label: Group
+                default: "Inbox"
+            groupStart:
+                type: toggle
+                label: Starts a group
+                default: "0"
+            feature:
+                type: text
+                label: Feature
+                default: "New feature"
+            plan1:
+                type: text
+                label: First plan
+                default: "yes"
+            plan2:
+                type: text
+                label: Second plan
+                default: "yes"
+            plan3:
+                type: text
+                label: Third plan
+                default: "yes"
+    moreRows:
+        type: repeater
+        label: More rows
+        source: "collections.compareMore"
+        add_button_label: "Add row"
+        item_label: feature
+        description: Shown once Compare everything is pressed. Same rules as the feature rows.
+        sub_fields:
+            group:
+                type: text
+                label: Group
+                default: "Channels"
+            groupStart:
+                type: toggle
+                label: Starts a group
+                default: "0"
+            feature:
+                type: text
+                label: Feature
+                default: "New feature"
+            plan1:
+                type: text
+                label: First plan
+                default: "no"
+            plan2:
+                type: text
+                label: Second plan
+                default: "yes"
+            plan3:
+                type: text
+                label: Third plan
+                default: "yes"

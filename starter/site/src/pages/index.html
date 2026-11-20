@@ -1,0 +1,21 @@
+<!--
+    The homepage, served at "/". A list of sections: each tag pulls a component
+    from src/components/sections/ and fills its props from these
+    attributes and the bound collections in src/data/collections/.
+    In Visual mode you can select, reorder and edit them on the canvas.
+-->
+<Layout src="main.html" title="The visual editor for marketing pages" description="Starter is a visual editor built for developers: build pages, edit content, and control layouts, with plain Blade underneath.">
+
+    <SectionsHero />
+
+    <SectionsLogos :logos="logos" />
+
+    <SectionsFeatures :features="features" />
+
+    <SectionsTestimonials :testimonials="testimonials" :outcomes="outcomes" />
+
+    <SectionsPricing :plans="plans" />
+
+    <SectionsCtaSimple />
+
+</Layout>

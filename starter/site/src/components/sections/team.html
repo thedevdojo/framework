@@ -1,0 +1,26 @@
+<Props
+    heading="The team"
+    subheading="Six people in Columbus, Ohio, most of whom have shipped a marketing site at 11 PM the night before a launch."
+    :members="[]"
+/>
+<!-- Centered heading over a grid of people: photo, name, role. Rows live in src/data/collections/team.json. -->
+<section class="py-20 sm:py-28">
+    <div class="mx-auto w-full max-w-6xl px-6 lg:px-8">
+        <div class="text-center" data-reveal>
+            <h2 class="text-h2 font-semibold tracking-tight text-balance text-foreground">{{ heading }}</h2>
+            <If subheading>
+            <p class="mx-auto mt-5 max-w-[50ch] text-[17px]/7 text-pretty text-foreground/78">{{ subheading }}</p>
+            </If>
+        </div>
+
+        <div class="mt-14 grid grid-cols-2 gap-x-6 gap-y-10 sm:mt-16 sm:grid-cols-3 lg:grid-cols-6">
+            <Foreach members="item">
+            <div {{ class(['reveal-1' => loop.iteration == 1, 'reveal-2' => loop.iteration == 2, 'reveal-3' => loop.iteration == 3, 'reveal-4' => loop.iteration == 4, 'reveal-5' => loop.iteration == 5, 'reveal-6' => loop.iteration >= 6, 'flex flex-col items-center text-center']) }} data-reveal>
+                <img src="{{ item.image }}" alt="{{ item.name }}" width="144" height="144" class="size-20 rounded-full bg-muted object-cover" loading="lazy">
+                <p class="mt-4 text-[15px] font-medium text-foreground">{{ item.name }}</p>
+                <p class="mt-0.5 text-[14px] text-muted-foreground">{{ item.role }}</p>
+            </div>
+            </Foreach>
+        </div>
+    </div>
+</section>

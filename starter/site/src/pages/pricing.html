@@ -1,0 +1,11 @@
+<Layout src="main.html" title="Pricing" description="Free for one site with every section. Pro adds custom domains, ten sites and version history; Team adds roles, approvals, SSO and same-day support.">
+
+    <SectionsPricing headingLevel="1" heading="Simple plans that grow with your sites" eyebrow="" subheading="Start on Free with no card, and move up when you add a second site or a custom domain." :plans="plans" />
+
+    <Include src="sections/pricing-04.html" eyebrow="Compare plans" heading="Every plan, row by row" intro="The eight differences most teams ask about. Open the full list for billing, security and the rest." :plans="plans" :rows="compareRows" :moreRows="compareMore" />
+
+    <SectionsFaq :faqs="faqs" />
+
+    <SectionsCtaRow />
+
+</Layout>

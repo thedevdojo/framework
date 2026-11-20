@@ -1,0 +1,44 @@
+title: Features — numbered steps
+description: Centred opener, four numbered steps on a hairline rail, and a wide product screenshot showing the outcome
+category: features
+fields:
+    eyebrow:
+        type: text
+        label: Eyebrow
+        description: Small label above the heading. Clear to hide.
+        default: "How it works"
+    heading:
+        type: text
+        label: Heading
+        default: "Move your help desk in four steps"
+        required: true
+    intro:
+        type: textarea
+        label: Intro
+        rows: 3
+        default: "Pebble copies tickets, contacts, and attachments between help desks with the history intact — and lets you rehearse the whole move before anyone notices."
+    steps:
+        type: repeater
+        label: Steps
+        source: "collections.setupSteps"
+        add_button_label: "Add step"
+        item_label: title
+        sub_fields:
+            title:
+                type: text
+                label: Title
+                default: "A step"
+            text:
+                type: textarea
+                label: Text
+                rows: 2
+                default: "One line on what happens here."
+    image:
+        type: image
+        label: Outcome image
+        description: Your screenshot, framed as a wide window under the steps. A 21:9 crop works best.
+        default: "/images/shot-publish.jpg"
+    imageAlt:
+        type: text
+        label: Image alt text
+        default: "The publish screen: four changed pages waiting, and the version history beside them"

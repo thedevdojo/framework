@@ -1,0 +1,36 @@
+title: FAQ — numbered grid
+description: Centered opener over two columns of numbered, open answers
+category: faq
+fields:
+    eyebrow:
+        type: text
+        label: Eyebrow
+        description: Small label above the heading. Clear to hide.
+        default: "Questions"
+    heading:
+        type: text
+        label: Heading
+        default: "Payroll for crews, answered"
+        required: true
+    intro:
+        type: textarea
+        label: Intro
+        description: One or two lines under the heading. Clear to hide.
+        rows: 2
+        default: "Six things landscaping companies ask before they run a first payroll on Quarry."
+    faqs:
+        type: repeater
+        label: Questions
+        source: "collections.devFaqs"
+        add_button_label: "Add question"
+        item_label: question
+        sub_fields:
+            question:
+                type: text
+                label: Question
+                default: "A question"
+            answer:
+                type: textarea
+                label: Answer
+                rows: 3
+                default: "A clear, direct answer."

@@ -1,0 +1,13 @@
+<!--
+    One page for every row of collections/stories.json, served at /customers/{slug}. Inside, $stories is the
+    matched story; the foot of the page reads the whole stories collection itself and skips this slug to offer the others.
+-->
+<Layout src="main.html" :title="stories.company" :description="stories.excerpt">
+
+    <SectionsStoryHeader :company="stories.company" :location="stories.location" :industry="stories.industry" :size="stories.size" :title="stories.title" :excerpt="stories.excerpt" :image="stories.image" :imageAlt="stories.imageAlt" :figureOneValue="stories.figureOneValue" :figureOneLabel="stories.figureOneLabel" :figureTwoValue="stories.figureTwoValue" :figureTwoLabel="stories.figureTwoLabel" :figureThreeValue="stories.figureThreeValue" :figureThreeLabel="stories.figureThreeLabel" />
+
+    <SectionsStoryBody :content="stories.content" :quote="stories.quote" :person="stories.person" :initials="stories.initials" :role="stories.role" :company="stories.company" :current="stories.slug" />
+
+    <SectionsCtaSimple heading="Hand your pages to the people who write them" text="Start on the free plan with one site and every section. Invite your editors when the first page looks right." />
+
+</Layout>

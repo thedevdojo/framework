@@ -1,0 +1,110 @@
+<Props
+    eyebrow="Compare plans"
+    heading="Every plan, row by row"
+    intro="Three plans for shops that answer their own tickets. Start on Shop and move up when the inbox does."
+    period="per month"
+    moreLabel="Compare everything"
+    lessLabel="Show fewer rows"
+    :plans="[]"
+    :rows="[]"
+    :moreRows="[]"
+/>
+<!--
+    Comparison table: a left opener, then one table — feature names down the first column grouped under a mono
+    label, a column per plan with its price and a compact button in the head row (sticky under a 64px header on
+    desktop), and cells that show a check, a dash or a value. Eight rows show; a "Compare everything" button reveals
+    six more in place. Plan columns come from the plans collection; the feature rows and the extra rows are two
+    collections (compareRows and compareMore) whose plan1 / plan2 / plan3 values map to the first three plans in
+    order (yes = check, no or empty = dash, anything else as written — lowercase yes/no, exactly) and whose
+    groupStart column marks the first row of each group. Every row renders through components/compare-row.html
+    and every cell through components/compare-cell.html. The featured plan's column is tinted and carries the
+    filled button. On phones the table scrolls sideways with the feature column pinned. Clear the eyebrow or intro
+    to hide them.
+-->
+<section class="py-16 sm:py-28" data-pricing-04>
+    <div class="mx-auto w-full max-w-6xl px-6 lg:px-8">
+        <div class="max-w-2xl" data-reveal>
+            <If eyebrow>
+            <p class="text-xs font-semibold tracking-[0.2em] text-muted-foreground/80 uppercase">{{ eyebrow }}</p>
+            </If>
+            <h2 class="mt-4 max-w-[30ch] text-h2 font-semibold tracking-tight text-balance text-foreground">{{ heading }}</h2>
+            <If intro>
+            <p class="mt-5 max-w-[50ch] text-lg/8 text-pretty text-muted-foreground">{{ intro }}</p>
+            </If>
+        </div>
+
+        <div class="reveal-1 -mx-6 mt-12 overflow-x-auto sm:mt-14 lg:mx-0 lg:overflow-visible" data-reveal>
+            <table class="w-full min-w-[45rem] table-fixed border-collapse text-left lg:min-w-0">
+                <thead>
+                    <tr class="border-b border-border-strong">
+                        <th scope="col" class="sticky left-0 z-30 w-[11.5rem] bg-background p-0 align-bottom lg:top-16 lg:w-[34%]"><span class="sr-only">Feature</span></th>
+                        <Foreach plans="plan">
+                        <th scope="col" class="bg-background p-0 align-bottom last:pr-3 lg:sticky lg:top-16 lg:z-20 lg:last:pr-0">
+                            <div {{ class(['px-3 pt-6 pb-5 lg:px-4', 'rounded-t-2xl bg-muted/60' => plan.featured == 'yes']) }}>
+                                <p class="text-[14px] font-medium text-foreground">{{ plan.name }}</p>
+                                <p class="mt-2 flex items-baseline gap-1.5">
+                                    <span class="text-3xl font-semibold tracking-tight text-foreground tabular-nums">{{ plan.price }}</span>
+                                    <span class="text-[13px] font-normal whitespace-nowrap text-muted-foreground">{{ period }}</span>
+                                </p>
+                                <If plan.featured="yes">
+                                <a href="{{ plan.ctaLink }}" class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-control bg-primary px-4 py-2 text-[14px] font-medium text-primary-foreground shadow-lg lg:whitespace-nowrap shadow-black/10 transition-all duration-200 hover:-translate-y-0.5 hover:opacity-90 hover:shadow-xl hover:shadow-black/15 active:scale-[.98]">{{ plan.ctaText }}</a>
+                                <Else>
+                                <a href="{{ plan.ctaLink }}" class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-control border border-border bg-card px-4 py-2 text-[14px] font-medium text-foreground/78 transition-colors lg:whitespace-nowrap duration-200 hover:border-border-strong hover:bg-muted active:scale-[.98]">{{ plan.ctaText }}</a>
+                                </If>
+                            </div>
+                        </th>
+                        </Foreach>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-border border-b border-border">
+                    <Foreach rows="row">
+                    <CompareRow :row="row" :plans="plans" />
+                    </Foreach>
+                    <Foreach moreRows="row">
+                    <CompareRow :row="row" :plans="plans" more="1" />
+                    </Foreach>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        {{-- The feature column plus the three plan columns. --}}
+                        <td colspan="4" class="pt-6 pl-6 lg:pl-0">
+                            <button type="button" aria-expanded="false" class="sticky left-0 inline-flex cursor-pointer items-center gap-2 text-[15px] font-medium text-foreground transition-colors duration-200 hover:text-muted-foreground" data-more-toggle>
+                                <svg viewBox="0 0 16 16" class="size-4 shrink-0 fill-current text-muted-foreground" data-more-glyph aria-hidden="true"><path d="M8.75 3.75a.75.75 0 0 0-1.5 0v3.5h-3.5a.75.75 0 0 0 0 1.5h3.5v3.5a.75.75 0 0 0 1.5 0v-3.5h3.5a.75.75 0 0 0 0-1.5h-3.5v-3.5Z"/></svg>
+                                <span data-more-label>{{ moreLabel }}</span>
+                                <span data-less-label>{{ lessLabel }}</span>
+                            </button>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</section>
+<style>
+.js [data-pricing-04]:not([data-expanded]) [data-more] { display: none; }
+[data-pricing-04] [data-less-label], [data-pricing-04][data-expanded] [data-more-label] { display: none; }
+[data-pricing-04][data-expanded] [data-less-label] { display: inline; }
+html:not(.js) [data-pricing-04] [data-more-toggle] { display: none; }
+[data-pricing-04] [data-more-glyph] { transition: rotate .3s var(--ease-out-quart, ease); }
+[data-pricing-04][data-expanded] [data-more-glyph] { rotate: 45deg; }
+[data-pricing-04][data-expanded] [data-more] { animation: pricing-04-in .3s ease both; }
+@keyframes pricing-04-in { from { opacity: 0; } }
+@media(prefers-reduced-motion: reduce) {
+    [data-pricing-04] [data-more-glyph] { transition: none; }
+    [data-pricing-04][data-expanded] [data-more] { animation: none; }
+}
+</style>
+<script>
+(function () {
+    document.querySelectorAll('[data-pricing-04]:not([data-pricing-04-ready])').forEach(function (root) {
+        root.setAttribute('data-pricing-04-ready', '');
+        var button = root.querySelector('[data-more-toggle]');
+        if (!button) return;
+        button.addEventListener('click', function () {
+            var open = !root.hasAttribute('data-expanded');
+            if (open) { root.setAttribute('data-expanded', ''); } else { root.removeAttribute('data-expanded'); }
+            button.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+    });
+})();
+</script>

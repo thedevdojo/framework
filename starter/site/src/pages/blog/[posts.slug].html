@@ -1,0 +1,13 @@
+<!--
+    One page for every row of collections/posts.json, served at /blog/{slug}. Inside, $posts is the matched
+    post; the foot of the page reads the whole posts collection itself and skips this slug to offer the others.
+-->
+<Layout src="main.html" :title="posts.title" :description="posts.excerpt">
+
+    <SectionsPostHeader :category="posts.category" :date="posts.date" :readTime="posts.readTime" :title="posts.title" :excerpt="posts.excerpt" :author="posts.author" :authorRole="posts.authorRole" :avatar="posts.avatar" :image="posts.image" :imageAlt="posts.imageAlt" />
+
+    <SectionsPostBody :content="posts.content" :current="posts.slug" />
+
+    <SectionsNewsletter />
+
+</Layout>

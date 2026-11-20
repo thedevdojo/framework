@@ -1,0 +1,66 @@
+[
+    {
+        "group": "Sites",
+        "groupStart": true,
+        "feature": "Sites",
+        "plan1": "1",
+        "plan2": "10",
+        "plan3": "Unlimited"
+    },
+    {
+        "group": "Sites",
+        "groupStart": false,
+        "feature": "Custom domains",
+        "plan1": "no",
+        "plan2": "10",
+        "plan3": "Unlimited"
+    },
+    {
+        "group": "Editing",
+        "groupStart": true,
+        "feature": "Every section and layout",
+        "plan1": "yes",
+        "plan2": "yes",
+        "plan3": "yes"
+    },
+    {
+        "group": "Editing",
+        "groupStart": false,
+        "feature": "Collections and in-place editing",
+        "plan1": "yes",
+        "plan2": "yes",
+        "plan3": "yes"
+    },
+    {
+        "group": "Editing",
+        "groupStart": false,
+        "feature": "Version history and rollbacks",
+        "plan1": "7 days",
+        "plan2": "1 year",
+        "plan3": "Unlimited"
+    },
+    {
+        "group": "Team",
+        "groupStart": true,
+        "feature": "Editors",
+        "plan1": "2",
+        "plan2": "10",
+        "plan3": "Unlimited"
+    },
+    {
+        "group": "Team",
+        "groupStart": false,
+        "feature": "Roles and approvals",
+        "plan1": "no",
+        "plan2": "no",
+        "plan3": "yes"
+    },
+    {
+        "group": "Support",
+        "groupStart": true,
+        "feature": "Support",
+        "plan1": "Community",
+        "plan2": "Priority email and chat",
+        "plan3": "Same-day"
+    }
+]

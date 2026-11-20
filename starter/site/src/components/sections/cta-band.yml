@@ -1,0 +1,30 @@
+title: CTA — dark panel
+description: A rounded dark panel with a soft glow, a dot grid, a statement, and two actions
+category: cta
+fields:
+    heading:
+        type: text
+        label: Heading
+        default: "Ship the page this afternoon"
+    body:
+        type: textarea
+        label: Supporting copy
+        rows: 2
+        default: "Start on the free plan, drop in your sections, and hand the content to the people who write it."
+    ctaText:
+        type: text
+        label: Primary button text
+        default: "Start building for free"
+    ctaLink:
+        type: url
+        label: Primary button link
+        default: "/pricing"
+    secondaryText:
+        type: text
+        label: Secondary button text
+        description: Clear to hide.
+        default: "Watch a 3-minute demo"
+    secondaryLink:
+        type: url
+        label: Secondary button link
+        default: "/contact"

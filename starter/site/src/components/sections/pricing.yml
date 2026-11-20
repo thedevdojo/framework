@@ -1,0 +1,111 @@
+title: Pricing — tier cards
+description: Centered heading, a Monthly / Yearly toggle, and three bordered tier cards; the featured plan is outlined with a badge
+category: pricing
+fields:
+    eyebrow:
+        type: text
+        label: Eyebrow
+        description: Small label above the heading. Clear to hide.
+        default: "Pricing"
+    heading:
+        type: text
+        label: Heading
+        default: "Simple, transparent pricing"
+        required: true
+    subheading:
+        type: textarea
+        label: Subheading
+        description: Short line under the heading. Clear to hide.
+        rows: 2
+        default: "Start free and build for as long as you like. Upgrade when you are ready to build without limits. Yearly billing gets two months free."
+    headingLevel:
+        type: select
+        label: Heading level
+        description: Use H1 when this section opens the page, H2 everywhere else.
+        default: "2"
+        options:
+            "1": "H1 — the page title, set large"
+            "2": "H2 — a section heading"
+    showToggle:
+        type: toggle
+        label: Show the Monthly / Yearly toggle
+        default: "1"
+    monthlyLabel:
+        type: text
+        label: Monthly label
+        default: "Monthly"
+    yearlyLabel:
+        type: text
+        label: Yearly label
+        default: "Yearly"
+    yearlySavings:
+        type: text
+        label: Yearly savings pill
+        description: Clear to hide.
+        default: "−17%"
+    periodMonthly:
+        type: text
+        label: Monthly period text
+        default: "per month"
+    periodYearly:
+        type: text
+        label: Yearly period text
+        default: "per year"
+    badgeText:
+        type: text
+        label: Featured badge
+        description: Shown on the featured plan. Clear to hide.
+        default: "Most popular"
+    footnote:
+        type: textarea
+        label: Footnote
+        description: Under the cards. Clear to hide.
+        rows: 2
+        default: "Every plan includes the full section library, your code in your repo, and no lock-in. Secure checkout by Stripe. Cancel anytime."
+    plans:
+        type: repeater
+        label: Plans
+        source: "collections.plans"
+        add_button_label: "Add plan"
+        item_label: name
+        description: The checklist lines are the row's features list, edited in the Content table. The Yearly price and note show when the toggle is flipped.
+        sub_fields:
+            name:
+                type: text
+                label: Plan name
+                default: "New plan"
+            description:
+                type: text
+                label: Who it is for
+                default: "Who this plan is for."
+            price:
+                type: text
+                label: Monthly price
+                default: "$29"
+            priceYearly:
+                type: text
+                label: Yearly price
+                default: "$290"
+            note:
+                type: text
+                label: Note under the monthly price
+                default: "or $290/year — two months free"
+            noteYearly:
+                type: text
+                label: Note under the yearly price
+                default: "$24.17 a month, billed yearly"
+            ctaText:
+                type: text
+                label: Button text
+                default: "Upgrade"
+            ctaLink:
+                type: url
+                label: Button link
+                default: "#"
+            featured:
+                type: select
+                label: Featured plan
+                default: "no"
+                options:
+                    yes: "Yes"
+                    no: "No"

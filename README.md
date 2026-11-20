@@ -168,6 +168,16 @@ No function calls, no assignments, no `@php`. Undefined variables are compile-ti
 go build -o /usr/local/bin/devdojo ./cmd/devdojo
 ```
 
+**Start a site** and look at it. `new` writes a starter site into a new folder (pages, components and data in `src/`, in the HTML syntax, with `public/` beside it); `serve` shows it at `http://localhost:8000`, compiles a page when it is asked for, and reloads the browser when a file changes:
+
+```bash
+devdojo new my-site
+cd my-site
+devdojo serve
+```
+
+`serve` takes `--port` and `--no-reload`. A page that does not compile is shown in the browser as `file:line:col` and what is wrong.
+
 **Lint** a site directory — silence means every page compiles cleanly:
 
 ```bash
@@ -208,7 +218,9 @@ The [`example/`](example/) directory is the smallest useful site — a page, a l
 | `oracle/` | A minimal Laravel app that runs the fixtures through genuine Blade in CI. |
 | `site/` | The one place that knows where a site keeps its files: `src/`, and the older shapes still read. |
 | `migrate/` | Moves a site in an older shape into `src/`. |
-| `cmd/devdojo/` | The CLI: `compile`, `lint`, `convert`, `migrate`, `version`. |
+| `cmd/devdojo/` | The CLI: `new`, `serve`, `compile`, `lint`, `convert`, `migrate`, `version`. |
+| `starter/` | The site `devdojo new` writes: a copy of [the starter template](https://github.com/devdojo-templates/starter) kept inside the binary, compiled by the tests. Refreshed with `make starter`. |
+| `composer.json` | Installs the Laravel package in `laravel/` from this repository (`composer require devdojo/framework`). |
 | `docs/` | The two syntax guides ([Blade](docs/blade-syntax.md), [DevDojo Studio](docs/studio-syntax.md)) and the design specs in [`docs/specs/`](docs/specs/). |
 
 ## License

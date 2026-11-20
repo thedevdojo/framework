@@ -1,0 +1,11 @@
+# Column types for plans.json — the pricing tiers. features is a plain list of strings, one checklist line per entry (edited in the Content table); the Yearly columns show when the toggle is flipped.
+fields:
+    name: { type: text }
+    description: { type: text }
+    price: { type: text }
+    priceYearly: { type: text }
+    note: { type: text }
+    noteYearly: { type: text }
+    ctaText: { type: text }
+    ctaLink: { type: url }
+    featured: { type: select, options: { yes: "Yes", no: "No" } }

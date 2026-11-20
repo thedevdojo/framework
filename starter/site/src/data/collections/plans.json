@@ -1,0 +1,55 @@
+[
+    {
+        "name": "Free",
+        "description": "A site of your own on a starter domain, with every section in the library.",
+        "price": "$0",
+        "priceYearly": "$0",
+        "note": "Free forever. No card required.",
+        "noteYearly": "Free forever. No card required.",
+        "features": [
+            "1 site",
+            "Every section and layout",
+            "Collections and in-place editing",
+            "Community support"
+        ],
+        "ctaText": "Start for free",
+        "ctaLink": "#",
+        "featured": "no"
+    },
+    {
+        "name": "Pro",
+        "description": "Real client work: your own domains, more sites, and someone to answer the phone.",
+        "price": "$29",
+        "priceYearly": "$290",
+        "note": "or $290/year — two months free",
+        "noteYearly": "$24.17 a month, billed yearly",
+        "features": [
+            "Everything in Free",
+            "Up to 10 sites",
+            "10 custom domains",
+            "Version history and rollbacks",
+            "Priority support"
+        ],
+        "ctaText": "Upgrade to Pro",
+        "ctaLink": "#",
+        "featured": "yes"
+    },
+    {
+        "name": "Team",
+        "description": "The whole studio on one account, with roles for everyone who touches a page.",
+        "price": "$79",
+        "priceYearly": "$790",
+        "note": "or $790/year — two months free",
+        "noteYearly": "$65.83 a month, billed yearly",
+        "features": [
+            "Everything in Pro",
+            "Unlimited sites and domains",
+            "Roles and approvals",
+            "Audit log and SSO",
+            "Same-day support"
+        ],
+        "ctaText": "Upgrade to Team",
+        "ctaLink": "/contact",
+        "featured": "no"
+    }
+]

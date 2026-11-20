@@ -10,3 +10,14 @@ fuzz:
 	go test ./blade/convert -fuzz='^FuzzFile$$' -fuzztime=30s
 conformance:
 	cd oracle && php artisan framework:conformance ../fixtures
+
+# Refresh the site `devdojo new` writes from a checkout of the starter template
+# (github.com/devdojo-templates/starter). What only the template's listing
+# needs stays behind. The tests then prove the copy still compiles clean.
+#   make starter STARTER=/path/to/starter
+starter:
+	@test -d "$(STARTER)/src/pages" || (echo "usage: make starter STARTER=/path/to/starter"; exit 1)
+	rm -rf starter/site
+	rsync -a --exclude .git --exclude .DS_Store --exclude template.json --exclude thumbnail.png --exclude README.md "$(STARTER)/" starter/site/
+	go test ./starter
+.PHONY: starter
