@@ -4,7 +4,7 @@
 # and unpack the output into <site>/_out/. Requires jq.
 #
 #   ./render.sh          # render this example
-#   ./render.sh <dir>    # render any site folder, Blade or Studio syntax
+#   ./render.sh <dir>    # render any site folder, Blade or the HTML syntax
 #                        # (./render.sh ../example-studio)
 #
 # The binary is found on PATH, or set DEVDOJO=/path/to/devdojo.

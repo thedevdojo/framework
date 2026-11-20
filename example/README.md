@@ -19,7 +19,7 @@ example/
         └── sections/feature-list.blade.php
 ```
 
-The same site written in the DevDojo Studio syntax (`<Layout>`, `<Foreach>`,
+The same site written in the HTML syntax (`<Layout>`, `<Foreach>`,
 `<If>`, `<SectionsFeatureList />`) is in
 [`../example-studio/`](../example-studio/); it renders the same bytes. Every
 directive used here is explained in the

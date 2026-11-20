@@ -302,7 +302,7 @@ incremental interactivity without requiring a full frontend framework.
 
 ## 12. Set against the engine as it is today (review, 2026-11-20)
 
-Written by reading the engine (1.1.0), `docs/studio-syntax.md` and the export
+Written by reading the engine (1.1.0), `docs/html-syntax.md` and the export
 design. Each point is either "this already agrees" or "this has to be decided
 before a spec", with a recommendation. None of them is decided.
 
@@ -334,7 +334,7 @@ before a spec", with a recommendation. None of them is decided.
 
 **1. Single braces: decided, and what it takes.**
 The engine reads `{{ title }}` today. Single braces were turned down when the
-HTML syntax was designed (`docs/studio-syntax.md`, "Not built yet") because
+HTML syntax was designed (`docs/html-syntax.md`, "Not built yet") because
 they collide with CSS, JavaScript and Alpine in the same file. The decision
 now is to take them anyway and say exactly where a brace is read. Svelte and
 JSX work this way. It is cheap **now**: the HTML syntax is days old, the 79

@@ -2,8 +2,8 @@
 
 DevDojo Framework compiles templates to HTML. It reads two syntaxes, and this is the
 guide to the first: **Blade**, in files ending `.blade.php`. (The other is the
-[DevDojo Studio syntax](studio-syntax.md), in `.html` files. A site can be
-[converted](studio-syntax.md#converting-between-the-two) from one to the other
+[HTML syntax](html-syntax.md), in `.html` files. A site can be
+[converted](html-syntax.md#converting-between-the-two) from one to the other
 at any time.)
 
 What DevDojo Framework reads is a **closed subset of Laravel Blade**: the part of
@@ -347,7 +347,7 @@ above is simply available.
 
 ## More
 
-- [The DevDojo Studio syntax](studio-syntax.md) — the same templates, written
+- [The HTML syntax](html-syntax.md) — the same templates, written
   as tags.
 - [`example/`](../example/) — a small complete site in this syntax.
 - [`docs/specs/`](specs/) — the design documents, for the exact rules behind

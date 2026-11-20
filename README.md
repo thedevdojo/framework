@@ -9,7 +9,7 @@ It reads two template syntaxes, and they are the same language written two ways:
 | Syntax | Files | It looks like | Full guide |
 |---|---|---|---|
 | **Blade** | `.blade.php` | `@if`, `{{ $post->title }}`, `<x-sections.hero />` | [**The Blade syntax →**](docs/blade-syntax.md) |
-| **DevDojo Studio** | `.html` | `<If>`, `{{ post.title }}`, `<SectionsHero />` | [**The DevDojo Studio syntax →**](docs/studio-syntax.md) |
+| **HTML** | `.html` | `<If>`, `{{ post.title }}`, `<SectionsHero />` | [**The HTML syntax →**](docs/html-syntax.md) |
 
 The same page in each:
 
@@ -23,7 +23,7 @@ The same page in each:
 ```
 
 ```html
-{{-- DevDojo Studio — index.html --}}
+{{-- The HTML syntax — index.html --}}
 <h1>{{ site.name }}</h1>
 
 <Foreach plans="plan">
@@ -40,6 +40,17 @@ Both compile to the same bytes:
     <li>2. Pro — $12/mo</li>
 ```
 
+## Start a site
+
+```bash
+devdojo new my-site                  # download the starter from GitHub into my-site/
+cd my-site
+devdojo serve                        # the site at http://localhost:8000, reloading as you edit
+devdojo build                        # the site as static files in dist/, ready to host anywhere
+```
+
+`devdojo new my-site --template blog` starts from another template instead: a name from [devdojo-templates](https://github.com/devdojo-templates), `owner/repo`, or a repository's `https://github.com/…` address. [More on each command →](#usage)
+
 ## Why
 
 A template language that can run code cannot be handed to your users: there is no safe way to let them edit a template and guarantee nothing malicious runs. DevDojo Framework compiles a **closed language**. A template can read values, compare them, loop and use components — and nothing else. No function calls, no assignments, no PHP. What it cannot say, it cannot do.
@@ -48,7 +59,7 @@ Nothing is invented, either. The Blade syntax is a subset of real Laravel Blade,
 
 ## The two syntaxes
 
-A file's extension picks its syntax, one file at a time. Under each is one parser and one renderer — the Studio scanner emits the very tokens the Blade scanner does — so the two cannot drift apart.
+A file's extension picks its syntax, one file at a time. Under each is one parser and one renderer — the HTML syntax's scanner emits the very tokens the Blade scanner does — so the two cannot drift apart.
 
 **Components** work like real Blade components — props with defaults, attributes, slots:
 
@@ -66,7 +77,7 @@ A file's extension picks its syntax, one file at a time. Under each is one parse
 <x-sections.hero heading="Build sites, not servers" cta="Get started"/>
 ```
 
-In DevDojo Studio syntax the same two files are:
+In the HTML syntax the same two files are:
 
 ```html
 {{-- src/components/sections/hero.html --}}
@@ -93,7 +104,7 @@ Either way:
 
 Side by side:
 
-| Blade | DevDojo Studio |
+| Blade | HTML |
 |---|---|
 | `{{ $post->title }}` | `{{ post.title }}` |
 | `@if ($plan == 'pro')` | `<If condition="plan == 'pro'">` · `<If plan="pro">` · `<If featured>` |
@@ -104,12 +115,12 @@ Side by side:
 | `@props(['title' => 'Untitled'])` · `{{ $slot }}` | `<Props title="Untitled" />` · `<Slot />` |
 | `<a @class(['btn', 'on' => $active])>` | `<a {{ class(['btn', 'on' => active]) }}>` |
 
-In Blade, a directive starts with `@` and a component tag with `x-`. In DevDojo Studio, a tag that starts with a capital letter belongs to the template; plain HTML is lowercase and is never touched, and `@` is plain text — so Alpine's `@click` and CSS `@media` need no escaping.
+In Blade, a directive starts with `@` and a component tag with `x-`. In the HTML syntax, a tag that starts with a capital letter belongs to the template; plain HTML is lowercase and is never touched, and `@` is plain text — so Alpine's `@click` and CSS `@media` need no escaping.
 
 The full reference for each:
 
 - [**The Blade syntax**](docs/blade-syntax.md) — output, conditions, loops, components, `$attributes`, `@class` / `@style`, expressions, data, `@vite`.
-- [**The DevDojo Studio syntax**](docs/studio-syntax.md) — every tag, the `<If>` shorthands, `<Foreach limit>`, component tag names, and what is left alone in an `.html` file.
+- [**The HTML syntax**](docs/html-syntax.md) — every tag, the `<If>` shorthands, `<Foreach limit>`, component tag names, and what is left alone in an `.html` file.
 
 ### Convert either way
 
@@ -121,7 +132,7 @@ devdojo convert my-site --to blade            # the HTML syntax → Blade
 devdojo convert my-site --to blade --dry-run  # say what would change, touch nothing
 ```
 
-A conversion is exact or it does not happen: every converted file is read back and compared token for token, the site is rendered before and after and every page must come out byte for byte the same, and one problem anywhere leaves every file untouched. Blade that needs real Laravel (`@auth`, `route()`) is refused on its way to DevDojo Studio. The Laravel package renders Blade only, so converting to Blade is also how an `.html` site moves into a real Laravel app. [More on converting →](docs/studio-syntax.md#converting-between-the-two)
+A conversion is exact or it does not happen: every converted file is read back and compared token for token, the site is rendered before and after and every page must come out byte for byte the same, and one problem anywhere leaves every file untouched. Blade that needs real Laravel (`@auth`, `route()`) is refused on its way to the HTML syntax. The Laravel package renders Blade only, so converting to Blade is also how an `.html` site moves into a real Laravel app. [More on converting →](docs/html-syntax.md#converting-between-the-two)
 
 ## Where a site keeps its files
 
@@ -152,7 +163,7 @@ The Laravel package reads the same folders in the same order. A real Laravel app
 
 ## Data
 
-Data comes from JSON and markdown files, bound by file name: `src/data/site.json` is `$site` (`site` in DevDojo Studio), `src/data/collections/plans.json` is `$plans`, `src/data/content/post/*.md` is `$post`.
+Data comes from JSON and markdown files, bound by file name: `src/data/site.json` is `$site` (`site` in the HTML syntax), `src/data/collections/plans.json` is `$plans`, `src/data/content/post/*.md` is `$post`.
 
 A collection can also be a **folder of entry files** — `src/data/collections/posts/<slug>.json`, one JSON object per entry, bound as `$posts` ordered by `date` descending then file name — for a blog too large to keep in one array file. The two forms bind identically; when a site has both for one name, the folder wins and the compile reports a collection error naming both paths.
 
@@ -216,13 +227,13 @@ Or embed the engine directly from Go:
 result := framework.Compile(vfs.Dir("my-site"), []string{"src/pages/index.blade.php"}, framework.Options{})
 ```
 
-The [`example/`](example/) directory is the smallest useful site — a page, a layout, a component fed by collection data — with a `render.sh` that runs the whole pipeline. [`example-studio/`](example-studio/) is the same site in DevDojo Studio syntax, and a test holds the two outputs identical.
+The [`example/`](example/) directory is the smallest useful site — a page, a layout, a component fed by collection data — with a `render.sh` that runs the whole pipeline. [`example-studio/`](example-studio/) is the same site in the HTML syntax, and a test holds the two outputs identical.
 
 ## Repo layout
 
 | Path | What it is |
 |---|---|
-| `blade/` | The Go engine: scanners, parser, renderer, expression evaluator. Stdlib-only, never panics on user input. `blade/scanner` reads Blade and `blade/htmlscan` reads DevDojo Studio; `blade/convert` rewrites a site from one syntax to the other. |
+| `blade/` | The Go engine: scanners, parser, renderer, expression evaluator. Stdlib-only, never panics on user input. `blade/scanner` reads Blade and `blade/htmlscan` reads the HTML syntax; `blade/convert` rewrites a site from one syntax to the other. |
 | `laravel/` | The `devdojo/framework` Composer package that makes the same Blade files render in a real Laravel app. |
 | `fixtures/` | The contract — conformance cases rendered by both engines. |
 | `oracle/` | A minimal Laravel app that runs the fixtures through genuine Blade in CI. |
@@ -232,7 +243,7 @@ The [`example/`](example/) directory is the smallest useful site — a page, a l
 | `starter/` | How `devdojo new` downloads a template from GitHub and writes it safely. The starter itself lives in [its own repository](https://github.com/devdojo-templates/starter), not in the binary. |
 | `npm/` | The npm package `@devdojo/framework`: the `devdojo` command for npm, and the script the release uses to make one package per platform. |
 | `composer.json` | Installs the Laravel package in `laravel/` from this repository (`composer require devdojo/framework`). |
-| `docs/` | The two syntax guides ([Blade](docs/blade-syntax.md), [DevDojo Studio](docs/studio-syntax.md)) and the design specs in [`docs/specs/`](docs/specs/). |
+| `docs/` | The two syntax guides ([Blade](docs/blade-syntax.md), [HTML](docs/html-syntax.md)) and the design specs in [`docs/specs/`](docs/specs/). |
 
 ## License
 

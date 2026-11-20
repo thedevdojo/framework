@@ -37,7 +37,7 @@ same tokens; `blade/parser` builds one tree (`blade/ast`: `Text`, `Echo`, `If`,
 `Unknown`). Expressions have their own tree in `blade/expr` (variables, member
 and index reads, `!`, comparisons, `&&`, `||`, `??`, text joined with `.`,
 array literals). No math, no ternary, no function calls. See
-`docs/studio-syntax.md`.
+`docs/html-syntax.md`.
 
 **The tree does not know HTML.** A `Text` node is an opaque run of bytes.
 `<a href="{{ link.url }}">` is `Text` + `Echo` + `Text`. Anything that needs to

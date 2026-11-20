@@ -1,10 +1,10 @@
-# DevDojo Framework example — DevDojo Studio syntax
+# DevDojo Framework example — the HTML syntax
 
 [`../example/`](../example/) again, written with tags instead of Blade
 directives. Same data, same CSS, **the same rendered bytes** — a test
 (`TestExamplesRenderAlike`) holds the two outputs identical.
 
-Nobody typed these views: they are what `devdojo convert example --to studio`
+Nobody typed these views: they are what `devdojo convert example --to html`
 writes, and a second test (`TestExampleStudioIsTheConversion`) keeps them that
 way. Run it the other way (`--to blade`) and you are back at `../example/`.
 
@@ -44,7 +44,7 @@ example/render.sh example-studio                           # writes example-stud
 
 The file extension picks the syntax, so nothing else changes: the same
 `compile` protocol, the same `lint`, the same data files. Every tag is
-explained in the [DevDojo Studio syntax guide](../docs/studio-syntax.md).
+explained in the [HTML syntax guide](../docs/html-syntax.md).
 
 One difference from the Blade example: step 4 there (rendering the same files
 in real Laravel) does not apply here — the Laravel package reads Blade only.
