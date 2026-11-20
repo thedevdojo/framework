@@ -2,7 +2,8 @@
 // the JSON protocol (package protocol) over stdin/stdout for host embedding,
 // `lint` gives a human a readable diagnostics report for a site directory on
 // disk, `convert` rewrites a site from one syntax into the other, `migrate`
-// moves an older site into src/, `new` writes a starter site (new.go),
+// moves an older site into src/, `new` writes a site from a template on
+// GitHub (new.go),
 // `serve` shows a site in the browser as it is edited (serve.go), and
 // `version` prints the engine version. Argument handling is hand-rolled —
 // a handful of subcommands do not earn a flag-parsing framework.
@@ -73,8 +74,10 @@ Commands:
                  src/, with pages in src/pages and components in src/components.
                  The site must render exactly as before or nothing is moved.
                  With no <dir>: the same over the JSON protocol on stdin/stdout
-  new <folder>   Make <folder> and write a starter site into it: pages, components
-                 and data in src/, in the HTML syntax, with public/ beside it.
+  new <folder> [--template <name>]
+                 Download a template from GitHub and write it into <folder>: the
+                 starter (github.com/devdojo-templates/starter) unless --template
+                 names another (blog, owner/repo, or https://github.com/owner/repo).
                  A folder that already has something in it is left alone
   serve [dir] [--port N] [--no-reload]
                  Serve the site in [dir] (default: this folder) at

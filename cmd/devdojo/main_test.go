@@ -37,7 +37,14 @@ func TestMain(m *testing.M) {
 // stdout, stderr, and the process exit code (0 for a clean exit).
 func runCLI(t *testing.T, stdin string, args ...string) (stdout, stderr string, exitCode int) {
 	t.Helper()
+	return runCLIEnv(t, nil, stdin, args...)
+}
+
+// runCLIEnv is runCLI with variables added to the environment.
+func runCLIEnv(t *testing.T, env []string, stdin string, args ...string) (stdout, stderr string, exitCode int) {
+	t.Helper()
 	cmd := exec.Command(binPath, args...)
+	cmd.Env = append(os.Environ(), env...)
 	cmd.Stdin = strings.NewReader(stdin)
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf

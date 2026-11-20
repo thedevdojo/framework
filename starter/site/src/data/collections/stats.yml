@@ -1,4 +1,0 @@
-# Column types for stats.json — the headline numbers
-fields:
-    value: { type: text }
-    label: { type: text }

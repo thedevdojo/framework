@@ -1,3 +1,0 @@
-# Column types for ctaItems.json — the checklist lines in the dark closing band on /features
-fields:
-    text: { type: text }

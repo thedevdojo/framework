@@ -1,4 +1,0 @@
-# Column types for devFaqs.json — the questions developers ask on /features
-fields:
-    question: { type: text }
-    answer: { type: textarea }
