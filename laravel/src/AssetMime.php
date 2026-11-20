@@ -10,7 +10,7 @@ namespace Devdojo\Framework;
  *
  * Active document types (html/htm/xhtml/shtml) are forced to text/plain so a
  * stray .html file dropped in public/ can't be served as an active page from
- * the app's origin; page HTML always comes from resources/views/pages instead.
+ * the app's origin; page HTML always comes from src/pages instead.
  * Unknown extensions fall back to text/plain (never an executable type).
  */
 class AssetMime

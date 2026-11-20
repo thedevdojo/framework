@@ -9,7 +9,7 @@
 // The host loads the module with Go's wasm_exec.js, runs it, and then calls
 //
 //	globalThis.__devdojo.compile(inputJSON) → outputJSON
-//	globalThis.__devdojo.version()          → "1.0.0"
+//	globalThis.__devdojo.version()          → "1.1.0"
 //
 // compile never throws for a bad INPUT: exactly like protocol.Run, malformed
 // JSON or a render-time problem is folded into the output document's

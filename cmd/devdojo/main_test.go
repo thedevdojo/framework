@@ -91,7 +91,7 @@ func TestUsageUnknownCommand(t *testing.T) {
 }
 
 func TestCompileHappyPath(t *testing.T) {
-	input := `{"files":{"resources/views/pages/index.blade.php":"<h1>Hi</h1>"}}`
+	input := `{"files":{"src/pages/index.blade.php":"<h1>Hi</h1>"}}`
 	stdout, stderr, code := runCLI(t, input, "compile")
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (stderr: %s)", code, stderr)
@@ -115,7 +115,7 @@ func TestCompileHappyPath(t *testing.T) {
 // error-kind diagnostic is still a successful CLI invocation — the OUTPUT
 // carries the problem, the exit code does not.
 func TestCompileErrorDiagnosticsStillExitZero(t *testing.T) {
-	input := `{"files":{"resources/views/pages/index.blade.php":"{{ $nope }}"}}`
+	input := `{"files":{"src/pages/index.blade.php":"{{ $nope }}"}}`
 	stdout, stderr, code := runCLI(t, input, "compile")
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 even with an error diagnostic (stderr: %s, stdout: %s)", code, stderr, stdout)
@@ -152,7 +152,7 @@ func TestLintErrorExitsOne(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("exit code = %d, want 1 (stdout: %s, stderr: %s)", code, stdout, stderr)
 	}
-	lineRe := regexp.MustCompile(`^resources/views/pages/index\.blade\.php:\d+:\d+ \[(error|app-tier)\] .+$`)
+	lineRe := regexp.MustCompile(`^src/pages/index\.blade\.php:\d+:\d+ \[(error|app-tier)\] .+$`)
 	lines := strings.Split(strings.TrimRight(stdout, "\n"), "\n")
 	if len(lines) != 6 {
 		t.Fatalf("expected 6 diagnostic lines, got %d:\n%s", len(lines), stdout)
@@ -186,7 +186,7 @@ func TestLintErrorExitsOne(t *testing.T) {
 // (no engine-fatal error) exits 0 even though it prints output.
 func TestLintAppTierOnlyExitsZero(t *testing.T) {
 	dir := t.TempDir()
-	pages := filepath.Join(dir, "resources", "views", "pages")
+	pages := filepath.Join(dir, "src", "pages")
 	if err := os.MkdirAll(pages, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +209,7 @@ func TestLintAppTierOnlyExitsZero(t *testing.T) {
 // TestLintCleanTreeExitsZero: no diagnostics at all → exit 0, no output.
 func TestLintCleanTreeExitsZero(t *testing.T) {
 	dir := t.TempDir()
-	pages := filepath.Join(dir, "resources", "views", "pages")
+	pages := filepath.Join(dir, "src", "pages")
 	if err := os.MkdirAll(pages, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -246,8 +246,8 @@ func writeSite(t *testing.T, root string, files map[string]string) {
 func TestLintUndeclaredAttributeWarnsExitsZero(t *testing.T) {
 	dir := t.TempDir()
 	writeSite(t, dir, map[string]string{
-		"resources/views/pages/index.blade.php":              `<x-sections.hero heading="Hi" subtitle="typo"/>`,
-		"resources/views/components/sections/hero.blade.php": "@props(['heading' => 'Default'])\n<h1>{{ $heading }}</h1>",
+		"src/pages/index.blade.php":              `<x-sections.hero heading="Hi" subtitle="typo"/>`,
+		"src/components/sections/hero.blade.php": "@props(['heading' => 'Default'])\n<h1>{{ $heading }}</h1>",
 	})
 	stdout, stderr, code := runCLI(t, "", "lint", dir)
 	if code != 0 {
@@ -267,8 +267,8 @@ func TestLintDeclaredAndBoundAttributesSilent(t *testing.T) {
 		// $site is always bound (empty object with no site.json), so the bound
 		// attribute evaluates cleanly — the point is that neither the declared
 		// static attr nor the bound attr produces a lint warning.
-		"resources/views/pages/index.blade.php":              `<x-sections.hero heading="Hi" :rows="$site"/>`,
-		"resources/views/components/sections/hero.blade.php": "@props(['heading' => 'Default'])\n<h1>{{ $heading }}</h1>",
+		"src/pages/index.blade.php":              `<x-sections.hero heading="Hi" :rows="$site"/>`,
+		"src/components/sections/hero.blade.php": "@props(['heading' => 'Default'])\n<h1>{{ $heading }}</h1>",
 	})
 	stdout, stderr, code := runCLI(t, "", "lint", dir)
 	if code != 0 {
@@ -332,9 +332,9 @@ func TestLintNotADirectoryExitsTwo(t *testing.T) {
 // and compiles through the same protocol with nothing extra in the request.
 func TestCompileHTMLSyntax(t *testing.T) {
 	input := `{"files":{` +
-		`"resources/views/pages/index.html":"<Layout src=\"main.html\" title=\"Home\"><Foreach posts=\"post\"><Card :title=\"post.title\" /></Foreach></Layout>",` +
-		`"resources/views/components/layouts/main.html":"<title>{{ title }}</title><Slot />",` +
-		`"resources/views/components/card.html":"<Props title /><h2>{{ title }}</h2>"` +
+		`"src/pages/index.html":"<Layout src=\"main.html\" title=\"Home\"><Foreach posts=\"post\"><Card :title=\"post.title\" /></Foreach></Layout>",` +
+		`"src/components/layouts/main.html":"<title>{{ title }}</title><Slot />",` +
+		`"src/components/card.html":"<Props title /><h2>{{ title }}</h2>"` +
 		`},"data":{"posts":[{"title":"One"},{"title":"Two"}]}}`
 	stdout, stderr, code := runCLI(t, input, "compile")
 	if code != 0 {
@@ -360,17 +360,17 @@ func TestCompileHTMLSyntax(t *testing.T) {
 func TestLintHTMLSyntax(t *testing.T) {
 	dir := t.TempDir()
 	writeSite(t, dir, map[string]string{
-		"resources/views/pages/index.html":              "<SectionsHero heading=\"Hi\" subtitle=\"typo\" />\n<If condition=\"titel\">x</If>\n<Foreach posts>y</Foreach>",
-		"resources/views/components/sections/hero.html": "<Props heading=\"Default\" />\n<h1>{{ heading }}</h1>",
+		"src/pages/index.html":              "<SectionsHero heading=\"Hi\" subtitle=\"typo\" />\n<If condition=\"titel\">x</If>\n<Foreach posts>y</Foreach>",
+		"src/components/sections/hero.html": "<Props heading=\"Default\" />\n<h1>{{ heading }}</h1>",
 	})
 	stdout, stderr, code := runCLI(t, "", "lint", dir)
 	if code != 1 {
 		t.Fatalf("exit code = %d, want 1 for an error (stdout: %s, stderr: %s)", code, stdout, stderr)
 	}
 	for _, want := range []string{
-		`resources/views/pages/index.html:1:28 [warning] undeclared attribute "subtitle" on <SectionsHero> (not in its <Props>)`,
-		`resources/views/pages/index.html:2:1 [error] undefined-variable: undefined variable titel`,
-		`resources/views/pages/index.html:3:1 [error] <Foreach>: <Foreach> needs a list and a name for each item, like <Foreach posts="post">`,
+		`src/pages/index.html:1:28 [warning] undeclared attribute "subtitle" on <SectionsHero> (not in its <Props>)`,
+		`src/pages/index.html:2:1 [error] undefined-variable: undefined variable titel`,
+		`src/pages/index.html:3:1 [error] <Foreach>: <Foreach> needs a list and a name for each item, like <Foreach posts="post">`,
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout is missing %q\n%s", want, stdout)
@@ -404,10 +404,10 @@ func tree(t *testing.T, dir string) string {
 }
 
 var convertSite = map[string]string{
-	"resources/views/pages/index.blade.php":             "<x-layouts.main>\n@foreach ($site->items as $item)\n<x-card :title=\"$item\" />\n@endforeach\n</x-layouts.main>\n",
-	"resources/views/components/layouts/main.blade.php": "<main>{{ $slot }}</main>\n",
-	"resources/views/components/card.blade.php":         "@props(['title' => 'T'])\n<h1>{{ $title }}</h1>\n",
-	"resources/data/site.json":                          `{"items": ["a", "b"]}`,
+	"src/pages/index.blade.php":             "<x-layouts.main>\n@foreach ($site->items as $item)\n<x-card :title=\"$item\" />\n@endforeach\n</x-layouts.main>\n",
+	"src/components/layouts/main.blade.php": "<main>{{ $slot }}</main>\n",
+	"src/components/card.blade.php":         "@props(['title' => 'T'])\n<h1>{{ $title }}</h1>\n",
+	"src/data/site.json":                    `{"items": ["a", "b"]}`,
 }
 
 // TestConvertOnDisk: `convert <dir> --to studio` rewrites a site in place — the
@@ -419,11 +419,11 @@ func TestConvertOnDisk(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit code = %d (stdout: %s, stderr: %s)", code, stdout, stderr)
 	}
-	want := "resources/data/site.json\nresources/views/components/card.html\nresources/views/components/layouts/main.html\nresources/views/pages/index.html"
+	want := "src/components/card.html\nsrc/components/layouts/main.html\nsrc/data/site.json\nsrc/pages/index.html"
 	if got := tree(t, dir); got != want {
 		t.Errorf("files after converting:\n%s\nwant:\n%s", got, want)
 	}
-	page, _ := os.ReadFile(filepath.Join(dir, "resources/views/pages/index.html"))
+	page, _ := os.ReadFile(filepath.Join(dir, "src/pages/index.html"))
 	if want := "<Layout src=\"main.html\">\n<Foreach site.items=\"item\">\n<Card :title=\"item\" />\n</Foreach>\n</Layout>\n"; string(page) != want {
 		t.Errorf("index.html = %q\nwant %q", page, want)
 	}
@@ -459,7 +459,7 @@ func TestConvertDryRun(t *testing.T) {
 		t.Errorf("--dry-run changed the site:\n%s", got)
 	}
 	for _, want := range []string{
-		"resources/views/pages/index.blade.php → resources/views/pages/index.html",
+		"src/pages/index.blade.php → src/pages/index.html",
 		"Would convert 3 files to the DevDojo Studio syntax",
 	} {
 		if !strings.Contains(stdout, want) {
@@ -475,7 +475,7 @@ func TestConvertRefusedTouchesNothing(t *testing.T) {
 	for k, v := range convertSite {
 		files[k] = v
 	}
-	files["resources/views/components/gate.blade.php"] = "x\n@auth\nsecret\n@endauth\n"
+	files["src/components/gate.blade.php"] = "x\n@auth\nsecret\n@endauth\n"
 	dir := tempSite(t, files)
 	before := tree(t, dir)
 	stdout, stderr, code := runCLI(t, "", "convert", dir, "--to", "html")
@@ -486,7 +486,7 @@ func TestConvertRefusedTouchesNothing(t *testing.T) {
 		t.Errorf("a refused conversion changed the site:\n%s", got)
 	}
 	for _, want := range []string{
-		"resources/views/components/gate.blade.php:2:1 @auth needs real Laravel, which the DevDojo Studio syntax does not have",
+		"src/components/gate.blade.php:2:1 @auth needs real Laravel, which the DevDojo Studio syntax does not have",
 		"Nothing was converted",
 	} {
 		if !strings.Contains(stdout, want) {
@@ -546,7 +546,7 @@ func TestUsageNamesBothSyntaxes(t *testing.T) {
 // TestConvertProtocol: with no folder, convert speaks JSON on stdin and stdout
 // the way compile does, for a host that holds the site in memory.
 func TestConvertProtocol(t *testing.T) {
-	in := `{"to": "blade", "files": {"resources/views/pages/index.html": "<If featured> yes </If>\n"}}`
+	in := `{"to": "blade", "files": {"src/pages/index.html": "<If featured> yes </If>\n"}}`
 	stdout, stderr, code := runCLI(t, in, "convert")
 	if code != 0 {
 		t.Fatalf("exit code = %d (stderr: %s)", code, stderr)
@@ -558,10 +558,186 @@ func TestConvertProtocol(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
 		t.Fatalf("stdout is not JSON: %v\n%s", err, stdout)
 	}
-	if got := out.Files["resources/views/pages/index.blade.php"]; got != "@if ($featured) yes @endif\n" {
+	if got := out.Files["src/pages/index.blade.php"]; got != "@if ($featured) yes @endif\n" {
 		t.Errorf("converted page = %q", got)
 	}
-	if len(out.Removed) != 1 || out.Removed[0] != "resources/views/pages/index.html" {
+	if len(out.Removed) != 1 || out.Removed[0] != "src/pages/index.html" {
 		t.Errorf("removed = %v", out.Removed)
+	}
+}
+
+// ---- src/, the older folders, and `migrate` ---------------------------------
+
+var oldShapeSite = map[string]string{
+	"resources/views/pages/index.blade.php":             "<x-layouts.main>\n<h1>{{ $site->name }}</h1>\n</x-layouts.main>\n",
+	"resources/views/components/layouts/main.blade.php": "<html><head>@vite(['resources/css/site.css'])</head><body>{{ $slot }}</body></html>\n",
+	"resources/css/site.css":                            "body { color: red }",
+	"resources/data/site.json":                          `{"name": "Acme"}`,
+	"public/robots.txt":                                 "User-agent: *\n",
+}
+
+// TestLintTellsAnOldFolderOnceAndStaysClean: a site in resources/ still lints
+// clean (nothing on stdout, exit 0). What it is told goes to stderr, once.
+func TestLintTellsAnOldFolderOnceAndStaysClean(t *testing.T) {
+	dir := tempSite(t, oldShapeSite)
+	stdout, stderr, code := runCLI(t, "", "lint", dir)
+	if code != 0 || stdout != "" {
+		t.Fatalf("exit %d, stdout %q (stderr: %s)", code, stdout, stderr)
+	}
+	if strings.Count(stderr, "resources/") == 0 || !strings.Contains(stderr, "devdojo migrate") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if strings.Count(stderr, "\n") != 1 {
+		t.Fatalf("expected one line of notice, got %q", stderr)
+	}
+}
+
+// TestLintASrcSiteIsSilent: the current shape has nothing to be told.
+func TestLintASrcSiteIsSilent(t *testing.T) {
+	dir := tempSite(t, map[string]string{
+		"src/pages/index.html":     "<Card />\n",
+		"src/components/card.html": "<b>card</b>\n",
+	})
+	stdout, stderr, code := runCLI(t, "", "lint", dir)
+	if code != 0 || stdout != "" || stderr != "" {
+		t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout, stderr)
+	}
+}
+
+// TestMigrateOnDisk: `migrate <dir>` moves a site into the flat src/ shape in
+// place, rewrites the stylesheet entry, leaves everything else alone, and the
+// site then lints with nothing left to say.
+func TestMigrateOnDisk(t *testing.T) {
+	dir := tempSite(t, oldShapeSite)
+	before, _, _ := runCLI(t, compileRequest(t, dir), "compile")
+
+	stdout, stderr, code := runCLI(t, "", "migrate", dir)
+	if code != 0 {
+		t.Fatalf("exit code = %d (stdout: %s, stderr: %s)", code, stdout, stderr)
+	}
+	want := "public/robots.txt\nsrc/components/layouts/main.blade.php\nsrc/css/site.css\nsrc/data/site.json\nsrc/pages/index.blade.php"
+	if got := tree(t, dir); got != want {
+		t.Errorf("files after moving:\n%s\nwant:\n%s", got, want)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "resources")); !os.IsNotExist(err) {
+		t.Errorf("the empty resources/ folder was left behind")
+	}
+	layout, _ := os.ReadFile(filepath.Join(dir, "src/components/layouts/main.blade.php"))
+	if !strings.Contains(string(layout), "@vite(['src/css/site.css'])") {
+		t.Errorf("layout = %q", layout)
+	}
+	if !strings.Contains(stdout, "Moved 4 files to src/") {
+		t.Errorf("stdout = %q", stdout)
+	}
+
+	after, _, _ := runCLI(t, compileRequest(t, dir), "compile")
+	if pageOf(t, before) == "" || pageOf(t, before) != pageOf(t, after) {
+		t.Errorf("the page changed:\nbefore %q\nafter  %q", pageOf(t, before), pageOf(t, after))
+	}
+	if out, errOut, code := runCLI(t, "", "lint", dir); code != 0 || out != "" || errOut != "" {
+		t.Errorf("lint after moving: exit %d, stdout %q, stderr %q", code, out, errOut)
+	}
+}
+
+// compileRequest reads a site off disk into a compile request.
+func compileRequest(t *testing.T, dir string) string {
+	t.Helper()
+	files := map[string]string{}
+	for _, rel := range strings.Split(tree(t, dir), "\n") {
+		body, _ := os.ReadFile(filepath.Join(dir, filepath.FromSlash(rel)))
+		files[rel] = string(body)
+	}
+	raw, _ := json.Marshal(map[string]any{"files": files})
+	return string(raw)
+}
+
+func pageOf(t *testing.T, compiled string) string {
+	t.Helper()
+	var out struct {
+		Files map[string]string `json:"files"`
+	}
+	if err := json.Unmarshal([]byte(compiled), &out); err != nil {
+		t.Fatalf("not JSON: %v\n%s", err, compiled)
+	}
+	return out.Files["index.html"]
+}
+
+// TestMigrateDryRun: --dry-run lists every move and touches nothing.
+func TestMigrateDryRun(t *testing.T) {
+	dir := tempSite(t, oldShapeSite)
+	was := tree(t, dir)
+	stdout, stderr, code := runCLI(t, "", "migrate", dir, "--dry-run")
+	if code != 0 {
+		t.Fatalf("exit code = %d (stderr: %s)", code, stderr)
+	}
+	if !strings.Contains(stdout, "resources/views/pages/index.blade.php → src/pages/index.blade.php") ||
+		!strings.Contains(stdout, "Would move 4 files") || !strings.Contains(stdout, "Nothing was changed") {
+		t.Errorf("stdout = %q", stdout)
+	}
+	if got := tree(t, dir); got != was {
+		t.Errorf("--dry-run changed the site:\n%s", got)
+	}
+}
+
+// TestMigrateNothingToDo: a site already in the current shape is left alone.
+func TestMigrateNothingToDo(t *testing.T) {
+	dir := tempSite(t, map[string]string{"src/pages/index.html": "<h1>Hi</h1>\n"})
+	stdout, _, code := runCLI(t, "", "migrate", dir)
+	if code != 0 || !strings.Contains(stdout, "Nothing to move") {
+		t.Fatalf("exit %d, stdout %q", code, stdout)
+	}
+}
+
+// TestMigrateRefusedTouchesNothing: a move that would change a page is not
+// made, exits 1 and leaves the folder exactly as it was.
+func TestMigrateRefusedTouchesNothing(t *testing.T) {
+	dir := tempSite(t, map[string]string{
+		"resources/views/pages/index.blade.php": "<p>Write @@vite(['resources/css/site.css']) in your layout.</p>\n",
+	})
+	was := tree(t, dir)
+	stdout, _, code := runCLI(t, "", "migrate", dir)
+	if code != 1 || !strings.Contains(stdout, "would render differently") || !strings.Contains(stdout, "Nothing was moved") {
+		t.Fatalf("exit %d, stdout %q", code, stdout)
+	}
+	if got := tree(t, dir); got != was {
+		t.Errorf("a refused move changed the site:\n%s", got)
+	}
+}
+
+// TestMigrateProtocol: with no directory, migrate speaks JSON, for a host that
+// holds the site in memory.
+func TestMigrateProtocol(t *testing.T) {
+	raw, _ := json.Marshal(map[string]any{"files": oldShapeSite})
+	stdout, stderr, code := runCLI(t, string(raw), "migrate")
+	if code != 0 {
+		t.Fatalf("exit code = %d (stderr: %s)", code, stderr)
+	}
+	var out struct {
+		Engine string `json:"engine"`
+		Moves  []struct {
+			From string `json:"from"`
+			To   string `json:"to"`
+		} `json:"moves"`
+		Files       map[string]string `json:"files"`
+		Diagnostics []any             `json:"diagnostics"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatalf("not JSON: %v\n%s", err, stdout)
+	}
+	if out.Engine != blade.Version || len(out.Moves) != 4 || len(out.Diagnostics) != 0 {
+		t.Fatalf("got %+v", out)
+	}
+	if out.Moves[0].From != "resources/css/site.css" || out.Moves[0].To != "src/css/site.css" {
+		t.Errorf("first move = %+v", out.Moves[0])
+	}
+	if body := out.Files["src/components/layouts/main.blade.php"]; !strings.Contains(body, "@vite(['src/css/site.css'])") || len(out.Files) != 1 {
+		t.Errorf("files = %q", out.Files)
+	}
+}
+
+func TestUsageNamesMigrate(t *testing.T) {
+	_, stderr, _ := runCLI(t, "")
+	if !strings.Contains(stderr, "migrate <dir>") {
+		t.Errorf("usage = %q", stderr)
 	}
 }

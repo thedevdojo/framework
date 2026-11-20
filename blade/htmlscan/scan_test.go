@@ -97,7 +97,7 @@ func TestScanMatchesBlade(t *testing.T) {
 			`<Props heading="Hello" cta="Learn more" items :count="3" logo-text="Hi" :tags="['a', 'b']" />`,
 			`@props(['heading' => 'Hello', 'cta' => 'Learn more', 'items' => null, 'count' => 3, 'logoText' => 'Hi', 'tags' => ['a', 'b']])`},
 		{"props, quote in default", `<Props label="it's" />`, `@props(['label' => 'it\'s'])`},
-		{"vite", `<Vite src="resources/css/site.css" />`, `@vite(['resources/css/site.css'])`},
+		{"vite", `<Vite src="src/css/site.css" />`, `@vite(['src/css/site.css'])`},
 		{"vite, several entries", `<Vite src="a.css, b.css" />`, `@vite(['a.css', 'b.css'])`},
 	}
 	for _, tc := range cases {

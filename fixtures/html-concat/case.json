@@ -1,1 +1,1 @@
-{"entries": ["resources/views/pages/index.html"], "data": {"n": 2, "s": "x&y", "who": "Ada & Bob"}, "oracle": false, "twin": "concat"}
+{"entries": ["src/pages/index.html"], "data": {"n": 2, "s": "x&y", "who": "Ada & Bob"}, "oracle": false, "twin": "concat"}

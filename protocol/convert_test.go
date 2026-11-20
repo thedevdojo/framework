@@ -16,9 +16,9 @@ func TestRunConvert(t *testing.T) {
 	in := `{
 		"to": "studio",
 		"files": {
-			"resources/views/pages/index.blade.php": "<x-card :title=\"$name\" />\n",
-			"resources/views/components/card.blade.php": "@props(['title' => 'T'])\n<h1>{{ $title }}</h1>\n",
-			"resources/css/site.css": "body{}"
+			"src/pages/index.blade.php": "<x-card :title=\"$name\" />\n",
+			"src/components/card.blade.php": "@props(['title' => 'T'])\n<h1>{{ $title }}</h1>\n",
+			"src/css/site.css": "body{}"
 		},
 		"data": {"name": "Ada"}
 	}`
@@ -36,16 +36,16 @@ func TestRunConvert(t *testing.T) {
 	if len(got.Diagnostics) != 0 {
 		t.Fatalf("diagnostics = %+v", got.Diagnostics)
 	}
-	if want := "<Card :title=\"name\" />\n"; got.Files["resources/views/pages/index.html"] != want {
-		t.Errorf("page = %q; want %q", got.Files["resources/views/pages/index.html"], want)
+	if want := "<Card :title=\"name\" />\n"; got.Files["src/pages/index.html"] != want {
+		t.Errorf("page = %q; want %q", got.Files["src/pages/index.html"], want)
 	}
-	if want := "<Props title=\"T\" />\n<h1>{{ title }}</h1>\n"; got.Files["resources/views/components/card.html"] != want {
-		t.Errorf("component = %q; want %q", got.Files["resources/views/components/card.html"], want)
+	if want := "<Props title=\"T\" />\n<h1>{{ title }}</h1>\n"; got.Files["src/components/card.html"] != want {
+		t.Errorf("component = %q; want %q", got.Files["src/components/card.html"], want)
 	}
 	if len(got.Files) != 2 {
 		t.Errorf("files = %v; only the two views are converted", got.Files)
 	}
-	want := []string{"resources/views/components/card.blade.php", "resources/views/pages/index.blade.php"}
+	want := []string{"src/components/card.blade.php", "src/pages/index.blade.php"}
 	if strings.Join(got.Removed, ",") != strings.Join(want, ",") {
 		t.Errorf("removed = %v; want %v", got.Removed, want)
 	}
@@ -55,9 +55,9 @@ func TestRunConvert(t *testing.T) {
 // reasons and nothing to write. Every key is present, never null.
 func TestRunConvertRefused(t *testing.T) {
 	cases := map[string]string{
-		"needs laravel":  `{"to": "html", "files": {"resources/views/pages/index.blade.php": "@auth\nx\n@endauth\n"}}`,
-		"unknown syntax": `{"to": "twig", "files": {"resources/views/pages/index.blade.php": "x"}}`,
-		"no syntax":      `{"files": {"resources/views/pages/index.blade.php": "x"}}`,
+		"needs laravel":  `{"to": "html", "files": {"src/pages/index.blade.php": "@auth\nx\n@endauth\n"}}`,
+		"unknown syntax": `{"to": "twig", "files": {"src/pages/index.blade.php": "x"}}`,
+		"no syntax":      `{"files": {"src/pages/index.blade.php": "x"}}`,
 		"malformed json": `{"to": `,
 	}
 	for name, in := range cases {
@@ -89,7 +89,7 @@ func TestRunConvertRefused(t *testing.T) {
 // error — there is simply nothing to write.
 func TestRunConvertNothingToDo(t *testing.T) {
 	var out bytes.Buffer
-	if err := RunConvert(strings.NewReader(`{"to": "html", "files": {"resources/views/pages/index.html": "x"}}`), &out); err != nil {
+	if err := RunConvert(strings.NewReader(`{"to": "html", "files": {"src/pages/index.html": "x"}}`), &out); err != nil {
 		t.Fatal(err)
 	}
 	if got := strings.TrimSpace(out.String()); got != `{"engine":"`+blade.Version+`","files":{},"removed":[],"diagnostics":[]}` {
@@ -103,7 +103,7 @@ func TestRunConvertNothingToDo(t *testing.T) {
 func TestRunConvertSyntaxNames(t *testing.T) {
 	run := func(to string) ConvertOutput {
 		t.Helper()
-		in := `{"to": "` + to + `", "files": {"resources/views/pages/index.blade.php": "@if ($on) yes @endif\n"}, "data": {"on": true}}`
+		in := `{"to": "` + to + `", "files": {"src/pages/index.blade.php": "@if ($on) yes @endif\n"}, "data": {"on": true}}`
 		var out bytes.Buffer
 		if err := RunConvert(strings.NewReader(in), &out); err != nil {
 			t.Fatal(err)
@@ -119,8 +119,8 @@ func TestRunConvertSyntaxNames(t *testing.T) {
 		if len(got.Diagnostics) != 0 {
 			t.Errorf("to %q: diagnostics = %+v", to, got.Diagnostics)
 		}
-		if want := "<If on> yes </If>\n"; got.Files["resources/views/pages/index.html"] != want {
-			t.Errorf("to %q: page = %q; want %q", to, got.Files["resources/views/pages/index.html"], want)
+		if want := "<If on> yes </If>\n"; got.Files["src/pages/index.html"] != want {
+			t.Errorf("to %q: page = %q; want %q", to, got.Files["src/pages/index.html"], want)
 		}
 	}
 	got := run("twig")

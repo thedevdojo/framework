@@ -53,7 +53,7 @@ A file's extension picks its syntax, one file at a time. Under each is one parse
 **Components** work like real Blade components — props with defaults, attributes, slots:
 
 ```blade
-{{-- resources/views/components/sections/hero.blade.php --}}
+{{-- src/components/sections/hero.blade.php --}}
 @props(['heading' => 'Hello', 'cta' => 'Learn more'])
 <section class="hero">
     <h1>{{ $heading }}</h1>
@@ -62,14 +62,14 @@ A file's extension picks its syntax, one file at a time. Under each is one parse
 ```
 
 ```blade
-{{-- resources/views/pages/index.blade.php --}}
+{{-- src/pages/index.blade.php --}}
 <x-sections.hero heading="Build sites, not servers" cta="Get started"/>
 ```
 
 In DevDojo Studio syntax the same two files are:
 
 ```html
-{{-- resources/views/components/sections/hero.html --}}
+{{-- src/components/sections/hero.html --}}
 <Props heading="Hello" cta="Learn more" />
 <section class="hero">
     <h1>{{ heading }}</h1>
@@ -78,7 +78,7 @@ In DevDojo Studio syntax the same two files are:
 ```
 
 ```html
-{{-- resources/views/pages/index.html --}}
+{{-- src/pages/index.html --}}
 <SectionsHero heading="Build sites, not servers" cta="Get started" />
 ```
 
@@ -123,11 +123,38 @@ devdojo convert my-site --to blade --dry-run  # say what would change, touch not
 
 A conversion is exact or it does not happen: every converted file is read back and compared token for token, the site is rendered before and after and every page must come out byte for byte the same, and one problem anywhere leaves every file untouched. Blade that needs real Laravel (`@auth`, `route()`) is refused on its way to DevDojo Studio. The Laravel package renders Blade only, so converting to Blade is also how an `.html` site moves into a real Laravel app. [More on converting →](docs/studio-syntax.md#converting-between-the-two)
 
+## Where a site keeps its files
+
+One folder, `src/`, laid out flat:
+
+```
+my-site/
+├── public/            # copied as they are (images, fonts)
+└── src/
+    ├── pages/         # one file per page: index.blade.php or index.html → /
+    ├── components/    # components, with layouts/ and sections/ inside
+    ├── css/           # the stylesheet @vite / <Vite> prints
+    └── data/          # site.json, collections/, content/
+```
+
+Two older shapes are still read, so a site written before `src/` builds exactly as it did: the folder may be called `resources/`, and pages and components may each sit one level down, in `views/pages` and `views/components`. A site has one source folder, one pages folder and one components folder: when two candidates both hold files the newer one is read and the other is ignored.
+
+The engine tells you about an older shape in a **notice**, never an error. Notices come back in their own `notices` list (`kind`, `code`, `message`, sometimes `file`), apart from `diagnostics`, so a build that fails on any diagnostic still passes; `devdojo lint` prints them to stderr and exits as it would have. Send `"options": {"notices": false}` to leave them out. The codes are `resources-folder`, `views-folder`, `folder-not-read` and `asset-path`.
+
+```bash
+devdojo migrate my-site            # move it into src/, in place
+devdojo migrate my-site --dry-run  # say what would move, touch nothing
+```
+
+Like a conversion, a move is exact or it does not happen: the site is rendered before and after, every page must come out byte for byte the same, and one difference leaves every file where it was. A stylesheet named the old way (`@vite(['resources/css/site.css'])`) is rewritten with the move, and is found in `src/css/` even when it is not.
+
+The Laravel package reads the same folders in the same order. A real Laravel app keeps `resources/`, which is Laravel's own name for it, and is never told otherwise.
+
 ## Data
 
-Data comes from JSON and markdown files, bound by file name: `resources/data/site.json` is `$site` (`site` in DevDojo Studio), `resources/data/collections/plans.json` is `$plans`, `resources/data/content/post/*.md` is `$post`.
+Data comes from JSON and markdown files, bound by file name: `src/data/site.json` is `$site` (`site` in DevDojo Studio), `src/data/collections/plans.json` is `$plans`, `src/data/content/post/*.md` is `$post`.
 
-A collection can also be a **folder of entry files** — `resources/data/collections/posts/<slug>.json`, one JSON object per entry, bound as `$posts` ordered by `date` descending then file name — for a blog too large to keep in one array file. The two forms bind identically; when a site has both for one name, the folder wins and the compile reports a collection error naming both paths.
+A collection can also be a **folder of entry files** — `src/data/collections/posts/<slug>.json`, one JSON object per entry, bound as `$posts` ordered by `date` descending then file name — for a blog too large to keep in one array file. The two forms bind identically; when a site has both for one name, the folder wins and the compile reports a collection error naming both paths.
 
 ## What a template can say
 
@@ -150,7 +177,7 @@ devdojo lint example
 **Compile** speaks one JSON document on stdin, one on stdout — files in, files + deps + diagnostics out. No disk, no eval:
 
 ```bash
-echo '{"files": {"resources/views/pages/index.blade.php": "<h1>{{ $title }}</h1>", "resources/data/site.json": "{}"}, "data": {"title": "Hi"}}' \
+echo '{"files": {"src/pages/index.blade.php": "<h1>{{ $title }}</h1>", "src/data/site.json": "{}"}, "data": {"title": "Hi"}}' \
   | devdojo compile | jq -r '.files["index.html"]'
 # <h1>Hi</h1>
 ```
@@ -158,7 +185,7 @@ echo '{"files": {"resources/views/pages/index.blade.php": "<h1>{{ $title }}</h1>
 A dynamic page — one template, one document per collection entry — renders in one request through `variants`: each variant names the entry, the data bound for that render alone (merged over `data`), and the output path, so the site's files are sent and parsed once rather than once per document:
 
 ```bash
-echo '{"files": {"resources/views/pages/post/[post.slug].blade.php": "<h1>{{ $post->title }}</h1>"}, "variants": [{"entry": "resources/views/pages/post/[post.slug].blade.php", "data": {"post": {"title": "Hi"}}, "output": "post/hi/index.html"}]}' \
+echo '{"files": {"src/pages/post/[post.slug].blade.php": "<h1>{{ $post->title }}</h1>"}, "variants": [{"entry": "src/pages/post/[post.slug].blade.php", "data": {"post": {"title": "Hi"}}, "output": "post/hi/index.html"}]}' \
   | devdojo compile | jq -r '.files["post/hi/index.html"]'
 # <h1>Hi</h1>
 ```
@@ -166,7 +193,7 @@ echo '{"files": {"resources/views/pages/post/[post.slug].blade.php": "<h1>{{ $po
 Or embed the engine directly from Go:
 
 ```go
-result := framework.Compile(vfs.Dir("my-site"), []string{"resources/views/pages/index.blade.php"}, framework.Options{})
+result := framework.Compile(vfs.Dir("my-site"), []string{"src/pages/index.blade.php"}, framework.Options{})
 ```
 
 The [`example/`](example/) directory is the smallest useful site — a page, a layout, a component fed by collection data — with a `render.sh` that runs the whole pipeline. [`example-studio/`](example-studio/) is the same site in DevDojo Studio syntax, and a test holds the two outputs identical.
@@ -179,7 +206,9 @@ The [`example/`](example/) directory is the smallest useful site — a page, a l
 | `laravel/` | The `devdojo/framework` Composer package that makes the same Blade files render in a real Laravel app. |
 | `fixtures/` | The contract — conformance cases rendered by both engines. |
 | `oracle/` | A minimal Laravel app that runs the fixtures through genuine Blade in CI. |
-| `cmd/devdojo/` | The CLI: `compile`, `lint`, `convert`, `version`. |
+| `site/` | The one place that knows where a site keeps its files: `src/`, and the older shapes still read. |
+| `migrate/` | Moves a site in an older shape into `src/`. |
+| `cmd/devdojo/` | The CLI: `compile`, `lint`, `convert`, `migrate`, `version`. |
 | `docs/` | The two syntax guides ([Blade](docs/blade-syntax.md), [DevDojo Studio](docs/studio-syntax.md)) and the design specs in [`docs/specs/`](docs/specs/). |
 
 ## License

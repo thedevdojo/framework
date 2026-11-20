@@ -59,13 +59,13 @@ func FuzzFile(f *testing.F) {
 		if toHTML {
 			from, to = Blade, Studio
 		}
-		path := "resources/views/pages/index" + from.Ext()
+		path := "src/pages/index" + from.Ext()
 		out, problems := File(path, []byte(src), to, exists)
 		if len(problems) > 0 {
 			return // refusing is always allowed
 		}
 
-		newPath := "resources/views/pages/index" + to.Ext()
+		newPath := "src/pages/index" + to.Ext()
 		var toks []scanner.Token
 		if to == Studio {
 			toks = htmlscan.Scan(newPath, []byte(out))
@@ -95,7 +95,7 @@ func fuzzRender(path, src string, syntax Syntax) string {
 		if syntax == Studio {
 			body = bodies[1]
 		}
-		site["resources/views/components/"+base+syntax.Ext()] = body
+		site["src/components/"+base+syntax.Ext()] = body
 	}
 	res := render.Compile(site, []string{path}, render.Options{Data: fuzzData})
 	var b strings.Builder

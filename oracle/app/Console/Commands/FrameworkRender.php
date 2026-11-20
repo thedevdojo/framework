@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Devdojo\Framework\SiteData;
+use Devdojo\Framework\SiteLayout;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
@@ -11,7 +12,7 @@ use Illuminate\Support\Facades\View;
 class FrameworkRender extends Command
 {
     protected $signature = 'framework:render
-        {input : Absolute path to a site root (the directory holding resources/views)}
+        {input : Absolute path to a site root (the directory holding src/, or resources/ for an older site)}
         {entry : Dot-notation view name, e.g. pages.index}
         {bindings?* : Optional key=value data bindings (value is JSON-decoded when valid JSON, else kept as a raw string)}
         {--data= : JSON-encoded object merged over the key=value bindings, for structures they cannot express}
@@ -53,8 +54,9 @@ class FrameworkRender extends Command
         // one case can never leak into the next one's view resolution.
         File::ensureDirectoryExists(storage_path('framework/views'));
         config(['devdojo-framework.site_root' => $input]);
-        View::addLocation("$input/resources/views");
-        Blade::anonymousComponentPath("$input/resources/views/components");
+        $layout = SiteLayout::detect($input);
+        View::addLocation($layout->viewsDir());
+        Blade::anonymousComponentPath($layout->componentsDir());
 
         // site_root is set at render time, AFTER the service provider booted, so
         // the provider's boot-time binding never fired. Bind the data contract
@@ -63,9 +65,9 @@ class FrameworkRender extends Command
 
         // A dynamic page ([posts.slug].blade.php) cannot be named in dot
         // notation (the finder would split on the bracketed dot), so an entry
-        // given as a path relative to resources/views renders by file.
+        // given as a path relative to the folder that holds pages/ renders by file.
         $rendered = str_ends_with($entry, '.blade.php')
-            ? View::file("$input/resources/views/$entry", $data)->render()
+            ? View::file($layout->viewsDir()."/$entry", $data)->render()
             : View::make($entry, $data)->render();
 
         // Print the exact rendered bytes - no trailing newline, no console

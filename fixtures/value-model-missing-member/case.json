@@ -1,10 +1,10 @@
 {
   "oracle": false,
   "entries": [
-    "resources/views/pages/bare.blade.php",
-    "resources/views/pages/coalesce.blade.php"
+    "src/pages/bare.blade.php",
+    "src/pages/coalesce.blade.php"
   ],
   "diagnostics": [
-    {"kind": "error", "construct": "undefined-property", "file": "resources/views/pages/bare.blade.php"}
+    {"kind": "error", "construct": "undefined-property", "file": "src/pages/bare.blade.php"}
   ]
 }

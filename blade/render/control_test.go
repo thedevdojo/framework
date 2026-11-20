@@ -17,7 +17,7 @@ type data map[string]any
 // rendered bytes plus any diagnostics.
 func renderSrc(t *testing.T, src string, d data) (string, []Diagnostic) {
 	t.Helper()
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	res := Compile(vfs.Mem{entry: src}, []string{entry}, Options{Data: d})
 	return res.Files["index.html"], res.Diagnostics
 }
@@ -181,9 +181,9 @@ func TestBreakBreaksInnermostOnly(t *testing.T) {
 // nothing after the aborted construct renders (the trailing "!" is gone).
 func TestLoopBudgetConfigured(t *testing.T) {
 	fs := vfs.Mem{
-		"resources/views/pages/index.blade.php": `@foreach ($xs as $x)(@foreach ($xs as $y)x @endforeach)@endforeach!`,
+		"src/pages/index.blade.php": `@foreach ($xs as $x)(@foreach ($xs as $y)x @endforeach)@endforeach!`,
 	}
-	res := Compile(fs, []string{"resources/views/pages/index.blade.php"},
+	res := Compile(fs, []string{"src/pages/index.blade.php"},
 		Options{Data: map[string]any{"xs": []any{1, 2, 3, 4, 5}}, MaxLoopIterations: 10})
 	// Budget 10 consumes: outer#1 (1), inner x5 (2-6), outer#2 (7), inner x3
 	// (8-10); the 11th iteration trips the budget mid-inner-loop, so the
@@ -211,7 +211,7 @@ func TestLoopBudgetConfigured(t *testing.T) {
 // error/render-budget.
 func TestLoopBudgetDefaultCap(t *testing.T) {
 	xs := make([]any, DefaultMaxLoopIterations+1)
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	src := `@foreach ($xs as $x)@endforeach`
 
 	at := Compile(vfs.Mem{entry: src}, []string{entry},
@@ -232,10 +232,10 @@ func TestLoopBudgetDefaultCap(t *testing.T) {
 func TestLoopBudgetPerEntry(t *testing.T) {
 	src := `@foreach ($xs as $x)[{{ $x }}]@endforeach`
 	fs := vfs.Mem{
-		"resources/views/pages/a.blade.php": src,
-		"resources/views/pages/b.blade.php": src,
+		"src/pages/a.blade.php": src,
+		"src/pages/b.blade.php": src,
 	}
-	res := Compile(fs, []string{"resources/views/pages/a.blade.php", "resources/views/pages/b.blade.php"},
+	res := Compile(fs, []string{"src/pages/a.blade.php", "src/pages/b.blade.php"},
 		Options{Data: map[string]any{"xs": []any{1, 2, 3, 4, 5, 6}}, MaxLoopIterations: 10})
 	if len(res.Diagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", res.Diagnostics)

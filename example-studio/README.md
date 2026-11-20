@@ -10,16 +10,15 @@ way. Run it the other way (`--to blade`) and you are back at `../example/`.
 
 ```
 example-studio/
-└── resources/
-    ├── css/site.css               # inlined by <Vite src="resources/css/site.css" />
+└── src/
+    ├── css/site.css               # inlined by <Vite src="src/css/site.css" />
     ├── data/
     │   ├── site.json              # → site
     │   └── collections/features.json  # → features
-    └── views/
-        ├── pages/index.html
-        └── components/
-            ├── layouts/main.html            # <Layout src="main.html">
-            └── sections/feature-list.html   # <SectionsFeatureList />
+    ├── pages/index.html
+    └── components/
+        ├── layouts/main.html            # <Layout src="main.html">
+        └── sections/feature-list.html   # <SectionsFeatureList />
 ```
 
 Side by side:

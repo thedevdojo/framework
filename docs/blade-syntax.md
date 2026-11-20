@@ -29,28 +29,33 @@ keep working.
 
 ## A site
 
-The folders are a Laravel app's, on purpose:
+Everything a site is made of lives in one folder, `src/`:
 
 ```
 my-site/
-├── public/                              # copied as they are (images, fonts)
-└── resources/
-    ├── views/
-    │   ├── pages/
-    │   │   ├── index.blade.php          # → /
-    │   │   └── about.blade.php          # → /about
-    │   └── components/
-    │       ├── button.blade.php         # <x-button>
-    │       ├── layouts/main.blade.php   # <x-layouts.main>
-    │       └── sections/hero.blade.php  # <x-sections.hero>
-    ├── css/site.css                     # the stylesheet @vite prints
+├── public/                          # copied as they are (images, fonts)
+└── src/
+    ├── pages/
+    │   ├── index.blade.php          # → /
+    │   └── about.blade.php          # → /about
+    ├── components/
+    │   ├── button.blade.php         # <x-button>
+    │   ├── layouts/main.blade.php   # <x-layouts.main>
+    │   └── sections/hero.blade.php  # <x-sections.hero>
+    ├── css/site.css                 # the stylesheet @vite prints
     └── data/
-        ├── site.json                    # → $site
-        ├── collections/plans.json       # → $plans
-        └── content/post/*.md            # → $post
+        ├── site.json                # → $site
+        ├── collections/plans.json   # → $plans
+        └── content/post/*.md        # → $post
 ```
 
-**Pages** live under `resources/views/pages/` and the path is the address:
+A site written before `src/` keeps working: the folder may still be called
+`resources/`, and pages and components may still sit one level down, in
+`views/pages` and `views/components` (a Laravel app's own layout). The engine
+says so in a notice and `devdojo migrate my-site` moves it. See
+[the README](../README.md#where-a-site-keeps-its-files).
+
+**Pages** live under `src/pages/` and the path is the address:
 
 | Address | File |
 |---|---|
@@ -128,7 +133,7 @@ Looping over an object walks its fields in the order the JSON file lists them.
 
 ## Components
 
-A component is a file under `resources/views/components/`, used as a tag. Dots
+A component is a file under `src/components/`, used as a tag. Dots
 in the tag are folders:
 
 | Tag | File |
@@ -138,7 +143,7 @@ in the tag are folders:
 | `<x-layouts.main>` | `components/layouts/main.blade.php` |
 
 ```blade
-{{-- resources/views/components/sections/hero.blade.php --}}
+{{-- src/components/sections/hero.blade.php --}}
 @props(['heading' => 'Hello', 'cta' => 'Learn more'])
 <section class="hero">
     <h1>{{ $heading }}</h1>
@@ -169,7 +174,7 @@ A dashed attribute is read back in camelCase: `logo-text="Hi"` is `$logoText`.
 variable of that name:
 
 ```blade
-{{-- resources/views/components/layouts/main.blade.php --}}
+{{-- src/components/layouts/main.blade.php --}}
 @props(['title' => 'Untitled'])
 <html>
 <head>
@@ -203,7 +208,7 @@ a caller can add a class or a `data-` attribute without the component planning
 for it:
 
 ```blade
-{{-- resources/views/components/button.blade.php --}}
+{{-- src/components/button.blade.php --}}
 @props(['variant' => 'primary', 'href' => '#'])
 <a href="{{ $href }}" {{ $attributes->merge(['class' => 'btn btn-' . $variant]) }}>{{ $slot }}</a>
 ```
@@ -278,10 +283,10 @@ Data comes from files, and each is bound by its name:
 
 | File | Variable | |
 |---|---|---|
-| `resources/data/site.json` | `$site` | one object, for the whole site |
-| `resources/data/collections/plans.json` | `$plans` | a JSON array, in the order written |
-| `resources/data/collections/posts/<slug>.json` | `$posts` | a folder of entries, one object per file, newest `date` first |
-| `resources/data/content/post/*.md` | `$post` | markdown files, in file-name order |
+| `src/data/site.json` | `$site` | one object, for the whole site |
+| `src/data/collections/plans.json` | `$plans` | a JSON array, in the order written |
+| `src/data/collections/posts/<slug>.json` | `$posts` | a folder of entries, one object per file, newest `date` first |
+| `src/data/content/post/*.md` | `$post` | markdown files, in file-name order |
 
 A markdown entry carries its front-matter fields, plus `content` (the rendered
 HTML — print it with `{!! $entry->content !!}`) and `link` (its address).
@@ -293,7 +298,7 @@ name; a `@props` default does not.
 ## Stylesheets: `@vite`
 
 ```blade
-@vite(['resources/css/site.css'])
+@vite(['src/css/site.css'])
 ```
 
 prints the Tailwind v4 Play CDN script and the stylesheet inline, so a page is

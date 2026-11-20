@@ -15,12 +15,12 @@ import (
 // output document: Files/Deps/Diagnostics values (computed once against
 // render.Compile directly and pinned here — see task-12 report) plus the
 // envelope fields (engine, and that entries-omitted discovery found the
-// page under resources/views/pages/ without an explicit entries list).
+// page under src/pages/ without an explicit entries list).
 func TestRunRoundTrip(t *testing.T) {
 	input := `{
 		"files": {
-			"resources/views/pages/index.blade.php": "<h1>{{ $greeting }}</h1>\n@auth\nWelcome back\n@endauth\n<x-alert message=\"Hi\"/>\n",
-			"resources/views/components/alert.blade.php": "@props(['message'])\n<div class=\"alert\">{{ $message }}</div>\n"
+			"src/pages/index.blade.php": "<h1>{{ $greeting }}</h1>\n@auth\nWelcome back\n@endauth\n<x-alert message=\"Hi\"/>\n",
+			"src/components/alert.blade.php": "@props(['message'])\n<div class=\"alert\">{{ $message }}</div>\n"
 		},
 		"data": { "greeting": "Hello" }
 	}`
@@ -49,8 +49,8 @@ func TestRunRoundTrip(t *testing.T) {
 	}
 
 	wantDeps := []string{
-		"resources/views/pages/index.blade.php",
-		"resources/views/components/alert.blade.php",
+		"src/pages/index.blade.php",
+		"src/components/alert.blade.php",
 	}
 	deps := got.Deps["index.html"]
 	if len(deps) != len(wantDeps) {
@@ -66,8 +66,8 @@ func TestRunRoundTrip(t *testing.T) {
 		t.Fatalf("diagnostics = %#v, want 2 entries", got.Diagnostics)
 	}
 	wantDiags := []render.Diagnostic{
-		{File: "resources/views/pages/index.blade.php", Line: 2, Col: 1, Kind: render.KindAppTier, Construct: "@auth", Message: "directive @auth is outside the DevDojo Framework subset; requires the PHP app tier"},
-		{File: "resources/views/pages/index.blade.php", Line: 4, Col: 1, Kind: render.KindAppTier, Construct: "@endauth", Message: "directive @endauth is outside the DevDojo Framework subset; requires the PHP app tier"},
+		{File: "src/pages/index.blade.php", Line: 2, Col: 1, Kind: render.KindAppTier, Construct: "@auth", Message: "directive @auth is outside the DevDojo Framework subset; requires the PHP app tier"},
+		{File: "src/pages/index.blade.php", Line: 4, Col: 1, Kind: render.KindAppTier, Construct: "@endauth", Message: "directive @endauth is outside the DevDojo Framework subset; requires the PHP app tier"},
 	}
 	for i, want := range wantDiags {
 		if got.Diagnostics[i] != want {
@@ -108,15 +108,15 @@ func TestRunEmptyKeysInitialized(t *testing.T) {
 }
 
 // TestRunEntriesOmittedDiscoversAllPages: with no "entries" key, Run compiles
-// every resources/views/pages/**.blade.php file, sorted, and nothing else
+// every src/pages/**.blade.php file, sorted, and nothing else
 // (a component-only file under components/ must not become an output).
 func TestRunEntriesOmittedDiscoversAllPages(t *testing.T) {
 	input := `{
 		"files": {
-			"resources/views/pages/about.blade.php": "About",
-			"resources/views/pages/index.blade.php": "Index",
-			"resources/views/pages/blog/post.blade.php": "Post",
-			"resources/views/components/card.blade.php": "Card"
+			"src/pages/about.blade.php": "About",
+			"src/pages/index.blade.php": "Index",
+			"src/pages/blog/post.blade.php": "Post",
+			"src/components/card.blade.php": "Card"
 		}
 	}`
 	var out bytes.Buffer
@@ -150,10 +150,10 @@ func TestRunEntriesOmittedDiscoversAllPages(t *testing.T) {
 func TestRunEntriesExplicitOverridesDiscovery(t *testing.T) {
 	input := `{
 		"files": {
-			"resources/views/pages/about.blade.php": "About",
-			"resources/views/pages/index.blade.php": "Index"
+			"src/pages/about.blade.php": "About",
+			"src/pages/index.blade.php": "Index"
 		},
-		"entries": ["resources/views/pages/index.blade.php"]
+		"entries": ["src/pages/index.blade.php"]
 	}`
 	var out bytes.Buffer
 	if err := Run(strings.NewReader(input), &out); err != nil {
@@ -172,7 +172,7 @@ func TestRunEntriesExplicitOverridesDiscovery(t *testing.T) {
 // and does not change output — v1 only renders relative URLs.
 func TestRunOptionsURLAcceptedButUnused(t *testing.T) {
 	input := `{
-		"files": {"resources/views/pages/index.blade.php": "hi"},
+		"files": {"src/pages/index.blade.php": "hi"},
 		"options": {"url": "https://example.com/x"}
 	}`
 	var out bytes.Buffer
@@ -193,7 +193,7 @@ func TestRunOptionsURLAcceptedButUnused(t *testing.T) {
 // diagnostic, and the same input without the option renders clean under
 // the default cap.
 func TestRunOptionsMaxLoopIterations(t *testing.T) {
-	const files = `"files": {"resources/views/pages/index.blade.php": "@foreach ($xs as $x)[{{ $x }}]@endforeach"},
+	const files = `"files": {"src/pages/index.blade.php": "@foreach ($xs as $x)[{{ $x }}]@endforeach"},
 		"data": {"xs": [1, 2, 3, 4]}`
 
 	var capped bytes.Buffer
@@ -277,15 +277,15 @@ func TestOutputTrailingNewline(t *testing.T) {
 func TestRunVariants(t *testing.T) {
 	input := `{
 		"files": {
-			"resources/views/pages/index.blade.php": "home",
-			"resources/views/pages/post/[post.slug].blade.php": "{{ $post->title }}/{{ $shared }}",
-			"resources/data/collections/post/a.json": "{\"slug\":\"a\",\"title\":\"A\"}"
+			"src/pages/index.blade.php": "home",
+			"src/pages/post/[post.slug].blade.php": "{{ $post->title }}/{{ $shared }}",
+			"src/data/collections/post/a.json": "{\"slug\":\"a\",\"title\":\"A\"}"
 		},
 		"data": { "shared": "s" },
-		"entries": ["resources/views/pages/index.blade.php"],
+		"entries": ["src/pages/index.blade.php"],
 		"variants": [
-			{ "entry": "resources/views/pages/post/[post.slug].blade.php", "data": { "post": { "title": "A" } }, "output": "post/a/index.html" },
-			{ "entry": "resources/views/pages/post/[post.slug].blade.php", "data": { "post": { "title": "B" } }, "output": "post/b/index.html" }
+			{ "entry": "src/pages/post/[post.slug].blade.php", "data": { "post": { "title": "A" } }, "output": "post/a/index.html" },
+			{ "entry": "src/pages/post/[post.slug].blade.php", "data": { "post": { "title": "B" } }, "output": "post/b/index.html" }
 		]
 	}`
 
@@ -320,10 +320,10 @@ func TestRunVariants(t *testing.T) {
 func TestRunVariantsOnlySkipDiscovery(t *testing.T) {
 	input := `{
 		"files": {
-			"resources/views/pages/index.blade.php": "home",
-			"resources/views/pages/about.blade.php": "about"
+			"src/pages/index.blade.php": "home",
+			"src/pages/about.blade.php": "about"
 		},
-		"variants": [{ "entry": "resources/views/pages/about.blade.php", "output": "about/index.html" }]
+		"variants": [{ "entry": "src/pages/about.blade.php", "output": "about/index.html" }]
 	}`
 	var out bytes.Buffer
 	if err := Run(strings.NewReader(input), &out); err != nil {

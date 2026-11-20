@@ -1,7 +1,8 @@
 <?php
 
 return [
-    // Absolute path to the site root (the directory holding resources/ and public/).
+    // Absolute path to the site root (the directory holding src/ and public/).
+    // A site that still keeps its source in resources/ is read from there.
     'site_root' => env('DEVDOJO_SITE_ROOT'),
 
     // Serve the site tree as a live app. When true AND site_root is set, the

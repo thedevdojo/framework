@@ -6,7 +6,8 @@ use JsonSerializable;
 
 /**
  * One `devdojo compile` request: the site's source files keyed by their
- * Laravel-layout path (`resources/views/pages/…`, `resources/data/…`),
+ * path in the site (`src/pages/…`, `src/data/…`; an older site's
+ * `resources/views/pages/…` is read too),
  * optional global data merged over the site's own data sources, and an
  * optional explicit entry list (omitted → every page is rendered).
  *

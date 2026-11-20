@@ -13,7 +13,7 @@ import (
 // of unregistered directives) and raises exactly one app-tier diagnostic whose
 // Construct is "@"+Name, at the directive's own position.
 func TestUnknownDirectiveAppTier(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	// A '>' (non-word) before @auth gives it the word boundary real Blade's \B@
 	// rule requires, and keeps the directive at column 2. A space (not "XauthY")
 	// after the name: the scanner's directive reader is alnum-greedy, so a letter
@@ -39,7 +39,7 @@ func TestUnknownDirectiveAppTier(t *testing.T) {
 // parenthesized args renders byte-identically to its source (spacing and casing
 // preserved) and raises one app-tier diagnostic.
 func TestUnknownDirectiveRendersLiteralWithArgs(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{entry: "A @media (x) B"}
 	res := Compile(fs, []string{entry}, Options{})
 	if got := res.Files["index.html"]; got != "A @media (x) B" {
@@ -58,7 +58,7 @@ func TestUnknownDirectiveRendersLiteralWithArgs(t *testing.T) {
 // as a deliberate choice. Now that the directive renders literally, the whole
 // input round-trips byte-for-byte.
 func TestUnknownDirectiveDoesNotEatNewline(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{entry: "A\n@auth\nB\n"}
 	res := Compile(fs, []string{entry}, Options{})
 	if got := res.Files["index.html"]; got != "A\n@auth\nB\n" {
@@ -70,7 +70,7 @@ func TestUnknownDirectiveDoesNotEatNewline(t *testing.T) {
 // leading '@' is literal text and `@b` is an unregistered directive left
 // literal. DevDojo Framework now matches: Text "a@" + Unknown "@b" -> "a@@b".
 func TestUnknownDoubleAtRendersLiteral(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{entry: "a@@b"}
 	res := Compile(fs, []string{entry}, Options{})
 	if got := res.Files["index.html"]; got != "a@@b" {
@@ -89,7 +89,7 @@ func TestUnknownDoubleAtRendersLiteral(t *testing.T) {
 // literally and the text between them is ordinary body content — the whole
 // input round-trips.
 func TestUnknownBetweenPairDoesNotSuppressBody(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{entry: "@auth secret @endauth"}
 	res := Compile(fs, []string{entry}, Options{})
 	if got := res.Files["index.html"]; got != "@auth secret @endauth" {
@@ -110,7 +110,7 @@ func TestUnknownBetweenPairDoesNotSuppressBody(t *testing.T) {
 // component attribute evaluated in the page's scope.
 
 func TestAttributesUndefinedOnPageEcho(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{entry: "X{{ $attributes }}Y"}
 	res := Compile(fs, []string{entry}, Options{})
 	if got := res.Files["index.html"]; got != "XY" {
@@ -126,7 +126,7 @@ func TestAttributesUndefinedOnPageEcho(t *testing.T) {
 }
 
 func TestAttributesUndefinedOnPageIfCond(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{entry: "@if ($attributes)yes @else no @endif"}
 	res := Compile(fs, []string{entry}, Options{})
 	// Leading space stripped by the entry-level ltrim (see TestIfConditionError);
@@ -145,8 +145,8 @@ func TestAttributesUndefinedOnPageIfCond(t *testing.T) {
 
 func TestAttributesUndefinedOnPageBoundAttr(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:                                `<x-c :label="$attributes"/>`,
-		"resources/views/components/c.blade.php": `@props(['label' => 'd'])[{{ $label ?? 'F' }}]`,
+		pageEntry:                    `<x-c :label="$attributes"/>`,
+		"src/components/c.blade.php": `@props(['label' => 'd'])[{{ $label ?? 'F' }}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "[F]" {
 		t.Fatalf("output = %q; want %q", got, "[F]")
@@ -164,7 +164,7 @@ func TestAttributesUndefinedOnPageBoundAttr(t *testing.T) {
 // passes it as ordinary data), it is just a normal variable — no app-tier
 // carve-out applies because there is no error to reclassify.
 func TestAttributesDefinedNotSpecialCased(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{entry: "{{ $attributes }}"}
 	res := Compile(fs, []string{entry}, Options{Data: map[string]any{"attributes": "real-value"}})
 	if got := res.Files["index.html"]; got != "real-value" {
@@ -183,7 +183,7 @@ func TestAttributesDefinedNotSpecialCased(t *testing.T) {
 // File/Line/Col/Message carried over, and rendering still proceeds
 // best-effort around it.
 func TestParseDiagsFoldedPage(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	// A '>' (non-word) before @endif gives it the word boundary real Blade's \B@
 	// rule requires; a space after @endif (not "endifB") keeps the trailing
 	// letter from joining the name (an unmatched Unknown "endifb" vs a stray
@@ -210,14 +210,14 @@ func TestParseDiagsFoldedPage(t *testing.T) {
 // two call sites in the same Compile.
 func TestParseDiagsFoldedComponentDeduped(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:                                `<x-c/><x-c/>`,
-		"resources/views/components/c.blade.php": `>@endif Y`,
+		pageEntry:                    `<x-c/><x-c/>`,
+		"src/components/c.blade.php": `>@endif Y`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "> Y> Y" {
 		t.Fatalf("output = %q; want %q", got, "> Y> Y")
 	}
 	count := 0
-	componentFile := "resources/views/components/c.blade.php"
+	componentFile := "src/components/c.blade.php"
 	for _, d := range res.Diagnostics {
 		if d.Construct != "@endif" {
 			continue
@@ -262,7 +262,7 @@ func TestFoldParseDiagsConstructs(t *testing.T) {
 // the entry itself (Line/Col default to 1/1 — there is no source position to
 // point at).
 func TestEntryMissingDiagnostic(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	res := Compile(vfs.Mem{}, []string{entry}, Options{})
 	if _, ok := res.Files["index.html"]; ok {
 		t.Fatalf("expected no output for a missing entry, got %v", res.Files)
@@ -282,8 +282,8 @@ func TestEntryMissingDiagnostic(t *testing.T) {
 // TestEntryMissingAlongsideValidEntries: a missing entry does not stop the
 // rest of the entries list from compiling normally.
 func TestEntryMissingAlongsideValidEntries(t *testing.T) {
-	present := "resources/views/pages/index.blade.php"
-	missing := "resources/views/pages/missing.blade.php"
+	present := "src/pages/index.blade.php"
+	missing := "src/pages/missing.blade.php"
 	res := Compile(vfs.Mem{present: "hi"}, []string{present, missing}, Options{})
 	if got := res.Files["index.html"]; got != "hi" {
 		t.Fatalf("output = %q; want %q", got, "hi")
@@ -323,7 +323,7 @@ func TestDedupeDiagnosticsTuple(t *testing.T) {
 // collapses to one entry — it is one bad expression in the loop body's
 // source, not one problem per iterated element.
 func TestDedupeForeachRepeatedDiagnostic(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{entry: "@foreach ($items as $item){{ $missing }}@endforeach"}
 	res := Compile(fs, []string{entry}, Options{Data: map[string]any{"items": []any{"a", "b", "c"}}})
 	count := 0
@@ -342,7 +342,7 @@ func TestDedupeForeachRepeatedDiagnostic(t *testing.T) {
 // (parsed and rendered independently, unlike components which share a
 // cache); Compile's final dedupe pass collapses it to one.
 func TestDedupeAcrossDuplicateEntries(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{entry: "@auth X"}
 	res := Compile(fs, []string{entry, entry}, Options{})
 	count := 0

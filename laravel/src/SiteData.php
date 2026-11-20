@@ -13,17 +13,17 @@ use League\CommonMark\MarkdownConverter;
  * pages, layouts, and components resolve the SAME variables the Go engine's
  * root-scope assembly produces (blade/render/data.go):
  *
- *  - $site         — resources/data/site.json as an object, shared GLOBALLY. Real
+ *  - $site         — src/data/site.json as an object, shared GLOBALLY. Real
  *                    Blade's View::share leaks shared data into anonymous
  *                    components, and the Go engine mirrors that (components see
  *                    $site). Per-page data still overrides it via gatherData.
- *  - $<collection> — each resources/data/collections/<name>.json (a JSON array)
- *                    or resources/data/collections/<name>/<slug>.json folder (one
+ *  - $<collection> — each src/data/collections/<name>.json (a JSON array)
+ *                    or src/data/collections/<name>/<slug>.json folder (one
  *                    JSON object per entry, `date` desc then file name asc),
  *                    shared GLOBALLY too since 2026-07-28 (spec
  *                    docs/specs/2026-07-28-collections-global-scope-design.md):
  *                    pages, layouts, and components all read them.
- *  - $<dir>        — each resources/data/content/<dir>/*.md, rendered to items
+ *  - $<dir>        — each src/data/content/<dir>/*.md, rendered to items
  *                    (frontmatter fields + `content` HTML + `link`), also global.
  *
  * The frontmatter grammar and markdown configuration are kept byte-identical to
@@ -65,7 +65,7 @@ class SiteData
      */
     private static function loadSite(string $root): object
     {
-        $path = $root.'/resources/data/site.json';
+        $path = SiteLayout::detect($root)->dataDir().'/site.json';
         if (! is_file($path)) {
             return new \stdClass;
         }
@@ -90,7 +90,7 @@ class SiteData
     private static function loadCollections(string $root): array
     {
         $out = [];
-        $dir = $root.'/resources/data/collections';
+        $dir = SiteLayout::detect($root)->dataDir().'/collections';
         if (! is_dir($dir)) {
             return $out;
         }
@@ -137,7 +137,7 @@ class SiteData
     private static function loadContent(string $root): array
     {
         $out = [];
-        $base = $root.'/resources/data/content';
+        $base = SiteLayout::detect($root)->dataDir().'/content';
         if (! is_dir($base)) {
             return $out;
         }

@@ -335,7 +335,7 @@ A block with no behaviour exports as plain HTML and the note says so. Native
 Alpine state (`x-show`, `@click`) arrives with the declared-state spec.
 
 **Blade/Laravel** is the Studio-to-Blade converter's output with two changes
-so it stands alone in an app that has no `resources/data`:
+so it stands alone in an app that has no `src/data`:
 
 - `site` and collection reads become `@props` with defaults, as in §5.3.
 - Defaults are written as objects (`(object) [...]`), so the body keeps
@@ -350,8 +350,8 @@ Blocks style themselves with the site's tokens (`bg-background`, `text-ink`).
 Without the site's stylesheet an exported block looks broken. Every export
 therefore carries one file, `devdojo-theme.css`: the stylesheets the site's
 layout names in its `<Vite>` tag, joined in that order. (Most sites have one,
-`resources/css/site.css`; 12 catalog templates keep their tokens in a
-separate `resources/css/theme.css` loaded first.) A leading
+`src/css/site.css`; 12 catalog templates keep their tokens in a
+separate `src/css/theme.css` loaded first.) A leading
 `@import "tailwindcss"` is left out, since the project brings its own
 (13 catalog `site.css` files start with one). The note: Tailwind v4, import
 this once after Tailwind. Cutting the file down to what one block uses is a
@@ -379,19 +379,19 @@ devdojo export my-site --component sections/hero --to react   # for people
 // stdin
 {
   "to": "react",                          // react | vue | svelte | alpine | blade
-  "files": { "resources/views/…": "…", "resources/data/site.json": "…", "resources/css/site.css": "…" },
+  "files": { "src/pages/…": "…", "src/data/site.json": "…", "src/css/site.css": "…" },
   "component": "sections/hero",           // or:
-  "page": "resources/views/pages/pricing.html",
+  "page": "src/pages/pricing.html",
   "attributes": "heading=\"Ship faster\" :items=\"features\"",   // with "component": the tag's attributes as written on the page, for the usage snippet
-  "fragment": { "file": "resources/views/pages/index.html", "start": 412, "end": 2890, "name": "Hero" },   // or: a stretch of a file (byte offsets), for a section written straight into it
-  "schemas": { "resources/views/components/sections/hero.yml": { "title": "…", "fields": { … } } },
+  "fragment": { "file": "src/pages/index.html", "start": 412, "end": 2890, "name": "Hero" },   // or: a stretch of a file (byte offsets), for a section written straight into it
+  "schemas": { "src/components/sections/hero.yml": { "title": "…", "fields": { … } } },
   "data": { },                            // optional, as compile takes it
   "options": { "typescript": true }
 }
 
 // stdout
 {
-  "engine": "1.1.0",
+  "engine": "1.2.0",
   "files":  [ { "path": "SectionsHero.tsx", "contents": "…", "language": "tsx" }, { "path": "devdojo-theme.css", … } ],
   "entry":  "SectionsHero.tsx",
   "usage":  "<SectionsHero heading=\"Ship faster\" />",
@@ -420,7 +420,7 @@ schemas in v1.
 - `blade/expr` gains an exported way to walk a parsed expression (its nodes
   are private today).
 
-Export ships as engine **1.1.0**; `<Script>` (§7) ships later as **1.2.0**,
+Export ships as engine **1.2.0**; `<Script>` (§7) ships later as **1.3.0**,
 with its own gate, because it changes what a file means and export does not.
 `devdojo`'s `EngineVersion` gains a check for each, the way it has one for
 "reads the Studio syntax".
@@ -588,7 +588,7 @@ without touching this design.
 
 ### 7.7 Rolling it out safely
 
-`<Script>` gains meaning in engine 1.2.0. Before the tag reaches production,
+`<Script>` gains meaning in engine 1.3.0. Before the tag reaches production,
 run the engine's corpus check (`DEVDOJO_CORPUS`) over real customer sites
 for any existing capital `<Script>`, since a customer may have written one
 where the catalog did not.
@@ -605,7 +605,7 @@ where the catalog did not.
   `POST api/sites/{slug}/export`
   `{ to, component? | page?, section?, typescript? }` →
   `{ files, entry, usage, notes }`, or 422 `export-refused` with the
-  diagnostics, or 503 `engine-unavailable` on an engine before 1.1.0.
+  diagnostics, or 503 `engine-unavailable` on an engine before 1.2.0.
 
 - Its own rate limit. No credits: nothing here calls a model. No plan
   check: every account can export. The refusal path goes through one place
@@ -688,7 +688,7 @@ Each phase ships on its own.
    and checks 1 to 4. Roughly 92% of catalog blocks need nothing more.
 2. **Platform and app.** `FrameworkExporter`, the endpoint, the two menu
    items, the dialog, the theme file, docs.
-3. **`<Script>`** (engine 1.2.0). The tag and `@blockscript`, the `laravel/`
+3. **`<Script>`** (engine 1.3.0). The tag and `@blockscript`, the `laravel/`
    package's half, the runtime, the `data-instant-shared` mark, the lints,
    the three scanner mirrors, the wrappers in each export, checks 5 and 6,
    the prompts, and library sections with a script inserted as components.
@@ -764,7 +764,7 @@ can be turned over before the plan is written.
    `<head>`'s parts in a plain `head.html` (§11 phase 4).
 7. **Minifying happens at publish, if at all**, not in the engine (§7.5).
 8. **Svelte 5** (runes), not Svelte 4. **React** is `.tsx` by default.
-9. **Export is engine 1.1.0 and `<Script>` is 1.2.0**, each with its own
+9. **Export is engine 1.2.0 and `<Script>` is 1.3.0**, each with its own
    gate (§6.2).
 10. **A block that carries Alpine is refused for React, Vue and Svelte**
     until it is rewritten (§5.6).

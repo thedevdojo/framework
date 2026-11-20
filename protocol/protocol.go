@@ -53,12 +53,9 @@ import (
 
 	"github.com/thedevdojo/framework/blade"
 	"github.com/thedevdojo/framework/blade/render"
+	"github.com/thedevdojo/framework/site"
 	"github.com/thedevdojo/framework/vfs"
 )
-
-// pagesPrefix is where entry discovery looks when Input.Entries is omitted,
-// and what `devdojo lint <dir>` compiles.
-const pagesPrefix = "resources/views/pages/"
 
 // Input is the stdin document: the site's source files, optional data to
 // merge over the site's own data sources, an optional explicit entry list,
@@ -66,7 +63,7 @@ const pagesPrefix = "resources/views/pages/"
 type Input struct {
 	Files   map[string]string `json:"files"`
 	Data    map[string]any    `json:"data,omitempty"`
-	Entries []string          `json:"entries,omitempty"` // empty (and no variants) → every page under resources/views/pages/ (**.blade.php and **.html), sorted
+	Entries []string          `json:"entries,omitempty"` // empty (and no variants) → every page in the site's pages folder (src/pages/; **.blade.php and **.html), sorted
 	// Variants renders one entry many times — a Folio-style dynamic page, one
 	// document per collection entry — in ONE request: each variant's data is
 	// merged over `data` for that render alone, and its output lands at
@@ -80,12 +77,21 @@ type Input struct {
 		// diagnostic. Zero (or omitted) means render.DefaultMaxLoopIterations;
 		// there is no unlimited setting — see render.Options.
 		MaxLoopIterations int `json:"max_loop_iterations,omitempty"`
+		// Notices set to false leaves the output's notices empty. For a host
+		// whose sites are right to keep the older folders (a real Laravel
+		// app, where resources/ is Laravel's own name).
+		Notices *bool `json:"notices,omitempty"`
 	} `json:"options"`
 }
 
-// Output is the stdout document. All four keys are always present: Files and
-// Deps marshal as `{}` (never `null`) when empty, and Diagnostics marshals
-// as `[]` — a host iterates these without a nil-check.
+// Output is the stdout document. All five keys are always present: Files and
+// Deps marshal as `{}` (never `null`) when empty, and Diagnostics and Notices
+// marshal as `[]` — a host iterates these without a nil-check.
+//
+// Notices are kept apart from Diagnostics on purpose. A host may fail a site
+// on any diagnostic (the template gate does); a notice is about something
+// that works and has a newer way of being written, like a site that still
+// keeps its source in resources/.
 // Variant is one render of `entry` with `data` bound over the request's data,
 // written to `output`. See Input.Variants.
 type Variant struct {
@@ -99,6 +105,7 @@ type Output struct {
 	Files       map[string]string   `json:"files"`
 	Deps        map[string][]string `json:"deps"`
 	Diagnostics []render.Diagnostic `json:"diagnostics"`
+	Notices     []site.Notice       `json:"notices"`
 }
 
 // pageExts are the extensions a page file may have, one per syntax: Blade
@@ -117,14 +124,15 @@ func isPage(p string) bool {
 	return false
 }
 
-// DiscoverPages returns every page under resources/views/pages/ in fs — each
+// DiscoverPages returns every page in the site's pages folder (src/pages/, or
+// one of the older places site.Detect still reads) — each
 // **.blade.php (Blade syntax) and **.html (Studio syntax) path — sorted. This is
 // the default entry set when a protocol Input omits entries, and it is what
 // `devdojo lint <dir>` compiles — both callers share it so "what counts as
 // a page" has one definition.
 func DiscoverPages(fs vfs.FS) []string {
 	var out []string
-	for _, p := range fs.List(pagesPrefix) {
+	for _, p := range fs.List(site.Detect(fs).Pages) {
 		if isPage(p) {
 			out = append(out, p)
 		}
@@ -174,6 +182,7 @@ func Run(in io.Reader, out io.Writer) error {
 		Files:       nonNilStrings(result.Files),
 		Deps:        nonNilDeps(result.Deps),
 		Diagnostics: nonNilDiags(result.Diagnostics),
+		Notices:     nonNilNotices(result.Notices, input.Options.Notices),
 	})
 }
 
@@ -182,9 +191,10 @@ func Run(in io.Reader, out io.Writer) error {
 // problem is the envelope itself, not a position within any source file.
 func protocolErrorOutput(err error) Output {
 	return Output{
-		Engine: blade.Version,
-		Files:  map[string]string{},
-		Deps:   map[string][]string{},
+		Engine:  blade.Version,
+		Files:   map[string]string{},
+		Deps:    map[string][]string{},
+		Notices: []site.Notice{},
 		Diagnostics: []render.Diagnostic{
 			{
 				Kind:      render.KindError,
@@ -231,4 +241,12 @@ func nonNilDiags(d []render.Diagnostic) []render.Diagnostic {
 		return []render.Diagnostic{}
 	}
 	return d
+}
+
+// nonNilNotices is the notices a host is sent: none when it asked for none.
+func nonNilNotices(n []site.Notice, wanted *bool) []site.Notice {
+	if n == nil || (wanted != nil && !*wanted) {
+		return []site.Notice{}
+	}
+	return n
 }

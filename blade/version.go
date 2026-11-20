@@ -9,4 +9,4 @@ package blade
 // Version is DevDojo Framework's engine semver. Bump it when the rendered-output
 // contract (grammar, diagnostics shape, or the protocol envelope) changes in
 // a way a host might need to react to.
-const Version = "1.0.0"
+const Version = "1.1.0"

@@ -1,4 +1,4 @@
 {
-  "entries": ["resources/views/pages/index.blade.php"],
+  "entries": ["src/pages/index.blade.php"],
   "oracle": true
 }

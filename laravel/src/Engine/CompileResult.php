@@ -7,6 +7,10 @@ namespace Devdojo\Framework\Engine;
  * path (`pages/index.blade.php` renders to `index.html`) — not by the entry
  * that produced them. Template problems land on `diagnostics`; the process
  * exiting cleanly does not mean the site compiled without diagnostics.
+ *
+ * `notices` are apart from both: things worth telling the site's author (it is
+ * still in an older folder shape, say) that are never a reason to fail a build.
+ * An engine older than 1.1.0 sends none.
  */
 final class CompileResult
 {
@@ -15,12 +19,14 @@ final class CompileResult
      * @param  array<string, string>  $files  output path => rendered contents
      * @param  array<string, list<string>>  $deps  output path => every source path read to render it
      * @param  list<Diagnostic>  $diagnostics
+     * @param  list<Notice>  $notices
      */
     public function __construct(
         public readonly string $engine,
         public readonly array $files,
         public readonly array $deps,
         public readonly array $diagnostics,
+        public readonly array $notices = [],
     ) {}
 
     public static function fromArray(array $payload): self
@@ -35,6 +41,10 @@ final class CompileResult
             diagnostics: array_values(array_map(
                 fn (array $diagnostic) => Diagnostic::fromArray($diagnostic),
                 array_filter($payload['diagnostics'] ?? [], 'is_array')
+            )),
+            notices: array_values(array_map(
+                fn (array $notice) => Notice::fromArray($notice),
+                array_filter($payload['notices'] ?? [], 'is_array')
             )),
         );
     }

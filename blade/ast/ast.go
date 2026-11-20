@@ -76,7 +76,7 @@ type LoopJump struct {
 // Tag and Candidates are set only for a component written in the Studio syntax
 // (<SectionsHero>, <Layout src>, <Include src>): Tag is the tag as written,
 // and Candidates the component files it may name — paths relative to
-// resources/views/components without an extension, in the order to try them.
+// the components folder (src/components) without an extension, in the order to try them.
 // Name is then the dotted name of the first candidate. A Blade <x-name> names
 // exactly one file, derived from Name, and leaves both empty.
 type Component struct {

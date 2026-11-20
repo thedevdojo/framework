@@ -1,0 +1,158 @@
+<!--
+    This is your homepage. It lives at pages/index.blade.php, so it's served at "/".
+    Add pages/about.blade.php and it becomes "/about" — no routing config needed.
+
+    The page is a list of *sections*: each section tag (an x-component) pulls a
+    component from resources/views/components/ and fills its props with these
+    attributes. In Visual mode you can select, reorder, and edit them on the canvas.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- The title below is set per page via the layout component's title attribute -->
+    <title>Home</title>
+
+    <!-- Fonts: Instrument Sans for everything, Instrument Serif for italic accents. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+
+    <!-- The line below loads Tailwind and inlines your resources/css/site.css -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<style type="text/tailwindcss">/*
+    Your custom CSS. It's inlined right after Tailwind by @vite in the
+    layout, so anything here applies to every page.
+*/
+
+/* Theme tokens — these become Tailwind utilities (font-sans, font-serif). */
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-serif: 'Instrument Serif', ui-serif, Georgia, serif;
+}
+
+::selection {
+    background-color: #18181b;
+    color: #ffffff;
+}
+
+/* A subtle dot-grid background, used on the homepage hero.
+   The dots live on a pseudo-element so they can fade out at the edges. */
+.dot-grid::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: radial-gradient(circle, #e4e4e7 1px, transparent 1px);
+    background-size: 24px 24px;
+    -webkit-mask-image: radial-gradient(ellipse 85% 90% at 50% 40%, black 35%, transparent 100%);
+    mask-image: radial-gradient(ellipse 85% 90% at 50% 40%, black 35%, transparent 100%);
+}
+
+/* An animated link underline for the nav. */
+.link-underline {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    background-size: 0 1px;
+    transition: background-size 0.25s ease;
+}
+
+.link-underline:hover {
+    background-size: 100% 1px;
+}
+
+/* A tiny entrance animation for hero content. */
+.fade-up {
+    animation: fade-up 0.7s ease both;
+}
+
+@keyframes fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fade-up {
+        animation: none;
+    }
+}
+</style></head>
+<body class="flex min-h-screen flex-col bg-white text-zinc-900 antialiased">
+
+    <!-- Components live in resources/views/components/. Edit nav once, it updates everywhere. -->
+    <!--
+    Global nav component. Rendered by the layout on every page; the brand
+    prop comes from nav.yml (editable in Visual mode's Layout tab).
+-->
+<header class="border-b border-zinc-100">
+    <nav class="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
+        <!-- href="/" always points to your site's root, in preview and when published -->
+        <a href="/" class="flex items-center gap-2 text-sm font-semibold tracking-tight">
+            <span class="inline-block h-2.5 w-2.5 rounded-full bg-zinc-900"></span>
+            My Site
+        </a>
+        <div class="flex items-center gap-8 text-sm text-zinc-500">
+            <a href="/" class="link-underline transition duration-200 hover:text-zinc-900">Home</a>
+            <a href="#" class="link-underline transition duration-200 hover:text-zinc-900">About</a>
+        </div>
+    </nav>
+</header>
+
+    <!-- $slot is where each page's content is placed -->
+    <main class="flex-1">
+        <!--
+    The homepage hero, as a *section component*: the props above are filled by
+    the attributes on the section tag (x-sections.hero) in the page, and the
+    companion hero.yml declares them as editable fields — that's what powers
+    the form when you select this section in Visual mode.
+-->
+<section class="dot-grid relative">
+    <div class="relative mx-auto flex max-w-5xl flex-col items-center px-6 py-32 text-center sm:py-44">
+        <span class="fade-up mb-8 inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-500 shadow-sm shadow-zinc-900/[0.03]">
+            <span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+            Your site is live in preview
+        </span>
+
+        <h1 class="fade-up max-w-2xl text-balance text-5xl font-semibold tracking-[-0.03em] text-zinc-900 sm:text-7xl" style="animation-delay: .05s">
+            A blank page,
+            <span class="font-serif font-normal italic tracking-normal text-zinc-500">full of possibility.</span>
+        </h1>
+
+        <p class="fade-up mt-7 max-w-md text-pretty text-base leading-relaxed text-zinc-500" style="animation-delay: .1s">
+            Start typing in the editor and watch this page update. Everything here is plain HTML and Tailwind — change anything.
+        </p>
+
+        <div class="fade-up mt-10 flex items-center gap-3" style="animation-delay: .15s">
+            <a href="/" class="rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition duration-200 hover:bg-zinc-700 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900">
+                Get started
+            </a>
+            <a href="#" class="rounded-lg border border-zinc-200 bg-white px-5 py-2.5 text-sm font-medium text-zinc-600 transition duration-200 hover:border-zinc-300 hover:text-zinc-900 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400">
+                Read the docs
+            </a>
+        </div>
+    </div>
+</section>
+    </main>
+
+    <!--
+    Global footer component. Edit once, updates on every page. The copyright
+    prop comes from footer.yml (editable in Visual mode's Layout tab).
+-->
+<footer class="border-t border-zinc-100">
+    <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-8 text-xs text-zinc-400">
+        <p>© 2026 My Site. Built with DevDojo Sites.</p>
+        <a href="/" class="transition duration-200 hover:text-zinc-900">Back to top</a>
+    </div>
+</footer>
+
+</body>
+</html>

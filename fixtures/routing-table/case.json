@@ -1,9 +1,9 @@
 {
   "entries": [
-    "resources/views/pages/index.blade.php",
-    "resources/views/pages/about.blade.php",
-    "resources/views/pages/about/index.blade.php",
-    "resources/views/pages/blog/index.blade.php",
-    "resources/views/pages/404.blade.php"
+    "src/pages/index.blade.php",
+    "src/pages/about.blade.php",
+    "src/pages/about/index.blade.php",
+    "src/pages/blog/index.blade.php",
+    "src/pages/404.blade.php"
   ]
 }

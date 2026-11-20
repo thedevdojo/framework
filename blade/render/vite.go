@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/thedevdojo/framework/blade/ast"
+	"github.com/thedevdojo/framework/site"
 )
 
 // viteTailwindCDN is the Tailwind v4 Play CDN script src the static
@@ -76,7 +77,7 @@ func (r *renderer) renderVite(node *ast.Vite) {
 	if !ok {
 		r.diag(node.P, KindError, say(node.P, "@vite", "<Vite>"), say(node.P,
 			"invalid @vite([...]) literal",
-			`<Vite> needs a src, like <Vite src="resources/css/site.css" />`))
+			`<Vite> needs a src, like <Vite src="src/css/site.css" />`))
 		return
 	}
 
@@ -93,8 +94,16 @@ func (r *renderer) renderVite(node *ast.Vite) {
 		// The entry path joins deps whether or not the asset exists: a missing
 		// asset is a dependency on the path @vite looked for, so a
 		// render-on-save host re-renders this output when the file is created.
+		// A site moved from resources/ to src/ may still name its stylesheet in
+		// the old folder: it is read from the folder the site uses, and the
+		// author is told which line to change.
+		named := entry
+		entry, moved := r.ctx.siteLayout().Asset(named)
 		r.ctx.deps.add(entry)
 		src, ok := r.ctx.fs.Read(entry)
+		if ok && moved && r.ctx.notices != nil {
+			*r.ctx.notices = append(*r.ctx.notices, site.AssetNotice(node.P.File, named, entry))
+		}
 		if !ok {
 			r.diag(node.P, KindError, say(node.P, "@vite", "<Vite>"), "vite asset \""+entry+"\" not found")
 			continue

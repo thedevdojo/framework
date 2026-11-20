@@ -8,16 +8,15 @@ static projection (Tailwind Play CDN + inlined CSS).
 ```
 example/
 ├── render.sh                      # pack → compile → unpack helper (needs jq)
-└── resources/
-    ├── css/site.css               # inlined by @vite('resources/css/site.css')
+└── src/
+    ├── css/site.css               # inlined by @vite('src/css/site.css')
     ├── data/
     │   ├── site.json              # → $site
     │   └── collections/features.json  # → $features
-    └── views/
-        ├── pages/index.blade.php
-        └── components/
-            ├── layouts/main.blade.php
-            └── sections/feature-list.blade.php
+    ├── pages/index.blade.php
+    └── components/
+        ├── layouts/main.blade.php
+        └── sections/feature-list.blade.php
 ```
 
 The same site written in the DevDojo Studio syntax (`<Layout>`, `<Foreach>`,
@@ -55,8 +54,8 @@ stdin (`{"files": {path: content}}`), one on stdout (`files`, `deps`,
 engine — no disk, no eval, just bytes in and bytes out:
 
 ```bash
-jq -n --rawfile page example/resources/views/pages/index.blade.php \
-  '{files: {"resources/views/pages/index.blade.php": $page}}' \
+jq -n --rawfile page example/src/pages/index.blade.php \
+  '{files: {"src/pages/index.blade.php": $page}}' \
   | devdojo compile | jq -r '.files["index.html"]'
 ```
 

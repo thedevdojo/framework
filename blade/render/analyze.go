@@ -6,6 +6,7 @@ import (
 	"github.com/thedevdojo/framework/blade/ast"
 	"github.com/thedevdojo/framework/blade/parser"
 	"github.com/thedevdojo/framework/blade/scanner"
+	"github.com/thedevdojo/framework/site"
 	"github.com/thedevdojo/framework/vfs"
 )
 
@@ -26,7 +27,7 @@ import (
 // referenced from several pages reports each internal instance once. Analyze
 // never panics on user input.
 func Analyze(fs vfs.FS, entries []string) []Diagnostic {
-	a := &analyzer{fs: fs, walked: map[string]bool{}, cache: map[string][]ast.Node{}}
+	a := &analyzer{fs: fs, components: site.Detect(fs).Components, walked: map[string]bool{}, cache: map[string][]ast.Node{}}
 	for _, entry := range entries {
 		if escapesRoot(entry) {
 			continue
@@ -44,10 +45,11 @@ func Analyze(fs vfs.FS, entries []string) []Diagnostic {
 // the set of component files already descended into (so a file's internal
 // instances are analyzed once, however many pages reach it), and a parse cache.
 type analyzer struct {
-	fs       vfsReader
-	warnings []Diagnostic
-	walked   map[string]bool
-	cache    map[string][]ast.Node
+	fs         vfsReader
+	components string // the site's components folder
+	warnings   []Diagnostic
+	walked     map[string]bool
+	cache      map[string][]ast.Node
 }
 
 // parse scans+parses a file, caching the node tree per path. Parse diagnostics
@@ -97,7 +99,7 @@ func (a *analyzer) checkInstance(c *ast.Component) {
 	var path string
 	var src []byte
 	var others []string
-	for _, candidate := range componentFiles(c) {
+	for _, candidate := range componentFiles(a.components, c) {
 		b, ok := a.fs.Read(candidate)
 		if !ok {
 			continue

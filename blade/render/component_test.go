@@ -133,16 +133,16 @@ func compileMem(t *testing.T, files map[string]string, d map[string]any) Result 
 	for k, v := range files {
 		fs[k] = v
 	}
-	return Compile(fs, []string{"resources/views/pages/index.blade.php"}, Options{Data: d})
+	return Compile(fs, []string{"src/pages/index.blade.php"}, Options{Data: d})
 }
 
-const pageEntry = "resources/views/pages/index.blade.php"
+const pageEntry = "src/pages/index.blade.php"
 
 // TestComponentScopeIsolation: page-level data does NOT leak into a component.
 func TestComponentScopeIsolation(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry: `A<x-probe/>B`,
-		"resources/views/components/probe.blade.php": `[{{ $x ?? 'unset' }}]`,
+		pageEntry:                        `A<x-probe/>B`,
+		"src/components/probe.blade.php": `[{{ $x ?? 'unset' }}]`,
 	}, map[string]any{"x": 1})
 	if got := res.Files["index.html"]; got != "A[unset]B" {
 		t.Fatalf("output = %q; want %q", got, "A[unset]B")
@@ -156,8 +156,8 @@ func TestComponentScopeIsolation(t *testing.T) {
 // silently dropped (no diagnostic) — the dialect forbids $attributes.
 func TestComponentUndeclaredAttrDropped(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:                                `<x-c extra="v" data-thing="q"/>`,
-		"resources/views/components/c.blade.php": `[{{ $slot }}]`,
+		pageEntry:                    `<x-c extra="v" data-thing="q"/>`,
+		"src/components/c.blade.php": `[{{ $slot }}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "[]" {
 		t.Fatalf("output = %q; want %q", got, "[]")
@@ -171,8 +171,8 @@ func TestComponentUndeclaredAttrDropped(t *testing.T) {
 // kebab→camel attr override.
 func TestComponentDefaultsAndOverride(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:                                `<x-c/>|<x-c heading="Given" foo-bar="hit"/>`,
-		"resources/views/components/c.blade.php": `@props(['heading' => 'Default', 'fooBar' => 'miss'])[{{ $heading }}/{{ $fooBar }}]`,
+		pageEntry:                    `<x-c/>|<x-c heading="Given" foo-bar="hit"/>`,
+		"src/components/c.blade.php": `@props(['heading' => 'Default', 'fooBar' => 'miss'])[{{ $heading }}/{{ $fooBar }}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "[Default/miss]|[Given/hit]" {
 		t.Fatalf("output = %q; want %q", got, "[Default/miss]|[Given/hit]")
@@ -186,8 +186,8 @@ func TestComponentDefaultsAndOverride(t *testing.T) {
 // scope at the tag site; a static attr passes its string verbatim.
 func TestComponentBoundAttrCallerScope(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:                                `<x-c :label="$who" note="lit"/>`,
-		"resources/views/components/c.blade.php": `@props(['label' => 'd', 'note' => 'd2'])[{{ $label }}/{{ $note }}]`,
+		pageEntry:                    `<x-c :label="$who" note="lit"/>`,
+		"src/components/c.blade.php": `@props(['label' => 'd', 'note' => 'd2'])[{{ $label }}/{{ $note }}]`,
 	}, map[string]any{"who": "Ada"})
 	if got := res.Files["index.html"]; got != "[Ada/lit]" {
 		t.Fatalf("output = %q; want %q", got, "[Ada/lit]")
@@ -204,8 +204,8 @@ func TestComponentBoundAttrCallerScope(t *testing.T) {
 // nil, so `?? 'F'` shows the guard rather than the default masking the break.
 func TestComponentBoundAttrEvalError(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:                                `<x-c :label="$missing"/>`,
-		"resources/views/components/c.blade.php": `@props(['label' => 'd'])[{{ $label ?? 'F' }}]`,
+		pageEntry:                    `<x-c :label="$missing"/>`,
+		"src/components/c.blade.php": `@props(['label' => 'd'])[{{ $label ?? 'F' }}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "[F]" {
 		t.Fatalf("output = %q; want %q", got, "[F]")
@@ -221,8 +221,8 @@ func TestComponentBoundAttrEvalError(t *testing.T) {
 // the ATTRIBUTE's position.
 func TestComponentStaticAttrInterpolation(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry: `<x-hero heading="Hi {{ $name }}"/>`,
-		"resources/views/components/hero.blade.php": `@props(['heading'])[{{ $heading }}]`,
+		pageEntry:                       `<x-hero heading="Hi {{ $name }}"/>`,
+		"src/components/hero.blade.php": `@props(['heading'])[{{ $heading }}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "[Hi {{ $name }}]" {
 		t.Fatalf("output = %q; want %q (braces pass through literally)", got, "[Hi {{ $name }}]")
@@ -244,8 +244,8 @@ func TestComponentStaticAttrInterpolation(t *testing.T) {
 // interpolation braces passes through with no diagnostic.
 func TestComponentStaticAttrNoInterpolation(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry: `<x-hero heading="Plain"/>`,
-		"resources/views/components/hero.blade.php": `@props(['heading'])[{{ $heading }}]`,
+		pageEntry:                       `<x-hero heading="Plain"/>`,
+		"src/components/hero.blade.php": `@props(['heading'])[{{ $heading }}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "[Plain]" {
 		t.Fatalf("output = %q; want %q", got, "[Plain]")
@@ -260,8 +260,8 @@ func TestComponentStaticAttrNoInterpolation(t *testing.T) {
 // Attr.Pos is load-bearing, not decorative.
 func TestBoundAttrDiagnosticCarriesAttrPos(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:                                `<x-c :label="$missing"/>`,
-		"resources/views/components/c.blade.php": `@props(['label' => 'd'])[{{ $label ?? 'F' }}]`,
+		pageEntry:                    `<x-c :label="$missing"/>`,
+		"src/components/c.blade.php": `@props(['label' => 'd'])[{{ $label ?? 'F' }}]`,
 	}, nil)
 	if len(res.Diagnostics) != 1 {
 		t.Fatalf("diagnostics = %v; want exactly one", res.Diagnostics)
@@ -299,9 +299,9 @@ func TestComponentMissingMarker(t *testing.T) {
 	}
 	// The path the resolver LOOKED FOR joins deps even though it is absent, so
 	// a render-on-save host re-renders this output when the user later creates
-	// resources/views/components/sections/hero.blade.php.
+	// src/components/sections/hero.blade.php.
 	deps := res.Deps["index.html"]
-	wantDeps := []string{pageEntry, "resources/views/components/sections/hero.blade.php"}
+	wantDeps := []string{pageEntry, "src/components/sections/hero.blade.php"}
 	if len(deps) != len(wantDeps) {
 		t.Fatalf("deps = %v; want %v", deps, wantDeps)
 	}
@@ -316,8 +316,8 @@ func TestComponentMissingMarker(t *testing.T) {
 // of levels and raises exactly one component-recursion diagnostic.
 func TestComponentRecursionCap(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry: `<x-recur/>`,
-		"resources/views/components/recur.blade.php": `R<x-recur/>`,
+		pageEntry:                        `<x-recur/>`,
+		"src/components/recur.blade.php": `R<x-recur/>`,
 	}, nil)
 	got := res.Files["index.html"]
 	if len(got) != componentMaxDepth {
@@ -341,15 +341,15 @@ func TestComponentRecursionCap(t *testing.T) {
 // files to the output's deps, entry first, deduped.
 func TestComponentDeps(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:                                `<x-a/><x-a/>`,
-		"resources/views/components/a.blade.php": `<x-b/>`,
-		"resources/views/components/b.blade.php": `b`,
+		pageEntry:                    `<x-a/><x-a/>`,
+		"src/components/a.blade.php": `<x-b/>`,
+		"src/components/b.blade.php": `b`,
 	}, nil)
 	deps := res.Deps["index.html"]
 	want := []string{
 		pageEntry,
-		"resources/views/components/a.blade.php",
-		"resources/views/components/b.blade.php",
+		"src/components/a.blade.php",
+		"src/components/b.blade.php",
 	}
 	if len(deps) != len(want) {
 		t.Fatalf("deps = %v; want %v", deps, want)
@@ -365,8 +365,8 @@ func TestComponentDeps(t *testing.T) {
 // raw HTML (not escaped) by {{ }}.
 func TestSlotTrimmedAndRaw(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry: "<x-wrap>\n   <b>hi</b>\n<x-slot:title>\n  T&T\n</x-slot>\n</x-wrap>",
-		"resources/views/components/wrap.blade.php": `D[{{ $slot }}]T[{{ $title }}]`,
+		pageEntry:                       "<x-wrap>\n   <b>hi</b>\n<x-slot:title>\n  T&T\n</x-slot>\n</x-wrap>",
+		"src/components/wrap.blade.php": `D[{{ $slot }}]T[{{ $title }}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "D[<b>hi</b>]T[T&T]" {
 		t.Fatalf("output = %q; want %q", got, "D[<b>hi</b>]T[T&T]")
@@ -379,8 +379,8 @@ func TestSlotTrimmedAndRaw(t *testing.T) {
 // TestSelfCloseEmptySlot: a self-closing tag yields an empty slot.
 func TestSelfCloseEmptySlot(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:                                `<x-c/>`,
-		"resources/views/components/c.blade.php": `[{{ $slot }}]`,
+		pageEntry:                    `<x-c/>`,
+		"src/components/c.blade.php": `[{{ $slot }}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "[]" {
 		t.Fatalf("output = %q; want %q", got, "[]")
@@ -391,8 +391,8 @@ func TestSelfCloseEmptySlot(t *testing.T) {
 // reference an enclosing loop variable.
 func TestSlotRefsLoopVar(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:                                `@foreach ($xs as $x)<x-c>{{ $x }}</x-c>@endforeach`,
-		"resources/views/components/c.blade.php": `[{{ $slot }}]`,
+		pageEntry:                    `@foreach ($xs as $x)<x-c>{{ $x }}</x-c>@endforeach`,
+		"src/components/c.blade.php": `[{{ $slot }}]`,
 	}, map[string]any{"xs": []any{"a", "b"}})
 	if got := res.Files["index.html"]; got != "[a][b]" {
 		t.Fatalf("output = %q; want %q", got, "[a][b]")
@@ -404,8 +404,8 @@ func TestSlotRefsLoopVar(t *testing.T) {
 func TestBarePropUndefinedVsPassed(t *testing.T) {
 	// not passed → undefined
 	res := compileMem(t, map[string]string{
-		pageEntry:                                `[<x-c/>]`,
-		"resources/views/components/c.blade.php": `@props(['bare'])<{{ $bare }}>`,
+		pageEntry:                    `[<x-c/>]`,
+		"src/components/c.blade.php": `@props(['bare'])<{{ $bare }}>`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "[<>]" {
 		t.Fatalf("unpassed output = %q; want %q", got, "[<>]")
@@ -415,8 +415,8 @@ func TestBarePropUndefinedVsPassed(t *testing.T) {
 	}
 	// passed → defined
 	res2 := compileMem(t, map[string]string{
-		pageEntry:                                `<x-c bare="V"/>`,
-		"resources/views/components/c.blade.php": `@props(['bare'])<{{ $bare }}>`,
+		pageEntry:                    `<x-c bare="V"/>`,
+		"src/components/c.blade.php": `@props(['bare'])<{{ $bare }}>`,
 	}, nil)
 	if got := res2.Files["index.html"]; got != "<V>" {
 		t.Fatalf("passed output = %q; want %q", got, "<V>")
@@ -433,7 +433,7 @@ func TestPropsNotFirst(t *testing.T) {
 		pageEntry: `<x-c/>`,
 		// '>' (non-word) before @props gives it a word boundary while keeping it
 		// off the first node, so the not-first props error still fires.
-		"resources/views/components/c.blade.php": `>@props(['a' => 'AA'])[{{ $a ?? 'z' }}]`,
+		"src/components/c.blade.php": `>@props(['a' => 'AA'])[{{ $a ?? 'z' }}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != ">[z]" {
 		t.Fatalf("output = %q; want %q", got, ">[z]")
@@ -464,8 +464,8 @@ func TestPropsOnPage(t *testing.T) {
 // Blade binds $a before compileProps runs; see buildComponentScope).
 func TestMalformedProps(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:                                `<x-c a="x"/>`,
-		"resources/views/components/c.blade.php": `@props('not an array')[{{ $a ?? 'none' }}]`,
+		pageEntry:                    `<x-c a="x"/>`,
+		"src/components/c.blade.php": `@props('not an array')[{{ $a ?? 'none' }}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "[x]" {
 		t.Fatalf("output = %q; want %q", got, "[x]")
@@ -479,9 +479,9 @@ func TestMalformedProps(t *testing.T) {
 // a block directive.
 func TestComponentTagEatsNewline(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry: "A\n<x-mk/>\nB\n<x-pair>x</x-pair>\nC",
-		"resources/views/components/mk.blade.php":   `<M>`,
-		"resources/views/components/pair.blade.php": `<P>{{ $slot }}</P>`,
+		pageEntry:                       "A\n<x-mk/>\nB\n<x-pair>x</x-pair>\nC",
+		"src/components/mk.blade.php":   `<M>`,
+		"src/components/pair.blade.php": `<P>{{ $slot }}</P>`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "A\n<M>B\n<P>x</P>C" {
 		t.Fatalf("output = %q; want %q", got, "A\n<M>B\n<P>x</P>C")

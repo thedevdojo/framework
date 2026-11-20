@@ -1,12 +1,12 @@
 {
-  "entries": ["resources/views/pages/index.blade.php"],
+  "entries": ["src/pages/index.blade.php"],
   "data": {"on": true, "items": ["p", "q"]},
   "oracle": true,
   "diagnostics": [
-    {"kind": "app-tier", "construct": "@handle", "file": "resources/views/pages/index.blade.php", "line": 1},
-    {"kind": "app-tier", "construct": "@word", "file": "resources/views/pages/index.blade.php", "line": 4},
-    {"kind": "app-tier", "construct": "@after", "file": "resources/views/pages/index.blade.php", "line": 7},
-    {"kind": "app-tier", "construct": "@own", "file": "resources/views/pages/index.blade.php", "line": 10},
-    {"kind": "app-tier", "construct": "@first", "file": "resources/views/pages/index.blade.php", "line": 13}
+    {"kind": "app-tier", "construct": "@handle", "file": "src/pages/index.blade.php", "line": 1},
+    {"kind": "app-tier", "construct": "@word", "file": "src/pages/index.blade.php", "line": 4},
+    {"kind": "app-tier", "construct": "@after", "file": "src/pages/index.blade.php", "line": 7},
+    {"kind": "app-tier", "construct": "@own", "file": "src/pages/index.blade.php", "line": 10},
+    {"kind": "app-tier", "construct": "@first", "file": "src/pages/index.blade.php", "line": 13}
   ]
 }

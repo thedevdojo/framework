@@ -8,21 +8,21 @@ import (
 
 func TestMemReadAndList(t *testing.T) {
 	fs := Mem{
-		"resources/views/pages/index.blade.php": "<h1>Hi</h1>",
-		"resources/views/pages/about.blade.php": "<h1>About</h1>",
-		"resources/data/site.json":              `{"name":"X"}`,
+		"src/pages/index.blade.php": "<h1>Hi</h1>",
+		"src/pages/about.blade.php": "<h1>About</h1>",
+		"src/data/site.json":        `{"name":"X"}`,
 	}
-	b, ok := fs.Read("resources/views/pages/index.blade.php")
+	b, ok := fs.Read("src/pages/index.blade.php")
 	if !ok || string(b) != "<h1>Hi</h1>" {
 		t.Fatalf("Read = %q, %v", b, ok)
 	}
 	if _, ok := fs.Read("missing"); ok {
 		t.Fatal("missing path must return ok=false")
 	}
-	got := fs.List("resources/views/pages/")
+	got := fs.List("src/pages/")
 	want := []string{
-		"resources/views/pages/about.blade.php",
-		"resources/views/pages/index.blade.php",
+		"src/pages/about.blade.php",
+		"src/pages/index.blade.php",
 	}
 	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("List = %v, want %v", got, want)
@@ -63,7 +63,7 @@ func TestDirReadInRoot(t *testing.T) {
 // prefix, and a traversing prefix lists nothing — never files above the root.
 func TestDirListStaysInRoot(t *testing.T) {
 	root := t.TempDir()
-	sub := filepath.Join(root, "resources", "views", "pages")
+	sub := filepath.Join(root, "src", "pages")
 	if err := os.MkdirAll(sub, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -71,9 +71,9 @@ func TestDirListStaysInRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	d := Dir(root)
-	got := d.List("resources/views/pages/")
-	if len(got) != 1 || got[0] != "resources/views/pages/index.blade.php" {
-		t.Fatalf("List = %v; want [resources/views/pages/index.blade.php]", got)
+	got := d.List("src/pages/")
+	if len(got) != 1 || got[0] != "src/pages/index.blade.php" {
+		t.Fatalf("List = %v; want [src/pages/index.blade.php]", got)
 	}
 	for _, prefix := range []string{"../", "../../"} {
 		if out := d.List(prefix); len(out) != 0 {

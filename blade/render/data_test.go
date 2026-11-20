@@ -7,7 +7,7 @@ import (
 	"github.com/thedevdojo/framework/vfs"
 )
 
-const dataEntry = "resources/views/pages/index.blade.php"
+const dataEntry = "src/pages/index.blade.php"
 
 // compileOne renders a single page over an in-memory filesystem.
 func compileOne(t *testing.T, files map[string]string, data map[string]any) Result {
@@ -116,9 +116,9 @@ func TestSitePresent(t *testing.T) {
 // components).
 func TestSiteVisibleInComponent(t *testing.T) {
 	res := compileOne(t, map[string]string{
-		dataEntry: "<x-brand/>",
-		"resources/views/components/brand.blade.php": "{{ $site->name ?? 'unset' }}",
-		siteDataPath: `{"name":"Acme"}`,
+		dataEntry:                        "<x-brand/>",
+		"src/components/brand.blade.php": "{{ $site->name ?? 'unset' }}",
+		siteDataPath:                     `{"name":"Acme"}`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "Acme" {
 		t.Errorf("component did not see $site: output = %q; want %q", got, "Acme")
@@ -133,9 +133,9 @@ func TestSiteVisibleInComponent(t *testing.T) {
 // nav backed by collections/links.json rendered empty.
 func TestCollectionsVisibleInComponent(t *testing.T) {
 	res := compileOne(t, map[string]string{
-		dataEntry: "<x-list/>",
-		"resources/views/components/list.blade.php": "@foreach ($plans as $p){{ $p->name }};@endforeach",
-		collectionsDir + "plans.json":               `[{"name":"Free"},{"name":"Pro"}]`,
+		dataEntry:                       "<x-list/>",
+		"src/components/list.blade.php": "@foreach ($plans as $p){{ $p->name }};@endforeach",
+		collectionsDir + "plans.json":   `[{"name":"Free"},{"name":"Pro"}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "Free;Pro;" {
 		t.Errorf("component did not see the collection: output = %q; want %q", got, "Free;Pro;")
@@ -149,10 +149,10 @@ func TestCollectionsVisibleInComponent(t *testing.T) {
 // terms as collections/*.json.
 func TestContentVisibleInComponent(t *testing.T) {
 	res := compileOne(t, map[string]string{
-		dataEntry: "<x-list/>",
-		"resources/views/components/list.blade.php": "@foreach ($post as $p){{ $p->title }};@endforeach",
-		contentDir + "post/a.md":                    "---\ntitle: A\n---\nbody\n",
-		contentDir + "post/b.md":                    "---\ntitle: B\n---\nbody\n",
+		dataEntry:                       "<x-list/>",
+		"src/components/list.blade.php": "@foreach ($post as $p){{ $p->title }};@endforeach",
+		contentDir + "post/a.md":        "---\ntitle: A\n---\nbody\n",
+		contentDir + "post/b.md":        "---\ntitle: B\n---\nbody\n",
 	}, nil)
 	if got := res.Files["index.html"]; got != "A;B;" {
 		t.Errorf("component did not see the content collection: output = %q; want %q", got, "A;B;")
@@ -164,10 +164,10 @@ func TestContentVisibleInComponent(t *testing.T) {
 // :links="$links" — no page involvement.
 func TestLayoutSeesCollection(t *testing.T) {
 	res := compileOne(t, map[string]string{
-		dataEntry: "<x-layouts.main>body</x-layouts.main>",
-		"resources/views/components/layouts/main.blade.php": "<x-nav :links=\"$links\"/>[{{ $slot }}]",
-		"resources/views/components/nav.blade.php":          "@props(['links' => []])@foreach ($links as $l){{ $l->label }};@endforeach",
-		collectionsDir + "links.json":                       `[{"label":"Home"}]`,
+		dataEntry:                               "<x-layouts.main>body</x-layouts.main>",
+		"src/components/layouts/main.blade.php": "<x-nav :links=\"$links\"/>[{{ $slot }}]",
+		"src/components/nav.blade.php":          "@props(['links' => []])@foreach ($links as $l){{ $l->label }};@endforeach",
+		collectionsDir + "links.json":           `[{"label":"Home"}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "Home;[body]" {
 		t.Errorf("layout could not bind the collection: output = %q; want %q", got, "Home;[body]")
@@ -187,8 +187,8 @@ func TestPropsDefaultDoesNotShadowCollection(t *testing.T) {
 		dataEntry: "<x-nav/>",
 		// A shadowing default (null) would make this @foreach iterate nothing and
 		// raise a foreach diagnostic; seeing the collection is the contract.
-		"resources/views/components/nav.blade.php": "@props(['links' => null])@foreach ($links as $l){{ $l->label }};@endforeach",
-		collectionsDir + "links.json":              `[{"label":"Home"}]`,
+		"src/components/nav.blade.php": "@props(['links' => null])@foreach ($links as $l){{ $l->label }};@endforeach",
+		collectionsDir + "links.json":  `[{"label":"Home"}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "Home;" {
 		t.Errorf("a @props default wrongly shadowed the collection: output = %q; want %q", got, "Home;")
@@ -203,10 +203,10 @@ func TestPropsDefaultDoesNotShadowCollection(t *testing.T) {
 // Factory::gatherData merges over shared data.
 func TestPassedAttrBeatsCollection(t *testing.T) {
 	res := compileOne(t, map[string]string{
-		dataEntry: `<x-nav :links="$other"/>`,
-		"resources/views/components/nav.blade.php": "@props(['links' => null])@foreach ($links as $l){{ $l->label }};@endforeach",
-		collectionsDir + "links.json":              `[{"label":"Global"}]`,
-		collectionsDir + "other.json":              `[{"label":"Passed"}]`,
+		dataEntry:                      `<x-nav :links="$other"/>`,
+		"src/components/nav.blade.php": "@props(['links' => null])@foreach ($links as $l){{ $l->label }};@endforeach",
+		collectionsDir + "links.json":  `[{"label":"Global"}]`,
+		collectionsDir + "other.json":  `[{"label":"Passed"}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "Passed;" {
 		t.Errorf("passed attr did not beat the collection: output = %q; want %q", got, "Passed;")
@@ -221,8 +221,8 @@ func TestPassedAttrBeatsCollection(t *testing.T) {
 func TestPassedNullFallsBackToDefault(t *testing.T) {
 	// No colliding collection: passed null still yields the default.
 	res := compileOne(t, map[string]string{
-		dataEntry:                                `<x-c :label="null"/>`,
-		"resources/views/components/c.blade.php": `@props(['label' => 'Fallback'])[{{ $label }}]`,
+		dataEntry:                    `<x-c :label="null"/>`,
+		"src/components/c.blade.php": `@props(['label' => 'Fallback'])[{{ $label }}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "[Fallback]" {
 		t.Errorf("passed null did not fall back to the default: output = %q; want %q", got, "[Fallback]")
@@ -231,9 +231,9 @@ func TestPassedNullFallsBackToDefault(t *testing.T) {
 	// Colliding collection: the passed null overwrites it, then the default
 	// fills in — the collection does NOT come back.
 	res = compileOne(t, map[string]string{
-		dataEntry:                                `<x-c :links="null"/>`,
-		"resources/views/components/c.blade.php": `@props(['links' => 'DefaultString'])[{{ $links }}]`,
-		collectionsDir + "links.json":            `[{"label":"Global"}]`,
+		dataEntry:                     `<x-c :links="null"/>`,
+		"src/components/c.blade.php":  `@props(['links' => 'DefaultString'])[{{ $links }}]`,
+		collectionsDir + "links.json": `[{"label":"Global"}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "[DefaultString]" {
 		t.Errorf("passed null over a collection: output = %q; want %q", got, "[DefaultString]")
@@ -244,8 +244,8 @@ func TestPassedNullFallsBackToDefault(t *testing.T) {
 // empty string or false is a real value and survives (both echo as "").
 func TestPassedFalsyKeepsPassedValue(t *testing.T) {
 	res := compileOne(t, map[string]string{
-		dataEntry:                                `<x-c :label="''"/>|<x-c :label="false"/>`,
-		"resources/views/components/c.blade.php": `@props(['label' => 'Fallback'])[{{ $label }}]`,
+		dataEntry:                    `<x-c :label="''"/>|<x-c :label="false"/>`,
+		"src/components/c.blade.php": `@props(['label' => 'Fallback'])[{{ $label }}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "[]|[]" {
 		t.Errorf("a falsy passed value wrongly took the default: output = %q; want %q", got, "[]|[]")
@@ -257,10 +257,10 @@ func TestPassedFalsyKeepsPassedValue(t *testing.T) {
 // on a page.
 func TestSiteBeatsCollectionNamedSite(t *testing.T) {
 	res := compileOne(t, map[string]string{
-		dataEntry: "page:{{ $site->name }} <x-brand/>",
-		"resources/views/components/brand.blade.php": "comp:{{ $site->name }}",
-		siteDataPath:                 `{"name":"Acme"}`,
-		collectionsDir + "site.json": `[{"name":"Collection"}]`,
+		dataEntry:                        "page:{{ $site->name }} <x-brand/>",
+		"src/components/brand.blade.php": "comp:{{ $site->name }}",
+		siteDataPath:                     `{"name":"Acme"}`,
+		collectionsDir + "site.json":     `[{"name":"Collection"}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "page:Acme comp:Acme" {
 		t.Errorf("a collection named site displaced $site: output = %q; want %q", got, "page:Acme comp:Acme")
@@ -273,9 +273,9 @@ func TestSiteBeatsCollectionNamedSite(t *testing.T) {
 // shared collection.
 func TestOptionsDataStaysPageLocal(t *testing.T) {
 	res := compileOne(t, map[string]string{
-		dataEntry: "page:{{ $plans }}|<x-list/>",
-		"resources/views/components/list.blade.php": "comp:@foreach ($plans as $p){{ $p->name }};@endforeach",
-		collectionsDir + "plans.json":               `[{"name":"Free"}]`,
+		dataEntry:                       "page:{{ $plans }}|<x-list/>",
+		"src/components/list.blade.php": "comp:@foreach ($plans as $p){{ $p->name }};@endforeach",
+		collectionsDir + "plans.json":   `[{"name":"Free"}]`,
 	}, map[string]any{"plans": "entry"})
 	if got := res.Files["index.html"]; got != "page:entry|comp:Free;" {
 		t.Errorf("output = %q; want %q", got, "page:entry|comp:Free;")
@@ -287,9 +287,9 @@ func TestOptionsDataStaysPageLocal(t *testing.T) {
 // content directory, and no prop is still an error inside a component.
 func TestUnknownVarStillUndefinedInComponent(t *testing.T) {
 	res := compileOne(t, map[string]string{
-		dataEntry: "<x-list/>",
-		"resources/views/components/list.blade.php": "[{{ $nope }}]",
-		collectionsDir + "plans.json":               `[{"name":"Free"}]`,
+		dataEntry:                       "<x-list/>",
+		"src/components/list.blade.php": "[{{ $nope }}]",
+		collectionsDir + "plans.json":   `[{"name":"Free"}]`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "[]" {
 		t.Errorf("output = %q; want %q", got, "[]")
@@ -377,9 +377,9 @@ func TestContentNested(t *testing.T) {
 // but the component still sees the ORIGINAL site.json (shared, not per-page).
 func TestDataOverridesSite(t *testing.T) {
 	files := map[string]string{
-		dataEntry: "page:{{ $site->name }} <x-brand/>",
-		"resources/views/components/brand.blade.php": "comp:{{ $site->name }}",
-		siteDataPath: `{"name":"FromJson"}`,
+		dataEntry:                        "page:{{ $site->name }} <x-brand/>",
+		"src/components/brand.blade.php": "comp:{{ $site->name }}",
+		siteDataPath:                     `{"name":"FromJson"}`,
 	}
 	res := compileOne(t, files, map[string]any{
 		"site": map[string]any{"name": "FromData"},
@@ -425,10 +425,10 @@ func TestCollectionFolder(t *testing.T) {
 func TestCollectionFolderMatchesFile(t *testing.T) {
 	page := "@foreach ($posts as $p){{ $p->title }}:{!! $p->content !!}|@endforeach"
 	folder := compileOne(t, map[string]string{
-		dataEntry:                                page,
-		collectionsDir + "posts/a.json":          `{"slug":"a","title":"A","date":"2026-02-01","content":"<p>a</p>"}`,
-		collectionsDir + "posts/b.json":          `{"slug":"b","title":"B","date":"2026-01-01","content":"<p>b</p>"}`,
-		"resources/views/components/x.blade.php": "",
+		dataEntry:                       page,
+		collectionsDir + "posts/a.json": `{"slug":"a","title":"A","date":"2026-02-01","content":"<p>a</p>"}`,
+		collectionsDir + "posts/b.json": `{"slug":"b","title":"B","date":"2026-01-01","content":"<p>b</p>"}`,
+		"src/components/x.blade.php":    "",
 	}, nil)
 	file := compileOne(t, map[string]string{
 		dataEntry:                     page,
@@ -446,9 +446,9 @@ func TestCollectionFolderMatchesFile(t *testing.T) {
 // like every collection, so a component sees it without a passed attribute.
 func TestCollectionFolderVisibleInComponent(t *testing.T) {
 	res := compileOne(t, map[string]string{
-		dataEntry: "<x-list/>",
-		"resources/views/components/list.blade.php": "@foreach ($posts as $p){{ $p->slug }};@endforeach",
-		collectionsDir + "posts/one.json":           `{"slug":"one","date":"2026-01-01"}`,
+		dataEntry:                         "<x-list/>",
+		"src/components/list.blade.php":   "@foreach ($posts as $p){{ $p->slug }};@endforeach",
+		collectionsDir + "posts/one.json": `{"slug":"one","date":"2026-01-01"}`,
 	}, nil)
 	if got := res.Files["index.html"]; got != "one;" {
 		t.Errorf("output = %q", got)
@@ -557,17 +557,17 @@ func TestCollectionFolderInvalidName(t *testing.T) {
 // page's fan-out — with the collection loaded once and left untouched.
 func TestCompileVariants(t *testing.T) {
 	fs := vfs.Mem(map[string]string{
-		"resources/views/pages/post/[post.slug].blade.php": "{{ $post->title }} of @foreach ($entries as $e){{ $e->slug }}@endforeach",
-		collectionsDir + "post/a.json":                     `{"slug":"a","title":"A","date":"2026-01-02"}`,
-		collectionsDir + "post/b.json":                     `{"slug":"b","title":"B","date":"2026-01-01"}`,
+		"src/pages/post/[post.slug].blade.php": "{{ $post->title }} of @foreach ($entries as $e){{ $e->slug }}@endforeach",
+		collectionsDir + "post/a.json":         `{"slug":"a","title":"A","date":"2026-01-02"}`,
+		collectionsDir + "post/b.json":         `{"slug":"b","title":"B","date":"2026-01-01"}`,
 	})
 	entries := []any{
 		map[string]any{"slug": "a", "title": "A"},
 		map[string]any{"slug": "b", "title": "B"},
 	}
 	res := CompileVariants(fs, []Variant{
-		{Entry: "resources/views/pages/post/[post.slug].blade.php", Data: map[string]any{"post": entries[0]}, Output: "post/a/index.html"},
-		{Entry: "resources/views/pages/post/[post.slug].blade.php", Data: map[string]any{"post": entries[1]}, Output: "post/b/index.html"},
+		{Entry: "src/pages/post/[post.slug].blade.php", Data: map[string]any{"post": entries[0]}, Output: "post/a/index.html"},
+		{Entry: "src/pages/post/[post.slug].blade.php", Data: map[string]any{"post": entries[1]}, Output: "post/b/index.html"},
 	}, Options{Data: map[string]any{"entries": entries}})
 	if got := res.Files["post/a/index.html"]; got != "A of ab" {
 		t.Errorf("a = %q", got)
@@ -581,7 +581,7 @@ func TestCompileVariants(t *testing.T) {
 	if len(res.Diagnostics) != 0 {
 		t.Errorf("unexpected diagnostics: %v", res.Diagnostics)
 	}
-	if deps := res.Deps["post/a/index.html"]; len(deps) == 0 || deps[0] != "resources/views/pages/post/[post.slug].blade.php" {
+	if deps := res.Deps["post/a/index.html"]; len(deps) == 0 || deps[0] != "src/pages/post/[post.slug].blade.php" {
 		t.Errorf("deps = %v", deps)
 	}
 }

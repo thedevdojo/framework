@@ -1,1 +1,1 @@
-{"entries": ["resources/views/pages/index.html"], "oracle": false, "twin": "layout-binds-collection"}
+{"entries": ["src/pages/index.html"], "oracle": false, "twin": "layout-binds-collection"}

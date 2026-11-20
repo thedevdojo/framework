@@ -32,7 +32,12 @@ class AppTierServingTest extends ServingTestCase
         $checked = 0;
 
         foreach ($entries as $entry) {
-            $pageRel = preg_replace('#^resources/views/pages/(.+)\.blade\.php$#', '$1', $entry);
+            // An entry is a page in whichever folder the fixture keeps its
+            // pages: src/pages, or one of the older shapes.
+            if (! preg_match('#^((?:src|resources)/(?:views/)?pages)/(.+)\.blade\.php$#', $entry, $m)) {
+                $this->fail(basename($dir)." :: entry $entry is not a page");
+            }
+            [$pagesDir, $pageRel] = [$m[1], $m[2]];
 
             // A nested directory-index page shadowed by a flat sibling can never
             // be reached over HTTP (flat wins — the routing table). The flat
@@ -40,7 +45,7 @@ class AppTierServingTest extends ServingTestCase
             // pinned by ServingSemanticsTest::test_flat_page_wins_over_directory_index.
             if (str_ends_with($pageRel, '/index')) {
                 $flat = substr($pageRel, 0, -strlen('/index'));
-                if (in_array("resources/views/pages/$flat.blade.php", $entries, true)) {
+                if (in_array("$pagesDir/$flat.blade.php", $entries, true)) {
                     continue;
                 }
             }

@@ -65,12 +65,15 @@ class StaticVite extends Vite
             $entrypoints = [$entrypoints];
         }
 
+        $layout = SiteLayout::detect($root);
         $styles = [];
         foreach ($entrypoints as $entry) {
             if (! is_string($entry) || str_ends_with($entry, '.js')) {
                 continue; // app-tier: needs a real bundler, not the static projection
             }
-            $path = $root.'/'.ltrim($entry, '/');
+            // Read from the folder the site uses, whichever one the entry names
+            // (site.Layout.Asset on the Go side).
+            $path = $root.'/'.$layout->asset(ltrim($entry, '/'));
             if (! is_file($path)) {
                 continue; // missing asset: skipped, no diagnostics channel here
             }

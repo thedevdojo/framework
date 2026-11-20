@@ -41,9 +41,19 @@ func TestCorpus(t *testing.T) {
 			continue
 		}
 		dir := filepath.Join(root, d.Name())
-		if _, err := os.Stat(filepath.Join(dir, "files", "resources", "views")); err == nil {
+		// A template keeps its site under files/; a site's source folder is
+		// src/ or, in the older shape, resources/.
+		isSite := func(dir string) bool {
+			for _, root := range []string{"src", "resources"} {
+				if _, err := os.Stat(filepath.Join(dir, root)); err == nil {
+					return true
+				}
+			}
+			return false
+		}
+		if isSite(filepath.Join(dir, "files")) {
 			dir = filepath.Join(dir, "files")
-		} else if _, err := os.Stat(filepath.Join(dir, "resources", "views")); err != nil {
+		} else if !isSite(dir) {
 			continue
 		}
 		sites++
@@ -143,7 +153,7 @@ func loadSite(t *testing.T, dir string) vfs.Mem {
 		}
 		rel, _ := filepath.Rel(dir, p)
 		rel = filepath.ToSlash(rel)
-		if !strings.HasPrefix(rel, "resources/") && !strings.HasPrefix(rel, "content/") {
+		if !strings.HasPrefix(rel, "src/") && !strings.HasPrefix(rel, "resources/") && !strings.HasPrefix(rel, "content/") {
 			return nil
 		}
 		body, err := os.ReadFile(p)

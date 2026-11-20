@@ -92,7 +92,7 @@ func TestDiagCounts(t *testing.T) {
 		{"foreach ok key val", "@foreach ($rows as $k => $v)x @endforeach", 0},
 		{"unknown directive no diag", "@auth x @endauth", 0},
 		{"props no diag", "@props(['title' => ''])", 0},
-		{"vite no diag", "@vite(['resources/js/app.js'])", 0},
+		{"vite no diag", "@vite(['src/js/app.js'])", 0},
 		{"comment no diag", "{{-- hidden --}}", 0},
 		{"unclosed component", "<x-card>body", 1},
 		{"unclosed foreach", "@foreach ($a as $b)body", 1},
@@ -341,12 +341,12 @@ func TestConditionalLoopJump(t *testing.T) {
 }
 
 func TestPropsAndVite(t *testing.T) {
-	nodes, diags := parseSrc(t, `@props(['title' => 'Home'])@vite(['resources/js/app.js'])`)
+	nodes, diags := parseSrc(t, `@props(['title' => 'Home'])@vite(['src/js/app.js'])`)
 	requireNoDiags(t, diags)
 	if nodes[0].(*ast.Props).Raw != "['title' => 'Home']" {
 		t.Fatalf("props = %+v", nodes[0])
 	}
-	if nodes[1].(*ast.Vite).Raw != "['resources/js/app.js']" {
+	if nodes[1].(*ast.Vite).Raw != "['src/js/app.js']" {
 		t.Fatalf("vite = %+v", nodes[1])
 	}
 }

@@ -3,7 +3,7 @@
     Add pages/about.blade.php and it becomes "/about" — no routing config needed.
 
     The page is a list of *sections*: each section tag (an x-component) pulls a
-    component from resources/views/components/ and fills its props with these
+    component from src/components/ and fills its props with these
     attributes. In Visual mode you can select, reorder, and edit them on the canvas.
 -->
 <!doctype html>
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 
-    <!-- The line below loads Tailwind and inlines your resources/css/site.css -->
+    <!-- The line below loads Tailwind and inlines your src/css/site.css -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 <style type="text/tailwindcss">/*
     Your custom CSS. It's inlined right after Tailwind by @vite in the
@@ -88,7 +88,7 @@
 </style></head>
 <body class="flex min-h-screen flex-col bg-white text-zinc-900 antialiased">
 
-    <!-- Components live in resources/views/components/. Edit nav once, it updates everywhere. -->
+    <!-- Components live in src/components/. Edit nav once, it updates everywhere. -->
     <!--
     Global nav component. Rendered by the layout on every page; the brand
     prop comes from nav.yml (editable in Visual mode's Layout tab).

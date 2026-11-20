@@ -1,7 +1,7 @@
 // Package content is DevDojo Framework's markdown pipeline for content collections. It
 // is the ONE place goldmark lives: the blade/* engine core stays stdlib-only, so
 // the markdown dependency is confined here (spec §4). Given a set of `.md` files
-// under resources/data/content/<dir>/, it parses a scalar-only YAML frontmatter
+// under src/data/content/<dir>/, it parses a scalar-only YAML frontmatter
 // block, renders the body to HTML (goldmark, GFM tables + raw-HTML passthrough),
 // and derives a `link` route — the shape the render scope binds as $<dir> items.
 //

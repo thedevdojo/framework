@@ -1,1 +1,1 @@
-{"oracle": true, "entries": ["resources/views/pages/index.blade.php"]}
+{"oracle": true, "entries": ["src/pages/index.blade.php"]}

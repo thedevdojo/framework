@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/thedevdojo/framework/blade/render"
+	"github.com/thedevdojo/framework/site"
 	"github.com/thedevdojo/framework/vfs"
 )
 
@@ -81,12 +82,6 @@ func (s Syntax) other() Syntax {
 	return Blade
 }
 
-const (
-	viewsRoot      = "resources/views/"
-	pagesRoot      = viewsRoot + "pages/"
-	componentsRoot = viewsRoot + "components/"
-)
-
 // Result is a conversion: the files to write and the files they replace. When
 // Problems is not empty the site was not converted and both are empty.
 type Result struct {
@@ -95,8 +90,9 @@ type Result struct {
 	Problems []render.Diagnostic // why the site could not be converted
 }
 
-// Site converts every view under resources/views/ that is written in the other
-// syntax into to. opts carries the data the before-and-after render check runs
+// Site converts every page and component of the site (wherever site.Detect
+// finds them: src/pages and src/components, or one of the older places) that is
+// written in the other syntax into to. opts carries the data the before-and-after render check runs
 // with — pass what the site is normally rendered with, so the check exercises
 // the same branches.
 //
@@ -109,10 +105,13 @@ func Site(fs vfs.FS, to Syntax, opts render.Options) Result {
 	}
 	from := to.other()
 
+	layout := site.Detect(fs)
 	var sources []string
-	for _, p := range fs.List(viewsRoot) {
-		if strings.HasSuffix(p, from.Ext()) {
-			sources = append(sources, p)
+	for _, folder := range []string{layout.Pages, layout.Components} {
+		for _, p := range fs.List(folder) {
+			if strings.HasSuffix(p, from.Ext()) {
+				sources = append(sources, p)
+			}
 		}
 	}
 	if len(sources) == 0 {
@@ -128,13 +127,13 @@ func Site(fs vfs.FS, to Syntax, opts render.Options) Result {
 		}
 	}
 
-	pages := discoverPages(fs)
+	pages := discoverPages(fs, layout.Pages)
 	before := compilePages(fs, pages, nil, opts)
 	if to == Studio {
 		res.Problems = append(res.Problems, needsLaravel(before.Diagnostics)...)
 	}
 
-	exists := componentIndex(fs)
+	exists := componentIndex(fs, layout.Components)
 	for _, p := range sources {
 		src, _ := fs.Read(p)
 		out, problems := File(p, src, to, exists)
@@ -172,7 +171,7 @@ func Site(fs vfs.FS, to Syntax, opts render.Options) Result {
 // discoverPages lists every page of the site, in either syntax, sorted. It is
 // protocol.DiscoverPages, restated here because the protocol package drives
 // this one.
-func discoverPages(fs vfs.FS) []string {
+func discoverPages(fs vfs.FS, pagesRoot string) []string {
 	var out []string
 	for _, p := range fs.List(pagesRoot) {
 		if strings.HasSuffix(p, Blade.Ext()) || strings.HasSuffix(p, Studio.Ext()) {
@@ -202,7 +201,7 @@ func compilePages(fs vfs.FS, pages []string, rename func(string) string, opts re
 // componentIndex reports which component files a site has, by path relative to
 // the components folder without an extension — in either syntax, since a
 // component keeps its path when it is converted.
-func componentIndex(fs vfs.FS) func(base string) bool {
+func componentIndex(fs vfs.FS, componentsRoot string) func(base string) bool {
 	set := map[string]bool{}
 	for _, p := range fs.List(componentsRoot) {
 		rel := strings.TrimPrefix(p, componentsRoot)

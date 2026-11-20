@@ -40,7 +40,7 @@ Publish with `php artisan vendor:publish --tag=devdojo-framework-config`.
 
 | Key | Env | Default | Meaning |
 |---|---|---|---|
-| `site_root` | `DEVDOJO_SITE_ROOT` | `null` | Absolute path to a site tree (the directory holding `resources/` and `public/`). Setting it registers the site's views + data bindings — render-only, no routes. |
+| `site_root` | `DEVDOJO_SITE_ROOT` | `null` | Absolute path to a site tree (the directory holding `src/` and `public/`; an older site's `resources/` is read too). Setting it registers the site's views + data bindings — render-only, no routes. |
 | `serve` | `DEVDOJO_SERVE` | `false` | With `site_root`, also register the `Route::fallback` that serves the tree as a live app. |
 | `static_projection` | `DEVDOJO_STATIC_PROJECTION` | `true` | Render `@vite(...)` as the static projection (Tailwind v4 Play CDN `<script>` + each CSS entry inlined in a `<style type="text/tailwindcss">` block) instead of requiring a Vite build. Byte-identical to the Go engine's `@vite` emission. |
 | `binary` | `DEVDOJO_BINARY` | `null` | Absolute path to the compiled `devdojo` binary. Null/empty disables the client (`Engine::isAvailable()` is false). |
@@ -56,7 +56,7 @@ $engine = Engine::fromConfig();          // reads devdojo-framework.binary/timeo
 
 if ($engine->isAvailable()) {
     $result = $engine->compile(new CompileRequest(
-        files:   ['resources/views/pages/index.blade.php' => '<h1>{{ $title }}</h1>'],
+        files:   ['src/pages/index.blade.php' => '<h1>{{ $title }}</h1>'],
         data:    ['title' => 'Hello'],   // optional, merged over the site's own data
         entries: [],                     // optional; empty = render every page
     ));
@@ -67,13 +67,14 @@ if ($engine->isAvailable()) {
                                          // render-on-save host re-renders once they exist)
     $result->errors();                   // Diagnostic[] with kind "error"
     $result->appTier();                  // Diagnostic[] with kind "app-tier"
+    $result->notices;                    // Notice[]: never a reason to fail (an older folder shape, say)
 }
 ```
 
 On the wire this is one `devdojo compile` process per call: the request
 JSON `{"files": {...}, "data": {...}?, "entries": [...]?, "options": {...}?}`
 on stdin, the response
-`{"engine": "x.y.z", "files": {...}, "deps": {...}, "diagnostics": [...]}`
+`{"engine": "x.y.z", "files": {...}, "deps": {...}, "diagnostics": [...], "notices": [...]}`
 on stdout. `options.max_loop_iterations` caps the total `@foreach` iterations
 one entry may render before it aborts with an `error`/`render-budget`
 diagnostic (omitted → the engine's generous default; `CompileRequest` does not
@@ -87,21 +88,27 @@ output. Only process-level failures throw: `BinaryNotFoundException`,
 `BinaryFailedException` (non-zero exit or timeout), `InvalidResponseException`
 (malformed JSON), `EngineVersionException` (version below the minimum).
 
+A **notice** is neither: the site built and will keep building, and the engine
+has something to tell its author (`kind`, `code`, `message`, sometimes `file`).
+Notices come in their own list so a host that fails on any diagnostic is not
+failed by one. Today they are all deprecations about where a site keeps its
+files: `resources-folder`, `views-folder`, `folder-not-read`, `asset-path`.
+
 ## Rendering a site tree
 
 With `site_root` set, the provider registers at boot:
 
-- the site's `resources/views` as a view location — **appended**, so the host
+- the site's `src` as a view location (the folder that holds `pages/`) — **appended**, so the host
   app's own views win on collision (the host can shadow a site view without
   editing the tree);
-- `resources/views/components` as an anonymous-component path;
+- `src/components` as an anonymous-component path;
 - the data contract (`SiteData`), **all of it `View::share`d globally** so
   pages, layouts, and components resolve the same variables: `$site` from
-  `resources/data/site.json`, one variable per collection — a
-  `resources/data/collections/<name>.json` array, or a
-  `resources/data/collections/<name>/<slug>.json` folder of one object per
+  `src/data/site.json`, one variable per collection — a
+  `src/data/collections/<name>.json` array, or a
+  `src/data/collections/<name>/<slug>.json` folder of one object per
   entry, ordered by `date` descending then file name (the folder wins when a
-  name has both) — and one per `resources/data/content/<dir>/` of markdown
+  name has both) — and one per `src/data/content/<dir>/` of markdown
   files. Collections and content
   share first and `site` **last**, so a collection named `site` can never
   displace the site object. Inside a component, an explicitly **passed**

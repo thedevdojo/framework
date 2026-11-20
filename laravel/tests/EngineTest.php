@@ -29,6 +29,18 @@ class EngineTest extends TestCase
         return new Engine(DEVDOJO_TEST_BINARY, 30, $minimumVersion);
     }
 
+    public function test_a_site_in_the_older_folder_compiles_with_a_notice_and_no_diagnostic(): void
+    {
+        $result = $this->engine()->compile(new CompileRequest([
+            'resources/views/pages/index.blade.php' => '<h1>{{ $site->title }}</h1>',
+            'resources/data/site.json' => '{"title":"Hello"}',
+        ]));
+
+        $this->assertSame('<h1>Hello</h1>', $result->file('index.html'));
+        $this->assertSame([], $result->diagnostics);
+        $this->assertSame(['resources-folder'], array_map(fn ($notice) => $notice->code, $result->notices));
+    }
+
     public function test_it_reports_the_binary_as_available(): void
     {
         $this->assertTrue($this->engine()->isAvailable());
@@ -37,13 +49,14 @@ class EngineTest extends TestCase
     public function test_it_compiles_a_one_page_site(): void
     {
         $result = $this->engine()->compile(new CompileRequest([
-            'resources/views/pages/index.blade.php' => '<x-layouts.main><h1>{{ $site->title }}</h1></x-layouts.main>',
-            'resources/views/components/layouts/main.blade.php' => '<!DOCTYPE html><body>{{ $slot }}</body>',
-            'resources/data/site.json' => '{"title":"Hello"}',
+            'src/pages/index.blade.php' => '<x-layouts.main><h1>{{ $site->title }}</h1></x-layouts.main>',
+            'src/components/layouts/main.blade.php' => '<!DOCTYPE html><body>{{ $slot }}</body>',
+            'src/data/site.json' => '{"title":"Hello"}',
         ]));
 
         // engine + files populated.
-        $this->assertSame('1.0.0', $result->engine);
+        $this->assertSame('1.1.0', $result->engine);
+        $this->assertSame([], $result->notices);
         $this->assertSame(
             '<!DOCTYPE html><body><h1>Hello</h1></body>',
             $result->file('index.html')
@@ -52,7 +65,7 @@ class EngineTest extends TestCase
         // deps: output → the source files read to render it.
         $this->assertArrayHasKey('index.html', $result->deps);
         $this->assertContains(
-            'resources/views/components/layouts/main.blade.php',
+            'src/components/layouts/main.blade.php',
             $result->deps['index.html']
         );
 
@@ -65,7 +78,7 @@ class EngineTest extends TestCase
     public function test_app_tier_construct_is_data_and_the_page_still_renders(): void
     {
         $result = $this->engine()->compile(new CompileRequest([
-            'resources/views/pages/index.blade.php' => '@auth<p>secret</p>@endauth',
+            'src/pages/index.blade.php' => '@auth<p>secret</p>@endauth',
         ]));
 
         // No exception; the app-tier construct is reported as data.
@@ -84,7 +97,7 @@ class EngineTest extends TestCase
     public function test_error_diagnostic_is_data_not_an_exception(): void
     {
         $result = $this->engine()->compile(new CompileRequest([
-            'resources/views/pages/index.blade.php' => '<p>{{ $undefined }}</p>',
+            'src/pages/index.blade.php' => '<p>{{ $undefined }}</p>',
         ]));
 
         $errors = $result->errors();
@@ -92,7 +105,7 @@ class EngineTest extends TestCase
         $this->assertTrue($errors[0]->isError());
         $this->assertSame(
             $errors,
-            $result->diagnosticsFor('resources/views/pages/index.blade.php')
+            $result->diagnosticsFor('src/pages/index.blade.php')
         );
 
         // The page is still returned — errors are markers/empties, not aborts.
@@ -103,7 +116,7 @@ class EngineTest extends TestCase
     {
         $this->expectException(EngineVersionException::class);
         $this->engine('99.0.0')->compile(new CompileRequest([
-            'resources/views/pages/index.blade.php' => '<p>hi</p>',
+            'src/pages/index.blade.php' => '<p>hi</p>',
         ]));
     }
 
@@ -115,7 +128,7 @@ class EngineTest extends TestCase
         $big = str_repeat('devdojo ', 200000); // ~1.6MB of pass-through text
 
         $result = $this->engine()->compile(new CompileRequest([
-            'resources/views/pages/index.blade.php' => '<article>'.$big.'</article>',
+            'src/pages/index.blade.php' => '<article>'.$big.'</article>',
         ]));
 
         $this->assertSame('<article>'.$big.'</article>', $result->file('index.html'));

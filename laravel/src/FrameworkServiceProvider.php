@@ -41,8 +41,12 @@ class FrameworkServiceProvider extends ServiceProvider
             // to shadow a site view (a layout, a shared component) without editing
             // the site tree. Append order is therefore correct as-is — do not
             // prepend. (See design spec §5.)
-            View::addLocation($root.'/resources/views');
-            Blade::anonymousComponentPath($root.'/resources/views/components');
+            //
+            // WHERE the site keeps its views is SiteLayout's answer: src/pages
+            // and src/components, or one of the older shapes it still reads.
+            $layout = SiteLayout::detect($root);
+            View::addLocation($layout->viewsDir());
+            Blade::anonymousComponentPath($layout->componentsDir());
             SiteData::share($this->app->make('view'), $root);
 
             // Opt-in serving: register a Route::fallback that turns the site

@@ -98,10 +98,10 @@ func TestStringify(t *testing.T) {
 // TestEchoObjectDiagnoses: echoing an object ({{ $site }}) renders empty with an
 // error/expression diagnostic — the render-tier surface of Stringify's refusal.
 func TestEchoObjectDiagnoses(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{
-		entry:                      "X{{ $site }}Y",
-		"resources/data/site.json": `{"name":"Acme"}`,
+		entry:                "X{{ $site }}Y",
+		"src/data/site.json": `{"name":"Acme"}`,
 	}
 	res := Compile(fs, []string{entry}, Options{})
 	if got := res.Files["index.html"]; got != "XY" {
@@ -117,8 +117,8 @@ func TestEchoObjectDiagnoses(t *testing.T) {
 // preserve the following newline; block directives eat one.
 func TestNewlineModel(t *testing.T) {
 	src := "A{{ $x }}\nB\n@if (true)\nC\n@endif\nD{{-- gone --}}\nE\n"
-	fs := vfs.Mem{"resources/views/pages/index.blade.php": src}
-	res := Compile(fs, []string{"resources/views/pages/index.blade.php"}, Options{
+	fs := vfs.Mem{"src/pages/index.blade.php": src}
+	res := Compile(fs, []string{"src/pages/index.blade.php"}, Options{
 		Data: map[string]any{"x": float64(1)},
 	})
 	if got := res.Files["index.html"]; got != "A1\nB\nC\nD\nE\n" {
@@ -127,17 +127,17 @@ func TestNewlineModel(t *testing.T) {
 	if len(res.Diagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", res.Diagnostics)
 	}
-	if deps := res.Deps["index.html"]; len(deps) != 1 || deps[0] != "resources/views/pages/index.blade.php" {
+	if deps := res.Deps["index.html"]; len(deps) != 1 || deps[0] != "src/pages/index.blade.php" {
 		t.Fatalf("deps = %v", deps)
 	}
 }
 
 func TestOutputNaming(t *testing.T) {
 	cases := map[string]string{
-		"resources/views/pages/about.blade.php":      "about.html",
-		"resources/views/pages/index.blade.php":      "index.html",
-		"resources/views/pages/docs/intro.blade.php": "docs/intro.html",
-		"resources/views/components/card.blade.php":  "components/card.html",
+		"src/pages/about.blade.php":      "about.html",
+		"src/pages/index.blade.php":      "index.html",
+		"src/pages/docs/intro.blade.php": "docs/intro.html",
+		"src/components/card.blade.php":  "components/card.html",
 	}
 	for entry, want := range cases {
 		if got := outputName(entry); got != want {
@@ -153,11 +153,11 @@ func TestOutputNaming(t *testing.T) {
 // outside the tree or write above the destination directory.
 func TestCompileEntryEscapesRejected(t *testing.T) {
 	cases := []string{
-		"resources/views/pages/../../../x.blade.php", // output name would be ../../../x.html
-		"/etc/passwd", // absolute entry
+		"src/pages/../../../x.blade.php", // output name would be ../../../x.html
+		"/etc/passwd",                    // absolute entry
 	}
 	for _, entry := range cases {
-		fs := vfs.Mem{"resources/views/pages/index.blade.php": "hi"}
+		fs := vfs.Mem{"src/pages/index.blade.php": "hi"}
 		res := Compile(fs, []string{entry}, Options{})
 		if len(res.Files) != 0 {
 			t.Errorf("%q: produced output files %v; want none", entry, res.Files)
@@ -183,7 +183,7 @@ func TestCompileEntryEscapesRejected(t *testing.T) {
 func TestCompileViteCannotEscapeRoot(t *testing.T) {
 	base := t.TempDir()
 	root := filepath.Join(base, "a", "b") // root two levels under base
-	pages := filepath.Join(root, "resources", "views", "pages")
+	pages := filepath.Join(root, "src", "pages")
 	if err := os.MkdirAll(pages, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +197,7 @@ func TestCompileViteCannotEscapeRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res := Compile(vfs.Dir(root), []string{"resources/views/pages/index.blade.php"}, Options{})
+	res := Compile(vfs.Dir(root), []string{"src/pages/index.blade.php"}, Options{})
 	if out := res.Files["index.html"]; strings.Contains(out, "SECRETCSS") {
 		t.Fatalf("output leaked a file outside the root: %q", out)
 	}
@@ -222,7 +222,7 @@ func TestEchoDiagnostics(t *testing.T) {
 		{"{{ $arr }}", map[string]any{"arr": []any{float64(1)}}, KindError, "expression"},
 	}
 	for _, c := range cases {
-		entry := "resources/views/pages/index.blade.php"
+		entry := "src/pages/index.blade.php"
 		fs := vfs.Mem{entry: "X" + c.src + "Y"}
 		res := Compile(fs, []string{entry}, Options{Data: c.data})
 		if got := res.Files["index.html"]; got != "XY" {
@@ -244,7 +244,7 @@ func TestEchoDiagnostics(t *testing.T) {
 // TestIfConditionError: a condition that fails to evaluate diagnoses and the
 // branch is treated false.
 func TestIfConditionError(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{entry: "@if ($missing)yes @else no @endif"}
 	res := Compile(fs, []string{entry}, Options{})
 	// The page output's leading space is stripped by the entry-level ltrim (real
@@ -267,7 +267,7 @@ func TestIfConditionError(t *testing.T) {
 // (Foreach is rendered — see control_test.go; Component is rendered — see
 // component_test.go; Vite is rendered — see vite_test.go.)
 func TestUnknownDirectiveRendersLiteral(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	// '>' (non-word) before @csrf gives it the word boundary real Blade's \B@
 	// rule requires, keeping the directive at column 2.
 	src := ">@csrf.done"
@@ -308,7 +308,7 @@ func TestCompileNeverPanics(t *testing.T) {
 		"@foreach ($a as $b => $c => $d)@endforeach", "",
 		"{{ }}", "{{ ]]] }}", "{!! !!}", "@if()@endif", "{{ $a->b->c }}",
 	}
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	for _, s := range seeds {
 		func() {
 			defer func() {

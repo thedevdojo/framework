@@ -1,1 +1,1 @@
-{"entries": ["resources/views/pages/index.blade.php", "resources/views/pages/leading.blade.php"]}
+{"entries": ["src/pages/index.blade.php", "src/pages/leading.blade.php"]}

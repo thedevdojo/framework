@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	htmlEntry  = "resources/views/pages/index.html"
-	bladeEntry = "resources/views/pages/index.blade.php"
+	htmlEntry  = "src/pages/index.html"
+	bladeEntry = "src/pages/index.blade.php"
 )
 
 // compileHTML renders pages/index.html from an in-memory site.
@@ -38,16 +38,16 @@ func requireClean(t *testing.T, diags []Diagnostic) {
 // with tags renders the very same bytes as the same site written in Blade.
 // Each case is one site, twice.
 func TestHTMLRendersLikeBlade(t *testing.T) {
-	const views = "resources/views/"
+	const views = "src/"
 	cases := []struct {
 		name  string
-		data  map[string]string // shared by both: resources/data/**, css
-		html  map[string]string // resources/views/** in the Studio syntax
-		blade map[string]string // resources/views/** in Blade
+		data  map[string]string // shared by both: src/data/**, css
+		html  map[string]string // src/** in the Studio syntax
+		blade map[string]string // src/** in Blade
 	}{
 		{
 			name: "conditions",
-			data: map[string]string{"resources/data/site.json": `{"plan": "team", "beta": false}`},
+			data: map[string]string{"src/data/site.json": `{"plan": "team", "beta": false}`},
 			html: map[string]string{"pages/index.html": `<If condition="site.plan == 'pro'">
   <p>Pro</p>
 <ElseIf condition="site.plan = 'team'">
@@ -74,8 +74,8 @@ func TestHTMLRendersLikeBlade(t *testing.T) {
 		{
 			name: "loops",
 			data: map[string]string{
-				"resources/data/site.json":              `{"name": "Acme", "tag": "x"}`,
-				"resources/data/collections/posts.json": `[{"title": "A", "draft": false}, {"title": "B", "draft": true}, {"title": "C", "draft": false}, {"title": "D", "draft": false}]`,
+				"src/data/site.json":              `{"name": "Acme", "tag": "x"}`,
+				"src/data/collections/posts.json": `[{"title": "A", "draft": false}, {"title": "B", "draft": true}, {"title": "C", "draft": false}, {"title": "D", "draft": false}]`,
 			},
 			html: map[string]string{"pages/index.html": `<ul>
 <Foreach posts="post">
@@ -98,7 +98,7 @@ func TestHTMLRendersLikeBlade(t *testing.T) {
 		},
 		{
 			name: "layout, components, props, slots and the attributes bag",
-			data: map[string]string{"resources/data/site.json": `{"cta": "Start <now>"}`},
+			data: map[string]string{"src/data/site.json": `{"cta": "Start <now>"}`},
 			html: map[string]string{
 				"pages/index.html": `<Layout src="main.html" title="Home">
 <Slot name="head"><meta name="x"></Slot>
@@ -157,16 +157,16 @@ func TestHTMLRendersLikeBlade(t *testing.T) {
 		{
 			name: "output forms and assets",
 			data: map[string]string{
-				"resources/data/site.json": `{"html": "<b>&</b>"}`,
-				"resources/css/site.css":   "@import \"tailwindcss\";\n",
+				"src/data/site.json": `{"html": "<b>&</b>"}`,
+				"src/css/site.css":   "@import \"tailwindcss\";\n",
 			},
 			html: map[string]string{"pages/index.html": `<head>
-<Vite src="resources/css/site.css" />
+<Vite src="src/css/site.css" />
 </head>
 {{ site.html }}|{!! site.html !!}|{{-- gone --}}|@{{ kept }}|{{ site.missing ?? 'fallback' }}
 `},
 			blade: map[string]string{"pages/index.blade.php": `<head>
-@vite(['resources/css/site.css'])
+@vite(['src/css/site.css'])
 </head>
 {{ $site->html }}|{!! $site->html !!}|{{-- gone --}}|@{{ kept }}|{{ $site->missing ?? 'fallback' }}
 `},
@@ -203,13 +203,13 @@ func TestHTMLRendersLikeBlade(t *testing.T) {
 // output name pages/about.blade.php has.
 func TestHTMLPageOutputName(t *testing.T) {
 	cases := map[string]string{
-		"resources/views/pages/index.html":            "index.html",
-		"resources/views/pages/about.html":            "about.html",
-		"resources/views/pages/blog/index.html":       "blog/index.html",
-		"resources/views/pages/index.blade.php":       "index.html",
-		"resources/views/pages/docs/intro.blade.php":  "docs/intro.html",
-		"resources/views/partials/thing.html":         "partials/thing.html",
-		"resources/views/pages/post/[post.slug].html": "post/[post.slug].html",
+		"src/pages/index.html":            "index.html",
+		"src/pages/about.html":            "about.html",
+		"src/pages/blog/index.html":       "blog/index.html",
+		"src/pages/index.blade.php":       "index.html",
+		"src/pages/docs/intro.blade.php":  "docs/intro.html",
+		"src/partials/thing.html":         "partials/thing.html",
+		"src/pages/post/[post.slug].html": "post/[post.slug].html",
 	}
 	for entry, want := range cases {
 		if got := outputName(entry); got != want {
@@ -222,7 +222,7 @@ func TestHTMLPageOutputName(t *testing.T) {
 // folder, then a dash, at each capital letter — .html first, then the Blade
 // file of the same name, so an HTML page can use an existing Blade component.
 func TestHTMLComponentResolution(t *testing.T) {
-	const comps = "resources/views/components/"
+	const comps = "src/components/"
 	cases := []struct {
 		name  string
 		files map[string]string
@@ -290,7 +290,7 @@ func TestHTMLComponentResolution(t *testing.T) {
 // and one diagnostic that says where the engine looked. Every path it looked
 // for joins deps, so creating any of them re-renders the page.
 func TestHTMLComponentMissing(t *testing.T) {
-	const comps = "resources/views/components/"
+	const comps = "src/components/"
 	res := compileHTML(t, map[string]string{htmlEntry: `X<SectionsHero />Y`})
 	if got, want := res.Files["index.html"], `X<!-- devdojo:missing component "sections.hero" -->Y`; got != want {
 		t.Errorf("output = %q; want %q", got, want)
@@ -325,13 +325,13 @@ func TestHTMLComponentMissing(t *testing.T) {
 // its deps are unchanged by the Studio syntax existing.
 func TestBladeTagsStayBlade(t *testing.T) {
 	res := Compile(vfs.Mem{
-		bladeEntry:                               `<x-button />`,
-		"resources/views/components/button.html": "html button",
+		bladeEntry:                   `<x-button />`,
+		"src/components/button.html": "html button",
 	}, []string{bladeEntry}, Options{})
 	if got, want := res.Files["index.html"], `<!-- devdojo:missing component "button" -->`; got != want {
 		t.Errorf("output = %q; want %q", got, want)
 	}
-	wantDeps := []string{bladeEntry, "resources/views/components/button.blade.php"}
+	wantDeps := []string{bladeEntry, "src/components/button.blade.php"}
 	if got := res.Deps["index.html"]; !reflect.DeepEqual(got, wantDeps) {
 		t.Errorf("deps = %v; want %v", got, wantDeps)
 	}
@@ -344,9 +344,9 @@ func TestBladeTagsStayBlade(t *testing.T) {
 // page inside a Blade layout, with a Blade component nested in it.
 func TestHTMLPageUsesBladeLayout(t *testing.T) {
 	out, diags := htmlPage(t, map[string]string{
-		htmlEntry: `<Layout src="main" title="Mixed"><Badge label="new" /></Layout>`,
-		"resources/views/components/layouts/main.blade.php": "@props(['title' => 'x'])\n<title>{{ $title }}</title>{{ $slot }}",
-		"resources/views/components/badge.blade.php":        "@props(['label'])\n<i>{{ $label }}</i>",
+		htmlEntry:                               `<Layout src="main" title="Mixed"><Badge label="new" /></Layout>`,
+		"src/components/layouts/main.blade.php": "@props(['title' => 'x'])\n<title>{{ $title }}</title>{{ $slot }}",
+		"src/components/badge.blade.php":        "@props(['label'])\n<i>{{ $label }}</i>",
 	})
 	requireClean(t, diags)
 	if want := `<title>Mixed</title><i>new</i>`; out != want {
@@ -358,8 +358,8 @@ func TestHTMLPageUsesBladeLayout(t *testing.T) {
 // loop.count and loop.last describe what is shown.
 func TestHTMLForeachLimit(t *testing.T) {
 	site := map[string]string{
-		"resources/data/site.json":              `{"per_page": 2}`,
-		"resources/data/collections/posts.json": `[{"t": "A"}, {"t": "B"}, {"t": "C"}, {"t": "D"}]`,
+		"src/data/site.json":              `{"per_page": 2}`,
+		"src/data/collections/posts.json": `[{"t": "A"}, {"t": "B"}, {"t": "C"}, {"t": "D"}]`,
 	}
 	cases := []struct{ name, page, want string }{
 		{"a number", `<Foreach posts="post" limit="3">{{ post.t }}{{ loop.iteration }}/{{ loop.count }}<If loop.last>!</If> </Foreach>`, `A1/3 B2/3 C3/3! `},
@@ -403,9 +403,9 @@ func TestHTMLForeachLimit(t *testing.T) {
 // in the attributes bag with the embedded values escaped.
 func TestHTMLAttributeInterpolation(t *testing.T) {
 	out, diags := htmlPage(t, map[string]string{
-		"resources/data/site.json": `{"slug": "a&b", "n": 3}`,
-		htmlEntry:                  `<Link href="/posts/{{ site.slug }}" label="{{ site.n }} items" data-id="p-{{ site.slug }}" />`,
-		"resources/views/components/link.html": `<Props href label />
+		"src/data/site.json": `{"slug": "a&b", "n": 3}`,
+		htmlEntry:            `<Link href="/posts/{{ site.slug }}" label="{{ site.n }} items" data-id="p-{{ site.slug }}" />`,
+		"src/components/link.html": `<Props href label />
 <a href="{{ href }}" {{ attributes }}>{{ label }}</a>`,
 	})
 	requireClean(t, diags)
@@ -416,9 +416,9 @@ func TestHTMLAttributeInterpolation(t *testing.T) {
 	// The text around a value is text too: what lands in the attributes bag is
 	// escaped as a whole, so a quote or an ampersand in it cannot break the tag.
 	out, diags = htmlPage(t, map[string]string{
-		"resources/data/site.json":             `{"q": "x y", "n": 3, "on": true}`,
-		htmlEntry:                              `<Link data-u='/s?a=1&q={{ site.q }}' data-t='say "{{ site.n }}"' data-b="{{ site.on }}" data-r="{!! site.q !!}" />`,
-		"resources/views/components/link.html": `<a {{ attributes }}></a>`,
+		"src/data/site.json":       `{"q": "x y", "n": 3, "on": true}`,
+		htmlEntry:                  `<Link data-u='/s?a=1&q={{ site.q }}' data-t='say "{{ site.n }}"' data-b="{{ site.on }}" data-r="{!! site.q !!}" />`,
+		"src/components/link.html": `<a {{ attributes }}></a>`,
 	})
 	requireClean(t, diags)
 	if want := `<a data-u="/s?a=1&amp;q=x y" data-t="say &quot;3&quot;" data-b="1" data-r="x y"></a>`; out != want {
@@ -427,8 +427,8 @@ func TestHTMLAttributeInterpolation(t *testing.T) {
 
 	// An expression that cannot be evaluated is reported at the attribute.
 	_, diags = htmlPage(t, map[string]string{
-		htmlEntry:                              "<Link\n  href=\"/{{ nope }}\" />",
-		"resources/views/components/link.html": `<Props href="#" />{{ href }}`,
+		htmlEntry:                  "<Link\n  href=\"/{{ nope }}\" />",
+		"src/components/link.html": `<Props href="#" />{{ href }}`,
 	})
 	if len(diags) != 1 || diags[0].Construct != "undefined-variable" || diags[0].Line != 2 || diags[0].Col != 3 {
 		t.Errorf("diagnostics = %+v; want one undefined-variable at 2:3", diags)
@@ -453,8 +453,8 @@ func TestHTMLDiagnosticsSpeakHTML(t *testing.T) {
 		{
 			name: "undefined property",
 			files: map[string]string{
-				htmlEntry:                  `{{ site.titel }}`,
-				"resources/data/site.json": `{"title": "x"}`,
+				htmlEntry:            `{{ site.titel }}`,
+				"src/data/site.json": `{"title": "x"}`,
 			},
 			construct: "undefined-property",
 			message:   "undefined property titel",
@@ -462,8 +462,8 @@ func TestHTMLDiagnosticsSpeakHTML(t *testing.T) {
 		{
 			name: "props not first",
 			files: map[string]string{
-				htmlEntry:                              `<Card />`,
-				"resources/views/components/card.html": `<div></div><Props title="x" />`,
+				htmlEntry:                  `<Card />`,
+				"src/components/card.html": `<div></div><Props title="x" />`,
 			},
 			construct: "props",
 			message:   "<Props> is only valid as the first thing in a component file",
@@ -471,8 +471,8 @@ func TestHTMLDiagnosticsSpeakHTML(t *testing.T) {
 		{
 			name: "props default that is not a plain value",
 			files: map[string]string{
-				htmlEntry:                              `<Card />`,
-				"resources/views/components/card.html": `<Props :count="1 + 2" />x`,
+				htmlEntry:                  `<Card />`,
+				"src/components/card.html": `<Props :count="1 + 2" />x`,
 			},
 			construct: "props",
 			message:   `<Props> has a default that is not a plain value — use text, or a number, true, false, null or a list after a colon (:count="3")`,
@@ -480,18 +480,18 @@ func TestHTMLDiagnosticsSpeakHTML(t *testing.T) {
 		{
 			name: "break inside a component, outside its loop",
 			files: map[string]string{
-				htmlEntry:                              `<Foreach site="v"><Card><Break /></Card></Foreach>`,
-				"resources/data/site.json":             `{"a": 1}`,
-				"resources/views/components/card.html": `{{ slot }}`,
+				htmlEntry:                  `<Foreach site="v"><Card><Break /></Card></Foreach>`,
+				"src/data/site.json":       `{"a": 1}`,
+				"src/components/card.html": `{{ slot }}`,
 			},
 			construct: "loop-jump",
 			message:   "<Break> and <Continue> only work directly inside a <Foreach>",
 		},
 		{
 			name:      "vite asset missing",
-			files:     map[string]string{htmlEntry: `<Vite src="resources/css/gone.css" />`},
+			files:     map[string]string{htmlEntry: `<Vite src="src/css/gone.css" />`},
 			construct: "<Vite>",
-			message:   `vite asset "resources/css/gone.css" not found`,
+			message:   `vite asset "src/css/gone.css" not found`,
 		},
 	}
 	for _, tc := range cases {
@@ -565,7 +565,7 @@ func TestPageCollision(t *testing.T) {
 // fall to — in an .html file the same constructs are errors, and the message
 // says what the Studio syntax can do rather than naming a PHP tier.
 func TestHTMLHasNoAppTier(t *testing.T) {
-	site := map[string]string{"resources/data/site.json": `{"n": 2, "a": true, "list": [1]}`}
+	site := map[string]string{"src/data/site.json": `{"n": 2, "a": true, "list": [1]}`}
 	pages := map[string]string{
 		`<Foreach site.list="x">{{ loop.parent }}</Foreach>`: "member .parent is not available — ",
 		`{{ site.list.first() }}`:                            "method call (.first()) — ",
@@ -573,12 +573,12 @@ func TestHTMLHasNoAppTier(t *testing.T) {
 		`{{ site.a ? 'x' : 'y' }}`:                           "",
 		`{{ site.n + 1 }}`:                                   "",
 		`<If condition="count(site)">x</If>`:                 "function call count()",
-		`<Vite src="resources/js/app.js" />`:                 `<Vite> js entry "resources/js/app.js" needs a real bundler; skipped`,
+		`<Vite src="src/js/app.js" />`:                       `<Vite> js entry "src/js/app.js" needs a real bundler; skipped`,
 		`<Card :title="site.n * 2" />`:                       "",
 		`<Foreach site.n="x" limit="1 + 1">x</Foreach>`:      "",
 	}
 	for page, wantPrefix := range pages {
-		files := map[string]string{htmlEntry: page, "resources/views/components/card.html": `<Props title />{{ title }}`}
+		files := map[string]string{htmlEntry: page, "src/components/card.html": `<Props title />{{ title }}`}
 		for k, v := range site {
 			files[k] = v
 		}
@@ -619,8 +619,8 @@ func TestHTMLHasNoAppTier(t *testing.T) {
 // @props(['badge']) would be an undefined variable.
 func TestHTMLBarePropIsOptional(t *testing.T) {
 	out, diags := htmlPage(t, map[string]string{
-		htmlEntry:                              `<Card title="A" badge="New" />|<Card title="B" />`,
-		"resources/views/components/card.html": `<Props title badge /><b>{{ title }}</b><If badge> [{{ badge }}]</If>{{ badge ?? 'none' }}`,
+		htmlEntry:                  `<Card title="A" badge="New" />|<Card title="B" />`,
+		"src/components/card.html": `<Props title badge /><b>{{ title }}</b><If badge> [{{ badge }}]</If>{{ badge ?? 'none' }}`,
 	})
 	requireClean(t, diags)
 	if want := `<b>A</b> [New]New|<b>B</b>none`; out != want {

@@ -1,1 +1,1 @@
-{"entries": ["resources/views/pages/index.blade.php"], "data": {"items": ["alpha", "beta", "gamma"]}}
+{"entries": ["src/pages/index.blade.php"], "data": {"items": ["alpha", "beta", "gamma"]}}

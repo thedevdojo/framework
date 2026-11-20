@@ -41,7 +41,7 @@ The site's folders, its data files and its addresses are the same in both —
 see ["A site"](blade-syntax.md#a-site) and ["Data"](blade-syntax.md#data) in
 the Blade guide, reading `.html` for `.blade.php` and `site` for `$site`.
 
-Pages are discovered under `resources/views/pages/` in both (`about.html` and
+Pages are discovered under `src/pages/` in both (`about.html` and
 `about.blade.php` both serve `/about`; having both is a `page-collision`
 error). A site can mix them: an `.html` page can use a `.blade.php` layout or
 component. The reverse is not true — a Blade `<x-card>` finds only
@@ -68,7 +68,7 @@ component. The reverse is not true — a Blade `<x-card>` finds only
 | `<Slot />` (inside a component file) | `{{ $slot }}` |
 | `<Slot name="head" />` (inside a component file) | `{{ $head ?? '' }}` |
 | `<Props title="Untitled" :count="3" badge />` | `@props(['title' => 'Untitled', 'count' => 3, 'badge' => null])` |
-| `<Vite src="resources/css/site.css" />` | `@vite(['resources/css/site.css'])` |
+| `<Vite src="src/css/site.css" />` | `@vite(['src/css/site.css'])` |
 | `<a {{ class(['btn', 'on' => active]) }}>` | `<a @class(['btn', 'on' => $active])>` |
 | `<Card title="Hi {{ name }}" />` | `<x-card :title="'Hi ' . $name" />` |
 
@@ -137,9 +137,9 @@ whenever nothing inside asks how long the list is.
 
 All three are the same thing — a component file — reached three ways:
 
-- `<Layout src="main.html">` → `resources/views/components/layouts/main.html`
-- `<Include src="button.html">` → `resources/views/components/button.html`
-- `<Button>` → `resources/views/components/button.html`
+- `<Layout src="main.html">` → `src/components/layouts/main.html`
+- `<Include src="button.html">` → `src/components/button.html`
+- `<Button>` → `src/components/button.html`
 
 `src` is a file path below that folder (`src="marketing/wide.html"`); the
 extension is optional. `<layout>` and `<include>` may be written lowercase, the
@@ -232,15 +232,15 @@ devdojo convert my-site --to blade --dry-run  # say what would change, touch not
 
 (`--to html` is the Studio syntax's older name and still works.)
 
-Every view under `resources/views/` written in the other syntax is rewritten
+Every view under `src/` written in the other syntax is rewritten
 in place — `about.blade.php` becomes `about.html`, or the reverse. Data, CSS
 and everything else stay as they are. With no directory the same thing speaks
 JSON, for a host that keeps its files elsewhere:
 
 ```bash
-echo '{"to": "studio", "files": {"resources/views/pages/index.blade.php": "@if ($on) yes @endif"}, "data": {"on": true}}' \
+echo '{"to": "studio", "files": {"src/pages/index.blade.php": "@if ($on) yes @endif"}, "data": {"on": true}}' \
   | devdojo convert
-# {"engine":"1.0.0","files":{"resources/views/pages/index.html":"<If on> yes </If>"},"removed":["resources/views/pages/index.blade.php"],"diagnostics":[]}
+# {"engine":"1.1.0","files":{"src/pages/index.html":"<If on> yes </If>"},"removed":["src/pages/index.blade.php"],"diagnostics":[]}
 ```
 
 **Exact, or not at all.** The two syntaxes are two spellings of one token
@@ -309,7 +309,7 @@ spelling: Blade's *required* prop. `@props(['items'])` becomes
 a page that forgot it now gets an empty value where Blade would have stopped
 with an error.
 
-The render check uses the data the site ships with (`resources/data/`), plus
+The render check uses the data the site ships with (`src/data/`), plus
 whatever the JSON form passes as `data`. Hand it what the site is normally
 rendered with, so the check walks the same branches.
 

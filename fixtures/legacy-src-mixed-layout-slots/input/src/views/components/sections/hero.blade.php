@@ -1,0 +1,2 @@
+@props(['heading' => 'Hello'])
+<section><h1>{{ $heading }}</h1></section>

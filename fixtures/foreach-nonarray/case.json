@@ -1,1 +1,1 @@
-{"entries": ["resources/views/pages/index.blade.php"], "oracle": false, "data": {"items": "not an array"}, "diagnostics": [{"kind": "error", "construct": "foreach", "file": "resources/views/pages/index.blade.php", "line": 2}]}
+{"entries": ["src/pages/index.blade.php"], "oracle": false, "data": {"items": "not an array"}, "diagnostics": [{"kind": "error", "construct": "foreach", "file": "src/pages/index.blade.php", "line": 2}]}

@@ -47,7 +47,7 @@ func FuzzCompile(f *testing.F) {
 		f.Add(s)
 	}
 
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	data := map[string]any{
 		"a": true, "b": false, "x": "v", "h": "<b>x</b>",
 		"rows": []any{"a", "b"}, "n": float64(2),
@@ -93,7 +93,7 @@ func FuzzCompileHTML(f *testing.F) {
 		f.Add(s)
 	}
 
-	entry := "resources/views/pages/index.html"
+	entry := "src/pages/index.html"
 	data := map[string]any{
 		"a": true, "b": false, "x": "v", "h": "<b>x</b>",
 		"rows": []any{"a", "b"}, "n": float64(2),
@@ -106,14 +106,14 @@ func FuzzCompileHTML(f *testing.F) {
 			}
 		}()
 		res := Compile(vfs.Mem{
-			entry:                                  src,
-			"resources/views/components/card.html": `<Props title="T" /><div {{ attributes }}>{{ title }}<Slot /></div>`,
-			"resources/views/components/old.blade.php":          `@props(['label' => 'L'])<b>{{ $label }}</b>`,
-			"resources/views/components/recur.html":             `<Recur />`,
-			"resources/views/components/layouts/main.html":      `<html>{{ slot }}</html>`,
-			"resources/views/components/sections/hero.html":     `<h1><Slot /></h1>`,
-			"resources/views/components/sections-hero.html":     `<h2></h2>`,
-			"resources/views/components/sections/hero/big.html": src,
+			entry:                                   src,
+			"src/components/card.html":              `<Props title="T" /><div {{ attributes }}>{{ title }}<Slot /></div>`,
+			"src/components/old.blade.php":          `@props(['label' => 'L'])<b>{{ $label }}</b>`,
+			"src/components/recur.html":             `<Recur />`,
+			"src/components/layouts/main.html":      `<html>{{ slot }}</html>`,
+			"src/components/sections/hero.html":     `<h1><Slot /></h1>`,
+			"src/components/sections-hero.html":     `<h2></h2>`,
+			"src/components/sections/hero/big.html": src,
 		}, []string{entry}, Options{Data: data})
 		for _, d := range res.Diagnostics {
 			if strings.HasSuffix(d.File, ".html") && strings.HasPrefix(d.Construct, "@") {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/thedevdojo/framework/blade/convert"
 	"github.com/thedevdojo/framework/blade/render"
+	"github.com/thedevdojo/framework/site"
 	"github.com/thedevdojo/framework/vfs"
 )
 
@@ -86,8 +87,10 @@ func TestFixturesConvert(t *testing.T) {
 
 // hasViews reports whether a site has any view written in syntax.
 func hasViews(files map[string]string, syntax convert.Syntax) bool {
+	layout := site.Detect(vfs.Mem(files))
 	for p := range files {
-		if strings.HasPrefix(p, "resources/views/") && strings.HasSuffix(p, syntax.Ext()) {
+		view := strings.HasPrefix(p, layout.Pages) || strings.HasPrefix(p, layout.Components)
+		if view && strings.HasSuffix(p, syntax.Ext()) {
 			return true
 		}
 	}

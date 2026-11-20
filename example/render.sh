@@ -21,9 +21,9 @@ fi
 
 cd "$site"
 
-# Bundle resources/ and public/ into the protocol's {"files": {...}} document.
+# Bundle src/ (or resources/, for an older site) and public/ into the protocol's {"files": {...}} document.
 dirs=()
-for d in resources public; do [ -d "$d" ] && dirs+=("$d"); done
+for d in src resources public; do [ -d "$d" ] && dirs+=("$d"); done
 input=$(find "${dirs[@]}" -type f | while read -r f; do
     jq -n --arg k "$f" --rawfile v "$f" '{($k): $v}'
 done | jq -s '{files: (add // {})}')

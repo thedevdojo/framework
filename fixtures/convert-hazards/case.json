@@ -1,5 +1,5 @@
 {
-  "entries": ["resources/views/pages/index.blade.php"],
+  "entries": ["src/pages/index.blade.php"],
   "data": {"a": true, "b": false, "name": "Ada & Bob", "id": 7, "items": ["p", "q", "r"]},
   "oracle": true
 }

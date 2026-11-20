@@ -75,8 +75,8 @@ class PageResolverTest extends TestCase
     public function test_no_404_page(): void
     {
         $bare = sys_get_temp_dir().'/pk-page-resolver-bare-'.uniqid();
-        mkdir($bare.'/resources/views/pages', 0755, true);
-        file_put_contents($bare.'/resources/views/pages/index.blade.php', 'home');
+        mkdir($bare.'/src/pages', 0755, true);
+        file_put_contents($bare.'/src/pages/index.blade.php', 'home');
 
         try {
             $this->assertNull(PageResolver::resolve($bare, '/missing'));
@@ -99,7 +99,7 @@ class PageResolverTest extends TestCase
 
     private function writePage(string $relative, string $body): void
     {
-        $path = $this->root.'/resources/views/pages/'.$relative;
+        $path = $this->root.'/src/pages/'.$relative;
         @mkdir(dirname($path), 0755, true);
         file_put_contents($path, $body);
     }

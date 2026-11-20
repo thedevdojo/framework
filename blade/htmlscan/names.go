@@ -8,7 +8,7 @@ import "strings"
 const maxFolderGaps = 5
 
 // Candidates maps a component tag name to the component files it may name, as
-// paths relative to resources/views/components without an extension, in the
+// paths relative to the components folder (src/components) without an extension, in the
 // order the renderer tries them.
 //
 // The tag is split into words at its capital letters. Between two words the
@@ -99,7 +99,7 @@ func dotted(base string) string {
 }
 
 // srcBase resolves the src of a <Layout> or <Include> to a component base
-// path: dir (the folder under resources/views/components the tag looks in)
+// path: dir (the folder under the components folder the tag looks in)
 // plus src without its extension. It refuses an empty src and any src with an
 // empty, "." or ".." segment, so a tag can never name a file outside the
 // components folder.

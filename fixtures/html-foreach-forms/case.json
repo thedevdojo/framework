@@ -1,6 +1,6 @@
 {
   "entries": [
-    "resources/views/pages/index.html"
+    "src/pages/index.html"
   ],
   "data": {
     "plans": {

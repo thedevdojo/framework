@@ -1,1 +1,1 @@
-{"entries": ["resources/views/pages/index.blade.php"], "data": {"items": ["a", "skip", "b", "c", "d"]}}
+{"entries": ["src/pages/index.blade.php"], "data": {"items": ["a", "skip", "b", "c", "d"]}}

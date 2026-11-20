@@ -16,7 +16,9 @@ import (
 	"github.com/thedevdojo/framework/blade"
 	"github.com/thedevdojo/framework/blade/convert"
 	"github.com/thedevdojo/framework/blade/render"
+	"github.com/thedevdojo/framework/migrate"
 	"github.com/thedevdojo/framework/protocol"
+	"github.com/thedevdojo/framework/site"
 	"github.com/thedevdojo/framework/vfs"
 )
 
@@ -39,6 +41,8 @@ func run(args []string) int {
 		return cmdLint(args[1:])
 	case "convert":
 		return cmdConvert(args[1:])
+	case "migrate":
+		return cmdMigrate(args[1:])
 	case "version":
 		fmt.Printf("devdojo %s\n", blade.Version)
 		return 0
@@ -57,6 +61,11 @@ Commands:
   convert <dir> --to studio|blade [--dry-run]
                  Rewrite every view under <dir> in the other syntax, in place.
                  The site must render exactly as before or nothing is changed.
+                 With no <dir>: the same over the JSON protocol on stdin/stdout
+  migrate <dir> [--dry-run]
+                 Move a site kept in resources/ (or with a views/ folder) into
+                 src/, with pages in src/pages and components in src/components.
+                 The site must render exactly as before or nothing is moved.
                  With no <dir>: the same over the JSON protocol on stdin/stdout
   version        Print the engine version
 
@@ -81,8 +90,8 @@ func cmdCompile() int {
 
 // cmdLint compiles every page under <dir> (vfs.Dir, the same discovery the
 // protocol uses when entries are omitted — protocol.DiscoverPages: every
-// .blade.php and .html file under resources/views/pages/, each read in the
-// syntax its extension names) and prints each diagnostic
+// .blade.php and .html file in the site's pages folder (src/pages/), each read
+// in the syntax its extension names) and prints each diagnostic
 // as `file:line:col [kind] message`, sorted by file then line then column.
 //
 // Lint merges two sources: render.Compile's error/app-tier diagnostics, and
@@ -138,9 +147,151 @@ func cmdLint(args []string) int {
 			hasError = true
 		}
 	}
+	// What the site's author should know that is not a problem (it still keeps
+	// its source in resources/, say) goes to stderr: stdout stays empty for a
+	// clean site, and the exit code is untouched.
+	for _, n := range result.Notices {
+		fmt.Fprintln(os.Stderr, "devdojo: "+n.Message)
+	}
 	if hasError {
 		return 1
 	}
+	return 0
+}
+
+const migrateUsage = "usage: devdojo migrate <dir> [--dry-run]"
+
+// cmdMigrate moves a site in one of the older folder shapes into src/.
+//
+// With a directory it works on disk, in place. migrate.Site decides whether
+// anything happens at all: the site moves whole, rendering byte for byte as
+// before, or not a single file is touched and the reasons are printed (exit
+// 1). --dry-run prints every move and stops.
+//
+// With no arguments it speaks JSON on stdin/stdout (protocol.RunMigrate), for
+// a host that holds the site in memory.
+func cmdMigrate(args []string) int {
+	if len(args) == 0 {
+		if err := protocol.RunMigrate(os.Stdin, os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, "devdojo migrate:", err)
+			return 1
+		}
+		return 0
+	}
+
+	var dir string
+	dryRun := false
+	for _, a := range args {
+		switch {
+		case a == "--dry-run":
+			dryRun = true
+		case strings.HasPrefix(a, "-") || dir != "":
+			fmt.Fprintln(os.Stderr, migrateUsage)
+			return 2
+		default:
+			dir = a
+		}
+	}
+	if dir == "" {
+		fmt.Fprintln(os.Stderr, migrateUsage)
+		return 2
+	}
+	info, err := os.Stat(dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "devdojo migrate: cannot access %q: %v\n", dir, err)
+		return 2
+	}
+	if !info.IsDir() {
+		fmt.Fprintf(os.Stderr, "devdojo migrate: %q is not a directory\n", dir)
+		return 2
+	}
+
+	res := migrate.Site(vfs.Dir(dir), render.Options{})
+	if len(res.Problems) > 0 {
+		for _, p := range res.Problems {
+			fmt.Printf("%s %s\n", p.File, p.Message)
+		}
+		fmt.Printf("\nNothing was moved: %s first.\n", plural(len(res.Problems), "thing needs", "things need")+" fixing")
+		return 1
+	}
+	if len(res.Moves) == 0 {
+		fmt.Println("Nothing to move: this site is already in src/, with pages in src/pages and components in src/components.")
+		return 0
+	}
+	if dryRun {
+		for _, m := range res.Moves {
+			fmt.Printf("%s → %s\n", m.From, m.To)
+		}
+		fmt.Printf("\nWould move %s to src/. Nothing was changed.\n", plural(len(res.Moves), "file", "files"))
+		return 0
+	}
+
+	on := func(rel string) string { return filepath.Join(dir, filepath.FromSlash(rel)) }
+
+	// Put every file in its new place before taking any old one away. A file
+	// whose text changes is written new and its original kept until the end;
+	// every other file is renamed. If anything fails, what was done is undone
+	// and the site is exactly as it was.
+	var renamed, written []migrate.Move
+	undo := func() {
+		for _, m := range written {
+			os.Remove(on(m.To))
+		}
+		for _, m := range renamed {
+			os.Rename(on(m.To), on(m.From))
+		}
+	}
+	for _, m := range res.Moves {
+		if err := os.MkdirAll(filepath.Dir(on(m.To)), 0o755); err != nil {
+			undo()
+			fmt.Fprintf(os.Stderr, "devdojo migrate: %v\nNothing was moved.\n", err)
+			return 1
+		}
+		if body, changed := res.Files[m.To]; changed {
+			mode := os.FileMode(0o644)
+			if st, err := os.Stat(on(m.From)); err == nil {
+				mode = st.Mode().Perm()
+			}
+			err = os.WriteFile(on(m.To), []byte(body), mode)
+			if err == nil {
+				written = append(written, m)
+			}
+		} else {
+			err = os.Rename(on(m.From), on(m.To))
+			if err == nil {
+				renamed = append(renamed, m)
+			}
+		}
+		if err != nil {
+			undo()
+			fmt.Fprintf(os.Stderr, "devdojo migrate: %v\nNothing was moved.\n", err)
+			return 1
+		}
+	}
+	for _, m := range written {
+		if err := os.Remove(on(m.From)); err != nil {
+			fmt.Fprintf(os.Stderr, "devdojo migrate: moved, but could not remove %s: %v\n", m.From, err)
+			return 1
+		}
+	}
+	// Take away the folders the move emptied, deepest first. os.Remove refuses
+	// a folder that still holds something, which is exactly the rule wanted.
+	emptied := map[string]bool{}
+	for _, m := range res.Moves {
+		for d := filepath.Dir(on(m.From)); d != filepath.Clean(dir) && strings.HasPrefix(d, filepath.Clean(dir)); d = filepath.Dir(d) {
+			emptied[d] = true
+		}
+	}
+	dirs := make([]string, 0, len(emptied))
+	for d := range emptied {
+		dirs = append(dirs, d)
+	}
+	sort.Slice(dirs, func(i, j int) bool { return len(dirs[i]) > len(dirs[j]) })
+	for _, d := range dirs {
+		os.Remove(d)
+	}
+
+	fmt.Printf("Moved %s to src/.\n", plural(len(res.Moves), "file", "files"))
 	return 0
 }
 
@@ -237,7 +388,7 @@ func cmdConvert(args []string) int {
 		return 1
 	}
 	if len(res.Files) == 0 {
-		fmt.Printf("Nothing to convert: no %s views under %s.\n", other(syntax).Ext(), filepath.Join(dir, "resources", "views"))
+		fmt.Printf("Nothing to convert: no %s pages or components under %s.\n", other(syntax).Ext(), filepath.Join(dir, filepath.FromSlash(site.Detect(vfs.Dir(dir)).Root)))
 		return 0
 	}
 

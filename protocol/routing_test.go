@@ -8,11 +8,11 @@ import (
 
 func routingTree() vfs.FS {
 	return vfs.Mem{
-		"resources/views/pages/index.blade.php":       "home",
-		"resources/views/pages/about.blade.php":       "about-flat",
-		"resources/views/pages/about/index.blade.php": "about-nested",
-		"resources/views/pages/blog/index.blade.php":  "blog",
-		"resources/views/pages/404.blade.php":         "not found",
+		"src/pages/index.blade.php":       "home",
+		"src/pages/about.blade.php":       "about-flat",
+		"src/pages/about/index.blade.php": "about-nested",
+		"src/pages/blog/index.blade.php":  "blog",
+		"src/pages/404.blade.php":         "not found",
 	}
 }
 
@@ -25,12 +25,12 @@ func TestResolveURL(t *testing.T) {
 		url   string
 		entry string
 	}{
-		{"/", "resources/views/pages/index.blade.php"},
-		{"", "resources/views/pages/index.blade.php"},
-		{"/about", "resources/views/pages/about.blade.php"},     // flat wins over about/index
-		{"/about/", "resources/views/pages/about.blade.php"},    // trailing slash ignored
-		{"/blog", "resources/views/pages/blog/index.blade.php"}, // directory index
-		{"/missing", "resources/views/pages/404.blade.php"},     // 404 fallback
+		{"/", "src/pages/index.blade.php"},
+		{"", "src/pages/index.blade.php"},
+		{"/about", "src/pages/about.blade.php"},     // flat wins over about/index
+		{"/about/", "src/pages/about.blade.php"},    // trailing slash ignored
+		{"/blog", "src/pages/blog/index.blade.php"}, // directory index
+		{"/missing", "src/pages/404.blade.php"},     // 404 fallback
 	}
 	for _, c := range cases {
 		entry, ok := ResolveURL(fs, c.url)
@@ -42,7 +42,7 @@ func TestResolveURL(t *testing.T) {
 
 // TestResolveURLNo404: with no 404 page, an unmatched URL resolves to nothing.
 func TestResolveURLNo404(t *testing.T) {
-	fs := vfs.Mem{"resources/views/pages/index.blade.php": "home"}
+	fs := vfs.Mem{"src/pages/index.blade.php": "home"}
 	if entry, ok := ResolveURL(fs, "/missing"); ok {
 		t.Errorf("ResolveURL(/missing) = (%q, true), want (\"\", false) without a 404 page", entry)
 	}
@@ -51,7 +51,7 @@ func TestResolveURLNo404(t *testing.T) {
 // TestResolveURLTraversalGuarded: a URL that would escape the pages root
 // resolves to nothing (no 404 page present), never a file outside pages/.
 func TestResolveURLTraversalGuarded(t *testing.T) {
-	fs := vfs.Mem{"resources/views/pages/index.blade.php": "home"}
+	fs := vfs.Mem{"src/pages/index.blade.php": "home"}
 	if entry, ok := ResolveURL(fs, "/../secret"); ok {
 		t.Errorf("ResolveURL(/../secret) = (%q, true), want (\"\", false)", entry)
 	}
@@ -62,23 +62,23 @@ func TestResolveURLTraversalGuarded(t *testing.T) {
 // renderer's page-collision diagnostic names them in.
 func TestResolveURLHTMLPages(t *testing.T) {
 	fs := vfs.Mem{
-		"resources/views/pages/index.html":           "home",
-		"resources/views/pages/about.html":           "about-flat",
-		"resources/views/pages/about/index.html":     "about-nested",
-		"resources/views/pages/blog/index.html":      "blog",
-		"resources/views/pages/pricing.blade.php":    "pricing-blade",
-		"resources/views/pages/pricing.html":         "pricing-html",
-		"resources/views/pages/docs/index.blade.php": "docs-nested-blade",
-		"resources/views/pages/docs.html":            "docs-flat-html",
-		"resources/views/pages/404.html":             "not found",
+		"src/pages/index.html":           "home",
+		"src/pages/about.html":           "about-flat",
+		"src/pages/about/index.html":     "about-nested",
+		"src/pages/blog/index.html":      "blog",
+		"src/pages/pricing.blade.php":    "pricing-blade",
+		"src/pages/pricing.html":         "pricing-html",
+		"src/pages/docs/index.blade.php": "docs-nested-blade",
+		"src/pages/docs.html":            "docs-flat-html",
+		"src/pages/404.html":             "not found",
 	}
 	cases := []struct{ url, entry string }{
-		{"/", "resources/views/pages/index.html"},
-		{"/about", "resources/views/pages/about.html"},     // flat wins over about/index
-		{"/blog", "resources/views/pages/blog/index.html"}, // directory index
-		{"/pricing", "resources/views/pages/pricing.blade.php"},
-		{"/docs", "resources/views/pages/docs.html"}, // a flat page still wins over a directory index
-		{"/missing", "resources/views/pages/404.html"},
+		{"/", "src/pages/index.html"},
+		{"/about", "src/pages/about.html"},     // flat wins over about/index
+		{"/blog", "src/pages/blog/index.html"}, // directory index
+		{"/pricing", "src/pages/pricing.blade.php"},
+		{"/docs", "src/pages/docs.html"}, // a flat page still wins over a directory index
+		{"/missing", "src/pages/404.html"},
 	}
 	for _, c := range cases {
 		entry, ok := ResolveURL(fs, c.url)
@@ -92,19 +92,19 @@ func TestResolveURLHTMLPages(t *testing.T) {
 // pages/ — nothing else in that folder is.
 func TestDiscoverPagesBothSyntaxes(t *testing.T) {
 	fs := vfs.Mem{
-		"resources/views/pages/index.html":         "",
-		"resources/views/pages/about.blade.php":    "",
-		"resources/views/pages/blog/post.html":     "",
-		"resources/views/pages/notes.md":           "",
-		"resources/views/pages/hero.yml":           "",
-		"resources/views/components/button.html":   "",
-		"resources/views/components/nav.blade.php": "",
+		"src/pages/index.html":         "",
+		"src/pages/about.blade.php":    "",
+		"src/pages/blog/post.html":     "",
+		"src/pages/notes.md":           "",
+		"src/pages/hero.yml":           "",
+		"src/components/button.html":   "",
+		"src/components/nav.blade.php": "",
 	}
 	got := DiscoverPages(fs)
 	want := []string{
-		"resources/views/pages/about.blade.php",
-		"resources/views/pages/blog/post.html",
-		"resources/views/pages/index.html",
+		"src/pages/about.blade.php",
+		"src/pages/blog/post.html",
+		"src/pages/index.html",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("DiscoverPages = %v; want %v", got, want)

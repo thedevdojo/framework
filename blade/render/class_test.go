@@ -13,7 +13,7 @@ import (
 // other compiled directive they eat one following newline.
 
 func TestClassDirective(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{entry: `<span @class(['p-4', 'font-bold' => $active, 'hidden' => $off])>x</span>`}
 	res := Compile(fs, []string{entry}, Options{Data: map[string]any{"active": true, "off": false}})
 	if len(res.Diagnostics) != 0 {
@@ -26,7 +26,7 @@ func TestClassDirective(t *testing.T) {
 }
 
 func TestClassDirectiveVariableEntry(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{entry: `<i @class([$cls, 'b' => 1])></i>`}
 	res := Compile(fs, []string{entry}, Options{Data: map[string]any{"cls": "a"}})
 	want := `<i class="a b"></i>`
@@ -36,7 +36,7 @@ func TestClassDirectiveVariableEntry(t *testing.T) {
 }
 
 func TestClassDirectiveEmpty(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{entry: `<i @class([])></i>`}
 	res := Compile(fs, []string{entry}, Options{})
 	if got, want := res.Files["index.html"], `<i class=""></i>`; got != want {
@@ -47,7 +47,7 @@ func TestClassDirectiveEmpty(t *testing.T) {
 // A condition that fails to evaluate is diagnosed and the whole directive
 // renders nothing (real Blade would have fataled mid-echo).
 func TestClassDirectiveEvalError(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{entry: `<i @class(['a' => $nope])></i>`}
 	res := Compile(fs, []string{entry}, Options{})
 	if got, want := res.Files["index.html"], `<i ></i>`; got != want {
@@ -59,7 +59,7 @@ func TestClassDirectiveEvalError(t *testing.T) {
 }
 
 func TestClassDirectiveEatsNewline(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{entry: "<i @class(['a'])\n></i>"}
 	res := Compile(fs, []string{entry}, Options{})
 	if got, want := res.Files["index.html"], `<i class="a"></i>`; got != want {
@@ -68,7 +68,7 @@ func TestClassDirectiveEatsNewline(t *testing.T) {
 }
 
 func TestStyleDirective(t *testing.T) {
-	entry := "resources/views/pages/index.blade.php"
+	entry := "src/pages/index.blade.php"
 	fs := vfs.Mem{entry: `<i @style(['color: red', 'font-weight: bold' => $b, 'display: none' => $off])></i>`}
 	res := Compile(fs, []string{entry}, Options{Data: map[string]any{"b": true, "off": false}})
 	if len(res.Diagnostics) != 0 {
@@ -83,8 +83,8 @@ func TestStyleDirective(t *testing.T) {
 // @class inside a COMPONENT file, driven by the component's own props.
 func TestClassDirectiveInComponent(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry: `<x-badge :on="true"/>`,
-		"resources/views/components/badge.blade.php": `@props(['on' => false])<b @class(['lit' => $on])>!</b>`,
+		pageEntry:                        `<x-badge :on="true"/>`,
+		"src/components/badge.blade.php": `@props(['on' => false])<b @class(['lit' => $on])>!</b>`,
 	}, nil)
 	if len(res.Diagnostics) != 0 {
 		t.Fatalf("diagnostics = %v", res.Diagnostics)

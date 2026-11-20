@@ -8,6 +8,7 @@ import (
 	"github.com/thedevdojo/framework/blade/expr"
 	"github.com/thedevdojo/framework/blade/parser"
 	"github.com/thedevdojo/framework/blade/scanner"
+	"github.com/thedevdojo/framework/site"
 )
 
 // componentMaxDepth caps component nesting. A component file rendered deeper than
@@ -44,6 +45,14 @@ type renderCtx struct {
 	// stays out of it: the protocol's data map is per-page view data and, like
 	// real Blade's per-view data, never reaches a component's isolated scope.
 	shared map[string]expr.Value
+	// layout is where this site keeps its files (site.Detect, once per
+	// Compile). A renderer built without Compile has the zero Layout; the
+	// accessors below fall back to the default one.
+	layout site.Layout
+	// notices collects what a render learns that the site's author should be
+	// told but that is not a problem (an asset named in the old folder). It is
+	// shared by every entry of a Compile.
+	notices *[]site.Notice
 	// loopCap / loopUsed implement the per-entry @foreach iteration budget
 	// (Options.MaxLoopIterations): every renderer sharing this ctx — the page,
 	// its components, its slots — draws from the same allowance. exceeded
@@ -110,7 +119,7 @@ func (r *renderer) renderComponent(node *ast.Component) {
 	var path string
 	var src []byte
 	found := false
-	for _, candidate := range componentFiles(node) {
+	for _, candidate := range componentFiles(r.ctx.componentsRoot(), node) {
 		r.ctx.deps.add(candidate)
 		if b, ok := r.ctx.fs.Read(candidate); ok {
 			path, src, found = candidate, b, true
@@ -119,7 +128,7 @@ func (r *renderer) renderComponent(node *ast.Component) {
 	}
 	if !found {
 		r.sb.WriteString(missingMarker(node.Name))
-		r.diag(node.P, KindError, "component-missing", missingMessage(node))
+		r.diag(node.P, KindError, "component-missing", missingMessage(r.ctx.componentsRoot(), node))
 		return
 	}
 
@@ -398,12 +407,24 @@ func extractLegalProps(nodes []ast.Node) *ast.Props {
 	return nil
 }
 
-// componentsRoot is where component files live, in both syntaxes.
-const componentsRoot = "resources/views/components/"
+// componentsRoot is where this site's component files live, in both syntaxes
+// (src/components/ unless the site uses one of the older shapes).
+func (c *renderCtx) componentsRoot() string {
+	return c.siteLayout().Components
+}
+
+// siteLayout is the layout this render reads from: the one Compile detected,
+// or the default for a renderer built without Compile (as some unit tests do).
+func (c *renderCtx) siteLayout() site.Layout {
+	if c == nil || c.layout.Root == "" {
+		return site.Default()
+	}
+	return c.layout
+}
 
 // componentPath maps a dotted component name to its exact source file:
-// sections.hero → resources/views/components/sections/hero.blade.php.
-func componentPath(name string) string {
+// sections.hero → src/components/sections/hero.blade.php.
+func componentPath(componentsRoot, name string) string {
 	return componentsRoot + strings.ReplaceAll(name, ".", "/") + ".blade.php"
 }
 
@@ -417,9 +438,9 @@ func componentPath(name string) string {
 // A Studio-syntax tag carries its candidates (see htmlscan.Candidates): each is
 // tried as .html and then as .blade.php, so an .html page can use a component
 // from an existing Blade library unchanged.
-func componentFiles(node *ast.Component) []string {
+func componentFiles(componentsRoot string, node *ast.Component) []string {
 	if len(node.Candidates) == 0 {
-		return []string{componentPath(node.Name)}
+		return []string{componentPath(componentsRoot, node.Name)}
 	}
 	out := make([]string, 0, 2*len(node.Candidates))
 	for _, base := range node.Candidates {
@@ -435,7 +456,7 @@ const missingMessageMaxPaths = 4
 // missingMessage is the diagnostic text for a component no file was found for.
 // For a Studio-syntax tag it lists where the engine looked, because the tag
 // alone (<SectionsHero>) does not say which file name it expects.
-func missingMessage(node *ast.Component) string {
+func missingMessage(componentsRoot string, node *ast.Component) string {
 	if node.Tag == "" {
 		return "component \"" + node.Name + "\" not found"
 	}

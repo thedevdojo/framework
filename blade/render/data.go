@@ -6,18 +6,15 @@ import (
 
 	"github.com/thedevdojo/framework/blade/expr"
 	"github.com/thedevdojo/framework/content"
+	"github.com/thedevdojo/framework/site"
 	"github.com/thedevdojo/framework/vfs"
 )
 
-// Data-source layout under the site root. site.json is a global object; every
-// <name>.json under collections/ — or every <name>/ folder of one JSON object
-// per entry — is a named array binding; every <dir>/*.md under content/ is a
-// named collection of rendered markdown items.
-const (
-	siteDataPath   = "resources/data/site.json"
-	collectionsDir = "resources/data/collections/"
-	contentDir     = "resources/data/content/"
-)
+// Data sources, under the site's data folder (site.Layout says where that is).
+// site.json is a global object; every <name>.json under collections/ — or
+// every <name>/ folder of one JSON object per entry — is a named array
+// binding; every <dir>/*.md under content/ is a named collection of rendered
+// markdown items.
 
 // siteData is the assembled data context for one Compile: the global $site
 // object, the GLOBAL shared bindings (collections + content), and the
@@ -47,27 +44,27 @@ type siteData struct {
 // ORIGINAL collection/content bindings, both unaffected by any data override,
 // because components see the SHARED data, not per-page data (parity with real
 // Blade's View::share vs. per-view data).
-func buildSiteData(fs vfs.FS, data map[string]any) siteData {
-	site, diags := loadSite(fs)
+func buildSiteData(fs vfs.FS, layout site.Layout, data map[string]any) siteData {
+	siteObj, diags := loadSite(fs, layout.SiteData())
 
 	bindings := map[string]expr.Value{}
 	shared := map[string]expr.Value{}
 
-	colBindings, colDiags := loadCollections(fs)
+	colBindings, colDiags := loadCollections(fs, layout.Collections())
 	diags = append(diags, colDiags...)
 	for name, v := range colBindings {
 		bindings[name] = v
 		shared[name] = v
 	}
 
-	contentBindings, conDiags := loadContent(fs)
+	contentBindings, conDiags := loadContent(fs, layout.Content())
 	diags = append(diags, conDiags...)
 	for name, v := range contentBindings {
 		bindings[name] = v
 		shared[name] = v
 	}
 
-	bindings["site"] = site
+	bindings["site"] = siteObj
 
 	// Options.Data merges over everything; its keys become top-level variables
 	// and win on collision (including `site`) because real Blade's per-view data
@@ -78,15 +75,15 @@ func buildSiteData(fs vfs.FS, data map[string]any) siteData {
 		bindings[k] = toValue(v)
 	}
 
-	return siteData{site: site, shared: shared, bindings: bindings, diags: diags}
+	return siteData{site: siteObj, shared: shared, bindings: bindings, diags: diags}
 }
 
-// loadSite reads resources/data/site.json into the $site object. A missing file
+// loadSite reads the site data file (data/site.json) into the $site object. A missing file
 // yields an empty object and no diagnostic; malformed JSON (or a non-object, e.g.
 // a top-level array) yields an empty object and one site-data error. The
 // order-preserving decoder keeps $site's keys in document order so foreach over
 // $site matches real Blade's stdClass insertion-order iteration.
-func loadSite(fs vfs.FS) (expr.Value, []Diagnostic) {
+func loadSite(fs vfs.FS, siteDataPath string) (expr.Value, []Diagnostic) {
 	raw, ok := fs.Read(siteDataPath)
 	if !ok {
 		return expr.NewObject(), nil
@@ -109,7 +106,7 @@ type collectionSource struct {
 	folder []string // collections/<name>/<file>.json, sorted by path
 }
 
-// loadCollections reads every collection under resources/data/collections/
+// loadCollections reads every collection under the site's data/collections/ folder
 // into a $<name> array binding. A collection takes one of two storage forms:
 //
 //   - a single file, collections/<name>.json — a JSON array, bound in file
@@ -129,7 +126,7 @@ type collectionSource struct {
 // error, because the file name is the entry's address for every host tool.
 // Only direct children are read: a deeper collections/<name>/<dir>/x.json is
 // ignored, as before.
-func loadCollections(fs vfs.FS) (map[string]expr.Value, []Diagnostic) {
+func loadCollections(fs vfs.FS, collectionsDir string) (map[string]expr.Value, []Diagnostic) {
 	sources := map[string]*collectionSource{}
 	var names []string
 	for _, path := range fs.List(collectionsDir) {
@@ -266,15 +263,15 @@ func loadCollectionFolder(fs vfs.FS, name string, paths []string, diags *[]Diagn
 	return out
 }
 
-// loadContent reads every resources/data/content/<dir>/*.md into a $<dir> array
+// loadContent reads every data/content/<dir>/*.md of the site into a $<dir> array
 // of rendered items. The directory name must be a valid PHP variable name; a
 // file whose frontmatter is non-scalar is skipped with a content error. Items
 // are ordered by filename ascending.
-func loadContent(fs vfs.FS) (map[string]expr.Value, []Diagnostic) {
+func loadContent(fs vfs.FS, contentDir string) (map[string]expr.Value, []Diagnostic) {
 	out := map[string]expr.Value{}
 	var diags []Diagnostic
 
-	dirs, order := groupContentFiles(fs)
+	dirs, order := groupContentFiles(fs, contentDir)
 	for _, dir := range order {
 		if !isValidVarName(dir) {
 			diags = append(diags, dataDiag(contentDir+dir, "content", "content directory \""+dir+"\" is not a valid variable name"))
@@ -312,7 +309,7 @@ func contentItemValue(it content.Item) expr.Value {
 // directory (one level under content/), returning the groups and the directory
 // names in ascending order. Only direct <dir>/<name>.md files are collected;
 // deeper nesting is ignored (v1 content is flat within a collection).
-func groupContentFiles(fs vfs.FS) (map[string][]content.File, []string) {
+func groupContentFiles(fs vfs.FS, contentDir string) (map[string][]content.File, []string) {
 	groups := map[string][]content.File{}
 	var order []string
 	for _, path := range fs.List(contentDir) {

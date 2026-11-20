@@ -22,6 +22,7 @@ import (
 	"github.com/thedevdojo/framework/blade/expr"
 	"github.com/thedevdojo/framework/blade/parser"
 	"github.com/thedevdojo/framework/blade/scanner"
+	"github.com/thedevdojo/framework/site"
 	"github.com/thedevdojo/framework/vfs"
 )
 
@@ -87,6 +88,10 @@ type Result struct {
 	Files       map[string]string   // output name → rendered bytes
 	Deps        map[string][]string // output name → source files used or looked for
 	Diagnostics []Diagnostic
+	// Notices are things the site's author should know that are not problems:
+	// the site keeps its source in the old folder, say. They are never mixed
+	// into Diagnostics, which a host may treat as failures.
+	Notices []site.Notice
 }
 
 // Newline-eating truth, settled empirically against the oracle (Step 3 probe;
@@ -137,7 +142,11 @@ func CompileVariants(fs vfs.FS, variants []Variant, opts Options) Result {
 	// Assemble the site's data context once: $site, collections, and content
 	// collections, with Options.Data merged over the top. Its diagnostics are
 	// about the data files, not any one entry, so they attach once here.
-	data := buildSiteData(fs, opts.Data)
+	// Where this site keeps its files is answered once, here, for the whole
+	// compile: pages, components and data are all read from that one layout.
+	layout := site.Detect(fs)
+	notices := append([]site.Notice(nil), layout.Notices...)
+	data := buildSiteData(fs, layout, opts.Data)
 	res.Diagnostics = append(res.Diagnostics, data.diags...)
 	// parseCache is shared across every entry AND every component render in this
 	// Compile: a component file resolved more than once (siblings, recursion) is
@@ -188,7 +197,7 @@ func CompileVariants(fs vfs.FS, variants []Variant, opts Options) Result {
 		deps.add(entry)
 		// The loop budget is per entry: each output gets the full allowance, so
 		// one pathological page cannot starve its siblings.
-		ctx := &renderCtx{fs: fs, deps: deps, cache: parseCache, site: data.site, shared: data.shared, loopCap: loopCap}
+		ctx := &renderCtx{fs: fs, deps: deps, cache: parseCache, site: data.site, shared: data.shared, layout: layout, notices: &notices, loopCap: loopCap}
 		r := &renderer{scope: dataScope(variantBindings(data.bindings, v.Data)), ctx: ctx}
 		r.renderNodes(nodes, false)
 		// Real Blade returns ltrim(ob_get_clean()) for every rendered view
@@ -204,7 +213,22 @@ func CompileVariants(fs vfs.FS, variants []Variant, opts Options) Result {
 	// dedupeDiagnostics' doc comment in diagnostics.go for why this needs to be
 	// global rather than per-source.
 	res.Diagnostics = dedupeDiagnostics(res.Diagnostics)
+	res.Notices = dedupeNotices(notices)
 	return res
+}
+
+// dedupeNotices keeps the first of each identical notice, in order: a layout
+// used by twenty pages names its stylesheet once, not twenty times.
+func dedupeNotices(in []site.Notice) []site.Notice {
+	seen := map[site.Notice]bool{}
+	var out []site.Notice
+	for _, n := range in {
+		if !seen[n] {
+			seen[n] = true
+			out = append(out, n)
+		}
+	}
+	return out
 }
 
 // variantBindings is the page scope for one variant: the shared page bindings
@@ -535,27 +559,11 @@ func escapesRoot(p string) bool {
 	return path.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, "../")
 }
 
-// outputName maps an entry path to its output file name. Pages lose the
-// resources/views/pages/ prefix; any other view keeps its path relative to
-// resources/views/. A Blade page's .blade.php becomes .html; a Studio-syntax
-// page already ends in .html and keeps it, so pages/about.blade.php and
-// pages/about.html both render to about.html.
+// outputName maps an entry path to its output file name: see site.OutputName.
+// A page loses its pages folder, whichever of the supported ones it is in, so
+// pages/about.blade.php and pages/about.html both render to about.html.
 func outputName(entry string) string {
-	const pages = "resources/views/pages/"
-	const views = "resources/views/"
-	name := entry
-	switch {
-	case strings.HasPrefix(name, pages):
-		name = name[len(pages):]
-	case strings.HasPrefix(name, views):
-		name = name[len(views):]
-	}
-	if strings.HasSuffix(name, ".blade.php") {
-		name = strings.TrimSuffix(name, ".blade.php")
-	} else {
-		name = strings.TrimSuffix(name, ".html")
-	}
-	return name + ".html"
+	return site.OutputName(entry)
 }
 
 // toValue converts a decoded JSON value into the expr.Value closed type set.

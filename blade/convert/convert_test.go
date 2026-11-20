@@ -41,7 +41,7 @@ func runPairs(t *testing.T, to Syntax, path string, pairs []pair) {
 // TestBladeToHTML: each Blade construct comes out as the Studio syntax's own
 // spelling of it, in the shortest form that means exactly the same thing.
 func TestBladeToHTML(t *testing.T) {
-	runPairs(t, Studio, "resources/views/pages/index.blade.php", []pair{
+	runPairs(t, Studio, "src/pages/index.blade.php", []pair{
 		{name: "echo", in: `{{ $post->title }}`, want: `{{ post.title }}`},
 		{name: "echo unspaced", in: `{{$post->title}}`, want: `{{ post.title }}`},
 		{name: "raw echo", in: `{!! $post->body !!}`, want: `{!! post.body !!}`},
@@ -144,9 +144,9 @@ func TestBladeToHTML(t *testing.T) {
 		{name: "props text with both kinds of quotes",
 			in:   `@props(['body' => "If you can't say what \"better\" means", 'q' => 'Q&A', 'e' => 'a &amp; b', 'k' => 'say "&quot;" & it\'s'])`,
 			want: `<Props body="If you can't say what &quot;better&quot; means" q="Q&A" e="a &amp;amp; b" k="say &quot;&amp;quot;&quot; & it's" />`},
-		{name: "vite array", in: `@vite(['resources/css/theme.css', 'resources/css/site.css'])`,
-			want: `<Vite src="resources/css/theme.css, resources/css/site.css" />`},
-		{name: "vite string", in: `@vite('resources/css/site.css')`, want: `<Vite src="resources/css/site.css" />`},
+		{name: "vite array", in: `@vite(['src/css/theme.css', 'src/css/site.css'])`,
+			want: `<Vite src="src/css/theme.css, src/css/site.css" />`},
+		{name: "vite string", in: `@vite('src/css/site.css')`, want: `<Vite src="src/css/site.css" />`},
 		{name: "class", in: `<div @class(['a', 'b' => $on])>`, want: `<div {{ class(['a', 'b' => on]) }}>`},
 		{name: "style", in: `<div @style(['color: red' => $hot])>`, want: `<div {{ style(['color: red' => hot]) }}>`},
 
@@ -192,7 +192,7 @@ func TestBladeToHTML(t *testing.T) {
 // TestHTMLToBlade: each tag comes out as the Blade it is another spelling of,
 // and text Blade would take for its own is defused so it prints unchanged.
 func TestHTMLToBlade(t *testing.T) {
-	runPairs(t, Blade, "resources/views/pages/index.html", []pair{
+	runPairs(t, Blade, "src/pages/index.html", []pair{
 		{name: "echo", in: `{{ post.title }}`, want: `{{ $post->title }}`},
 		{name: "raw echo", in: `{!! post.body !!}`, want: `{!! $post->body !!}`},
 		{name: "comment", in: `a{{-- note --}}b`, want: `a{{-- note --}}b`},
@@ -239,8 +239,8 @@ func TestHTMLToBlade(t *testing.T) {
 			want: `@props(['price' => 'It\'s $5', 'path' => 'C:\\it\'s'])`},
 		{name: "props multi-line", in: "<Props\n    title=\"Untitled\"\n    badge\n/>\n<p></p>",
 			want: "@props([\n    'title' => 'Untitled',\n    'badge' => null,\n])\n<p></p>"},
-		{name: "vite", in: `<Vite src="resources/css/theme.css, resources/css/site.css" />`,
-			want: `@vite(['resources/css/theme.css', 'resources/css/site.css'])`},
+		{name: "vite", in: `<Vite src="src/css/theme.css, src/css/site.css" />`,
+			want: `@vite(['src/css/theme.css', 'src/css/site.css'])`},
 		{name: "class", in: `<div {{ class(['a', 'b' => on]) }}>`, want: `<div @class(['a', 'b' => $on])>`},
 		{name: "class hard against a word", in: `<div{{ class(['a']) }}>`, want: `<div{{ '' }}@class(['a'])>`},
 
@@ -331,9 +331,9 @@ func TestProblems(t *testing.T) {
 // site is a small Blade site that touches every construct.
 func bladeSite() vfs.Mem {
 	return vfs.Mem{
-		"resources/data/site.json": `{"name": "Acme", "posts": [{"title": "A & B", "featured": true}, {"title": "C", "featured": false}, {"title": "D", "featured": true}]}`,
-		"resources/css/site.css":   "body { margin: 0 }",
-		"resources/views/pages/index.blade.php": `<x-layouts.main title="Home">
+		"src/data/site.json": `{"name": "Acme", "posts": [{"title": "A & B", "featured": true}, {"title": "C", "featured": false}, {"title": "D", "featured": true}]}`,
+		"src/css/site.css":   "body { margin: 0 }",
+		"src/pages/index.blade.php": `<x-layouts.main title="Home">
     <x-slot:head><meta name="x" content="{{ $site->name }}"></x-slot>
     @foreach ($site->posts as $i => $post)
         @continue($loop->first)
@@ -344,18 +344,18 @@ func bladeSite() vfs.Mem {
     @@media and hi@example.com
 </x-layouts.main>
 `,
-		"resources/views/pages/about.blade.php": "<x-layouts.main>\n@if ($site->name == 'Acme')\nAbout {{ $site->name }}\n@else\nElsewhere\n@endif\n</x-layouts.main>\n",
-		"resources/views/components/layouts/main.blade.php": `@props(['title' => 'Site'])
+		"src/pages/about.blade.php": "<x-layouts.main>\n@if ($site->name == 'Acme')\nAbout {{ $site->name }}\n@else\nElsewhere\n@endif\n</x-layouts.main>\n",
+		"src/components/layouts/main.blade.php": `@props(['title' => 'Site'])
 <html>
 <head>
 <title>{{ $title }}</title>
 {{ $head ?? '' }}
-@vite(['resources/css/site.css'])
+@vite(['src/css/site.css'])
 </head>
 <body>{{ $slot }}</body>
 </html>
 `,
-		"resources/views/components/post-card.blade.php": `@props([
+		"src/components/post-card.blade.php": `@props([
     'post' => null,
     'title' => '',
 ])
@@ -363,7 +363,7 @@ func bladeSite() vfs.Mem {
     <h2 @class(['big' => $post->featured, 'plain'])>{{ $title }}</h2>
 </article>
 `,
-		"resources/views/components/button.blade.php": "@props(['href' => '#'])\n<a href=\"{{ $href }}\" {{ $attributes->merge(['class' => 'btn']) }}>{{ $slot }}</a>\n",
+		"src/components/button.blade.php": "@props(['href' => '#'])\n<a href=\"{{ $href }}\" {{ $attributes->merge(['class' => 'btn']) }}>{{ $slot }}</a>\n",
 	}
 }
 
@@ -372,7 +372,7 @@ func bladeSite() vfs.Mem {
 // refuses to answer otherwise), and coming back lands on the original files.
 func TestSiteRoundTrip(t *testing.T) {
 	src := bladeSite()
-	pages := []string{"resources/views/pages/about.blade.php", "resources/views/pages/index.blade.php"}
+	pages := []string{"src/pages/about.blade.php", "src/pages/index.blade.php"}
 	want := render.Compile(src, pages, render.Options{})
 	if len(want.Diagnostics) != 0 {
 		t.Fatalf("the test site should be clean: %+v", want.Diagnostics)
@@ -391,7 +391,7 @@ func TestSiteRoundTrip(t *testing.T) {
 			t.Errorf("%s was left behind", p)
 		}
 	}
-	index := htmlSite["resources/views/pages/index.html"]
+	index := htmlSite["src/pages/index.html"]
 	for _, wantLine := range []string{
 		`<Layout src="main.html" title="Home">`,
 		`<Slot name="head">`,
@@ -407,7 +407,7 @@ func TestSiteRoundTrip(t *testing.T) {
 			t.Errorf("index.html is missing %q:\n%s", wantLine, index)
 		}
 	}
-	got := render.Compile(htmlSite, []string{"resources/views/pages/about.html", "resources/views/pages/index.html"}, render.Options{})
+	got := render.Compile(htmlSite, []string{"src/pages/about.html", "src/pages/index.html"}, render.Options{})
 	for name, body := range want.Files {
 		if got.Files[name] != body {
 			t.Errorf("%s renders differently as Studio syntax:\n%s\n--- want ---\n%s", name, got.Files[name], body)
@@ -446,7 +446,7 @@ func apply(site vfs.Mem, res Result) vfs.Mem {
 // that are now .html.
 func TestSiteIsAllOrNothing(t *testing.T) {
 	src := bladeSite()
-	src["resources/views/components/gate.blade.php"] = "@auth\nsecret\n@endauth\n"
+	src["src/components/gate.blade.php"] = "@auth\nsecret\n@endauth\n"
 	res := Site(src, Studio, render.Options{})
 	if len(res.Problems) == 0 {
 		t.Fatal("want a problem")
@@ -454,7 +454,7 @@ func TestSiteIsAllOrNothing(t *testing.T) {
 	if len(res.Files) != 0 || len(res.Removed) != 0 {
 		t.Errorf("nothing should be converted: %d files, %d removed", len(res.Files), len(res.Removed))
 	}
-	if p := res.Problems[0]; p.File != "resources/views/components/gate.blade.php" || p.Line != 1 {
+	if p := res.Problems[0]; p.File != "src/components/gate.blade.php" || p.Line != 1 {
 		t.Errorf("problem = %+v", p)
 	}
 }
@@ -462,7 +462,7 @@ func TestSiteIsAllOrNothing(t *testing.T) {
 // TestSiteNeedsLaravel: a Blade page that leans on real Laravel (a function
 // call, here) cannot become Studio syntax, which has no Laravel behind it.
 func TestSiteNeedsLaravel(t *testing.T) {
-	src := vfs.Mem{"resources/views/pages/index.blade.php": "<a href=\"{{ route('home') }}\">Home</a>\n"}
+	src := vfs.Mem{"src/pages/index.blade.php": "<a href=\"{{ route('home') }}\">Home</a>\n"}
 	res := Site(src, Studio, render.Options{})
 	if len(res.Problems) != 1 || !strings.Contains(res.Problems[0].Message, "needs real Laravel") {
 		t.Fatalf("problems = %+v", res.Problems)
@@ -476,11 +476,11 @@ func TestSiteNeedsLaravel(t *testing.T) {
 // there in the other syntax.
 func TestSiteCollision(t *testing.T) {
 	src := vfs.Mem{
-		"resources/views/pages/index.blade.php": "a",
-		"resources/views/pages/index.html":      "b",
+		"src/pages/index.blade.php": "a",
+		"src/pages/index.html":      "b",
 	}
 	res := Site(src, Studio, render.Options{})
-	if len(res.Problems) != 1 || res.Problems[0].File != "resources/views/pages/index.html" || !strings.Contains(res.Problems[0].Message, "already exists") {
+	if len(res.Problems) != 1 || res.Problems[0].File != "src/pages/index.html" || !strings.Contains(res.Problems[0].Message, "already exists") {
 		t.Fatalf("problems = %+v", res.Problems)
 	}
 }
@@ -488,7 +488,7 @@ func TestSiteCollision(t *testing.T) {
 // TestSiteNothingToDo: a site already in the target syntax converts to nothing,
 // without complaint.
 func TestSiteNothingToDo(t *testing.T) {
-	res := Site(vfs.Mem{"resources/views/pages/index.html": "<p>hi</p>"}, Studio, render.Options{})
+	res := Site(vfs.Mem{"src/pages/index.html": "<p>hi</p>"}, Studio, render.Options{})
 	if len(res.Problems) != 0 || len(res.Files) != 0 || len(res.Removed) != 0 {
 		t.Errorf("result = %+v", res)
 	}
@@ -498,18 +498,18 @@ func TestSiteNothingToDo(t *testing.T) {
 // Blade turns the page and leaves the component as it is.
 func TestSiteMixed(t *testing.T) {
 	src := vfs.Mem{
-		"resources/views/pages/index.html":            "<Card title=\"Hi\">x</Card>\n",
-		"resources/views/components/card.blade.php":   "@props(['title'])\n<div>{{ $title }}: {{ $slot }}</div>\n",
-		"resources/views/components/unused/note.html": "<p><Slot /></p>\n",
+		"src/pages/index.html":            "<Card title=\"Hi\">x</Card>\n",
+		"src/components/card.blade.php":   "@props(['title'])\n<div>{{ $title }}: {{ $slot }}</div>\n",
+		"src/components/unused/note.html": "<p><Slot /></p>\n",
 	}
 	res := Site(src, Blade, render.Options{})
 	if len(res.Problems) != 0 {
 		t.Fatalf("problems = %+v", res.Problems)
 	}
-	if got := res.Files["resources/views/pages/index.blade.php"]; got != "<x-card title=\"Hi\">x</x-card>\n" {
+	if got := res.Files["src/pages/index.blade.php"]; got != "<x-card title=\"Hi\">x</x-card>\n" {
 		t.Errorf("page = %q", got)
 	}
-	if got := res.Files["resources/views/components/unused/note.blade.php"]; got != "<p>{{ $slot }}</p>\n" {
+	if got := res.Files["src/components/unused/note.blade.php"]; got != "<p>{{ $slot }}</p>\n" {
 		t.Errorf("unused component = %q", got)
 	}
 	if len(res.Removed) != 2 {
@@ -552,7 +552,7 @@ func TestSyntaxNames(t *testing.T) {
 // TestSiteUnknownSyntax: a syntax nobody has heard of converts nothing and
 // says which two exist.
 func TestSiteUnknownSyntax(t *testing.T) {
-	res := Site(vfs.Mem{"resources/views/pages/index.blade.php": "x"}, Syntax("twig"), render.Options{})
+	res := Site(vfs.Mem{"src/pages/index.blade.php": "x"}, Syntax("twig"), render.Options{})
 	if len(res.Problems) != 1 || res.Problems[0].Message != `unknown syntax "twig": convert to "blade" or "studio"` {
 		t.Fatalf("problems = %+v", res.Problems)
 	}

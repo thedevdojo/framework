@@ -1,7 +1,7 @@
 {
-  "entries": ["resources/views/pages/index.blade.php"],
+  "entries": ["src/pages/index.blade.php"],
   "oracle": false,
   "diagnostics": [
-    {"kind": "error", "construct": "undefined-variable", "file": "resources/views/pages/index.blade.php", "line": 1}
+    {"kind": "error", "construct": "undefined-variable", "file": "src/pages/index.blade.php", "line": 1}
   ]
 }

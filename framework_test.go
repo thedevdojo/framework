@@ -15,11 +15,11 @@ import (
 // Options/Result/Diagnostic types are a complete embedding surface.
 func TestCompileRoundTrip(t *testing.T) {
 	fs := vfs.Mem{
-		"resources/views/pages/index.blade.php": "<h1>{{ $site->title }}</h1>",
-		"resources/data/site.json":              `{"title":"Hello"}`,
+		"src/pages/index.blade.php": "<h1>{{ $site->title }}</h1>",
+		"src/data/site.json":        `{"title":"Hello"}`,
 	}
 
-	res := framework.Compile(fs, []string{"resources/views/pages/index.blade.php"}, framework.Options{})
+	res := framework.Compile(fs, []string{"src/pages/index.blade.php"}, framework.Options{})
 
 	if got := res.Files["index.html"]; got != "<h1>Hello</h1>" {
 		t.Fatalf("index.html = %q, want %q", got, "<h1>Hello</h1>")
@@ -39,20 +39,20 @@ func TestCompileRoundTrip(t *testing.T) {
 // through the facade and carry the render package's own values.
 func TestFacadeDiagnosticKinds(t *testing.T) {
 	fs := vfs.Mem{
-		"resources/views/pages/index.blade.php":     `<x-card title="typo"/>`,
-		"resources/views/components/card.blade.php": "@props(['body' => ''])\n<div>{{ $body }}</div>",
+		"src/pages/index.blade.php":     `<x-card title="typo"/>`,
+		"src/components/card.blade.php": "@props(['body' => ''])\n<div>{{ $body }}</div>",
 	}
 
 	// Compile: an undefined-variable style error would be KindError; here the
 	// page is clean, so no diagnostics — but a bad page proves the alias works.
-	bad := vfs.Mem{"resources/views/pages/index.blade.php": "{{ $nope }}"}
-	res := framework.Compile(bad, []string{"resources/views/pages/index.blade.php"}, framework.Options{})
+	bad := vfs.Mem{"src/pages/index.blade.php": "{{ $nope }}"}
+	res := framework.Compile(bad, []string{"src/pages/index.blade.php"}, framework.Options{})
 	if len(res.Diagnostics) == 0 || res.Diagnostics[0].Kind != framework.KindError {
 		t.Fatalf("want a KindError diagnostic, got %v", res.Diagnostics)
 	}
 
 	// Analyze: the lint-only warning pass, reachable through the facade.
-	ws := framework.Analyze(fs, []string{"resources/views/pages/index.blade.php"})
+	ws := framework.Analyze(fs, []string{"src/pages/index.blade.php"})
 	if len(ws) != 1 || ws[0].Kind != framework.KindWarning {
 		t.Fatalf("want one KindWarning from Analyze, got %v", ws)
 	}
@@ -79,8 +79,8 @@ func TestExamplesRenderAlike(t *testing.T) {
 		}
 		return out
 	}
-	bladeOut := render("example", "resources/views/pages/index.blade.php")
-	htmlOut := render("example-studio", "resources/views/pages/index.html")
+	bladeOut := render("example", "src/pages/index.blade.php")
+	htmlOut := render("example-studio", "src/pages/index.html")
 	if htmlOut != bladeOut {
 		t.Errorf("the Studio-syntax example renders differently:\n--- blade ---\n%s\n--- studio ---\n%s", bladeOut, htmlOut)
 	}

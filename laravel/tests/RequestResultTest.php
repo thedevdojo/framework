@@ -15,7 +15,7 @@ class RequestResultTest extends TestCase
     public function test_request_json_carries_only_files_when_data_and_entries_are_empty(): void
     {
         $json = (new CompileRequest([
-            'resources/views/pages/index.blade.php' => '<p>hi</p>',
+            'src/pages/index.blade.php' => '<p>hi</p>',
         ]))->toJson();
 
         $decoded = json_decode($json, true);
@@ -28,15 +28,15 @@ class RequestResultTest extends TestCase
     public function test_request_json_includes_data_and_entries_when_present(): void
     {
         $json = (new CompileRequest(
-            files: ['resources/views/pages/index.blade.php' => '<p>{{ $site->title }}</p>'],
+            files: ['src/pages/index.blade.php' => '<p>{{ $site->title }}</p>'],
             data: ['site' => ['title' => 'Hi']],
-            entries: ['resources/views/pages/index.blade.php'],
+            entries: ['src/pages/index.blade.php'],
         ))->toJson();
 
         $decoded = json_decode($json, true);
 
         $this->assertSame(['title' => 'Hi'], $decoded['data']['site']);
-        $this->assertSame(['resources/views/pages/index.blade.php'], $decoded['entries']);
+        $this->assertSame(['src/pages/index.blade.php'], $decoded['entries']);
     }
 
     public function test_request_json_is_slash_and_unicode_safe(): void
@@ -44,7 +44,7 @@ class RequestResultTest extends TestCase
         // Template content routinely holds </tags> and non-ASCII — the wire
         // form must keep them literal, not escape them to \/ or \uXXXX.
         $json = (new CompileRequest([
-            'resources/views/pages/index.blade.php' => '<a href="https://devdojo.com/café">déjà</a>',
+            'src/pages/index.blade.php' => '<a href="https://devdojo.com/café">déjà</a>',
         ]))->toJson();
 
         $this->assertStringContainsString('https://devdojo.com/café', $json);
@@ -57,7 +57,7 @@ class RequestResultTest extends TestCase
         // json_encode must NOT HTML-escape template markup: <, >, & pass
         // through verbatim so what the engine receives is what was authored.
         $json = (new CompileRequest([
-            'resources/views/pages/index.blade.php' => '<div class="a & b">{!! $raw !!}</div>',
+            'src/pages/index.blade.php' => '<div class="a & b">{!! $raw !!}</div>',
         ]))->toJson();
 
         $this->assertStringContainsString('<div class=\"a & b\">', $json);
@@ -77,7 +77,7 @@ class RequestResultTest extends TestCase
         $result = CompileResult::fromArray([
             'engine' => '0.1.0',
             'files' => ['index.html' => '<h1>Hi</h1>'],
-            'deps' => ['index.html' => ['resources/views/pages/index.blade.php']],
+            'deps' => ['index.html' => ['src/pages/index.blade.php']],
             'diagnostics' => [
                 ['file' => 'a.blade.php', 'line' => 2, 'col' => 3, 'kind' => 'error', 'construct' => 'undefined-variable', 'message' => 'undefined variable $x'],
                 ['file' => 'b.blade.php', 'line' => 1, 'col' => 1, 'kind' => 'app-tier', 'construct' => '@auth', 'message' => 'requires the app tier'],
@@ -87,12 +87,38 @@ class RequestResultTest extends TestCase
         $this->assertSame('0.1.0', $result->engine);
         $this->assertSame('<h1>Hi</h1>', $result->file('index.html'));
         $this->assertNull($result->file('missing.html'));
-        $this->assertSame(['resources/views/pages/index.blade.php'], $result->deps['index.html']);
+        $this->assertSame(['src/pages/index.blade.php'], $result->deps['index.html']);
 
         $this->assertCount(1, $result->errors());
         $this->assertCount(1, $result->appTier());
         $this->assertCount(1, $result->diagnosticsFor('a.blade.php'));
         $this->assertSame([], $result->diagnosticsFor('nope.blade.php'));
+    }
+
+    public function test_result_carries_notices_apart_from_diagnostics(): void
+    {
+        $result = CompileResult::fromArray([
+            'engine' => '1.1.0',
+            'files' => ['index.html' => '<h1>Hi</h1>'],
+            'diagnostics' => [],
+            'notices' => [
+                ['kind' => 'deprecation', 'code' => 'resources-folder', 'message' => 'This site keeps its source in resources/.'],
+                ['kind' => 'deprecation', 'code' => 'asset-path', 'file' => 'src/components/layouts/main.blade.php', 'message' => 'Change the path.'],
+            ],
+        ]);
+
+        $this->assertSame([], $result->diagnostics);
+        $this->assertCount(2, $result->notices);
+        $this->assertSame('deprecation', $result->notices[0]->kind);
+        $this->assertSame('resources-folder', $result->notices[0]->code);
+        $this->assertNull($result->notices[0]->file);
+        $this->assertSame('src/components/layouts/main.blade.php', $result->notices[1]->file);
+        $this->assertSame('Change the path.', $result->notices[1]->message);
+    }
+
+    public function test_an_engine_that_sends_no_notices_has_none(): void
+    {
+        $this->assertSame([], CompileResult::fromArray(['engine' => '1.0.0', 'files' => []])->notices);
     }
 
     public function test_diagnostic_construct_is_nullable_when_omitted(): void

@@ -6,7 +6,7 @@ import (
 )
 
 // TestCandidates pins how a component tag name maps onto component files
-// (paths relative to resources/views/components, no extension), in the order
+// (paths relative to src/components, no extension), in the order
 // the renderer tries them: folders first.
 func TestCandidates(t *testing.T) {
 	cases := []struct {

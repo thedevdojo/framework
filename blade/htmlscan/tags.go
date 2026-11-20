@@ -17,7 +17,7 @@ import (
 //	<Slot name="title"> … </Slot>                       <x-slot:title> … </x-slot>
 //	<Slot />  <Slot name="title" />                     {{ $slot }}  {{ $title ?? '' }}
 //	<Props heading="Hello" />                           @props(['heading' => 'Hello'])
-//	<Vite src="resources/css/site.css" />               @vite(['resources/css/site.css'])
+//	<Vite src="src/css/site.css" />                     @vite(['src/css/site.css'])
 
 // openBuiltin emits the token(s) for an opening built-in tag. lower is the
 // tag's lowercase name (the key into builtins); name is it as written.

@@ -85,7 +85,7 @@ type Token struct {
 	Tag string
 	// Candidates is set ONLY by the Studio-syntax scanner, on a TagOpen: the
 	// component files the tag may name, as paths relative to
-	// resources/views/components without an extension, in the order to try
+	// the components folder (src/components) without an extension, in the order to try
 	// them. A Blade <x-name> has exactly one path, derived from Name.
 	Candidates []string
 }

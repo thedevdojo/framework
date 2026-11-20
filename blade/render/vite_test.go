@@ -12,18 +12,18 @@ func TestParseStringArray(t *testing.T) {
 		ok   bool
 		want []string
 	}{
-		{`['resources/css/site.css']`, true, []string{"resources/css/site.css"}},
-		{`['resources/css/a.css', 'resources/css/b.css']`, true, []string{"resources/css/a.css", "resources/css/b.css"}},
-		{`["resources/css/a.css"]`, true, []string{"resources/css/a.css"}},
+		{`['src/css/site.css']`, true, []string{"src/css/site.css"}},
+		{`['src/css/a.css', 'src/css/b.css']`, true, []string{"src/css/a.css", "src/css/b.css"}},
+		{`["src/css/a.css"]`, true, []string{"src/css/a.css"}},
 		{`[]`, true, nil},
 		{`['a.css', 'b.css',]`, true, []string{"a.css", "b.css"}}, // trailing comma tolerated
 
 		// malformed rows → ok=false
-		{`'resources/css/a.css'`, false, nil}, // no surrounding brackets
-		{`['a.css' => 'x']`, false, nil},      // keyed entry not allowed here
-		{`[42]`, false, nil},                  // non-string entry
-		{`['a.css' 'b.css']`, false, nil},     // missing comma
-		{``, false, nil},                      // empty raw (e.g. @vite())
+		{`'src/css/a.css'`, false, nil},   // no surrounding brackets
+		{`['a.css' => 'x']`, false, nil},  // keyed entry not allowed here
+		{`[42]`, false, nil},              // non-string entry
+		{`['a.css' 'b.css']`, false, nil}, // missing comma
+		{``, false, nil},                  // empty raw (e.g. @vite())
 		{`not-an-array`, false, nil},
 	}
 	for _, c := range cases {
@@ -54,8 +54,8 @@ func TestViteSingleCssEntry(t *testing.T) {
 	res := compileMem(t, map[string]string{
 		// '>' (non-word) before @vite gives it the word boundary real Blade's \B@
 		// rule requires; the A/B-style sentinels flank the directive as before.
-		pageEntry:                `>@vite(['resources/css/site.css'])B`,
-		"resources/css/site.css": "@import \"tailwindcss\";\n.btn{color:red}\n",
+		pageEntry:          `>@vite(['src/css/site.css'])B`,
+		"src/css/site.css": "@import \"tailwindcss\";\n.btn{color:red}\n",
 	}, nil)
 	want := `><script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>` +
 		"\n" + `<style type="text/tailwindcss">@import "tailwindcss";` + "\n" + `.btn{color:red}` + "\n" + `</style>B`
@@ -72,9 +72,9 @@ func TestViteSingleCssEntry(t *testing.T) {
 // order.
 func TestViteMultipleCssEntriesCdnOnce(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:             `@vite(['resources/css/a.css', 'resources/css/b.css'])`,
-		"resources/css/a.css": "A{}",
-		"resources/css/b.css": "B{}",
+		pageEntry:       `@vite(['src/css/a.css', 'src/css/b.css'])`,
+		"src/css/a.css": "A{}",
+		"src/css/b.css": "B{}",
 	}, nil)
 	want := `<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>` +
 		"\n" + `<style type="text/tailwindcss">A{}</style>` +
@@ -89,7 +89,7 @@ func TestViteMultipleCssEntriesCdnOnce(t *testing.T) {
 // there is nothing to serve it for).
 func TestViteJsEntrySkipped(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry: `>@vite(['resources/js/app.js'])B`,
+		pageEntry: `>@vite(['src/js/app.js'])B`,
 	}, nil)
 	if got := res.Files["index.html"]; got != ">B" {
 		t.Fatalf("output = %q; want %q", got, ">B")
@@ -107,7 +107,7 @@ func TestViteJsEntrySkipped(t *testing.T) {
 // its style block is omitted; with no other entries, nothing renders.
 func TestViteMissingCssFile(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry: `>@vite(['resources/css/gone.css'])B`,
+		pageEntry: `>@vite(['src/css/gone.css'])B`,
 	}, nil)
 	if got := res.Files["index.html"]; got != ">B" {
 		t.Fatalf("output = %q; want %q", got, ">B")
@@ -146,8 +146,8 @@ func TestParseViteEntries(t *testing.T) {
 		ok   bool
 		want []string
 	}{
-		{`'resources/css/site.css'`, true, []string{"resources/css/site.css"}},
-		{`"resources/css/site.css"`, true, []string{"resources/css/site.css"}},
+		{`'src/css/site.css'`, true, []string{"src/css/site.css"}},
+		{`"src/css/site.css"`, true, []string{"src/css/site.css"}},
 		{`  'a.css'  `, true, []string{"a.css"}}, // whitespace-padded bare string
 		{``, true, nil},                          // @vite / @vite(): no entries
 		{`   `, true, nil},
@@ -184,8 +184,8 @@ func TestParseViteEntries(t *testing.T) {
 // @vite(['x.css']). Idiomatic Blade; StaticVite normalizes the same way.
 func TestViteBareStringEntry(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:             `>@vite('resources/css/a.css')B`,
-		"resources/css/a.css": "A{}",
+		pageEntry:       `>@vite('src/css/a.css')B`,
+		"src/css/a.css": "A{}",
 	}, nil)
 	want := `><script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>` +
 		"\n" + `<style type="text/tailwindcss">A{}</style>B`
@@ -221,9 +221,9 @@ func TestViteEmptyArgsRendersNothing(t *testing.T) {
 // and missing-file diagnostics are raised.
 func TestViteMixedEntries(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:             `@vite(['resources/css/a.css', 'resources/js/app.js', 'resources/css/b.css', 'resources/css/gone.css'])`,
-		"resources/css/a.css": "A{}",
-		"resources/css/b.css": "B{}",
+		pageEntry:       `@vite(['src/css/a.css', 'src/js/app.js', 'src/css/b.css', 'src/css/gone.css'])`,
+		"src/css/a.css": "A{}",
+		"src/css/b.css": "B{}",
 	}, nil)
 	want := `<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>` +
 		"\n" + `<style type="text/tailwindcss">A{}</style>` +
@@ -239,14 +239,14 @@ func TestViteMixedEntries(t *testing.T) {
 // TestViteDeps: a successfully inlined CSS file joins the output's deps — and
 // so does a MISSING entry, recorded under the same path it was looked up by,
 // so a render-on-save host re-renders this output when the user later creates
-// the file (creating resources/css/gone.css must overlap these deps).
+// the file (creating src/css/gone.css must overlap these deps).
 func TestViteDeps(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:             `@vite(['resources/css/a.css', 'resources/css/gone.css'])`,
-		"resources/css/a.css": "A{}",
+		pageEntry:       `@vite(['src/css/a.css', 'src/css/gone.css'])`,
+		"src/css/a.css": "A{}",
 	}, nil)
 	deps := res.Deps["index.html"]
-	want := []string{pageEntry, "resources/css/a.css", "resources/css/gone.css"}
+	want := []string{pageEntry, "src/css/a.css", "src/css/gone.css"}
 	if len(deps) != len(want) {
 		t.Fatalf("deps = %v; want %v", deps, want)
 	}
@@ -265,8 +265,8 @@ func TestViteDeps(t *testing.T) {
 // CSS entries), matching Component/Props's unconditional eat.
 func TestViteEatsNewline(t *testing.T) {
 	res := compileMem(t, map[string]string{
-		pageEntry:             "A\n@vite(['resources/css/a.css'])\nB",
-		"resources/css/a.css": "A{}",
+		pageEntry:       "A\n@vite(['src/css/a.css'])\nB",
+		"src/css/a.css": "A{}",
 	}, nil)
 	want := "A\n<script src=\"https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4\"></script>\n<style type=\"text/tailwindcss\">A{}</style>B"
 	if got := res.Files["index.html"]; got != want {
@@ -274,7 +274,7 @@ func TestViteEatsNewline(t *testing.T) {
 	}
 
 	res2 := compileMem(t, map[string]string{
-		pageEntry: "A\n@vite(['resources/js/app.js'])\nB",
+		pageEntry: "A\n@vite(['src/js/app.js'])\nB",
 	}, nil)
 	if got := res2.Files["index.html"]; got != "A\nB" {
 		t.Fatalf("output = %q; want %q", got, "A\nB")

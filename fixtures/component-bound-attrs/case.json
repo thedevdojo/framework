@@ -1,1 +1,1 @@
-{"entries": ["resources/views/pages/index.blade.php"], "data": {"heading": "Welcome & Hello"}}
+{"entries": ["src/pages/index.blade.php"], "data": {"heading": "Welcome & Hello"}}

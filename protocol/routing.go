@@ -4,17 +4,18 @@ import (
 	"path"
 	"strings"
 
+	"github.com/thedevdojo/framework/site"
 	"github.com/thedevdojo/framework/vfs"
 )
 
 // ResolveURL maps a request URL path to the page entry that serves it, using
 // the same convention as Folio and the classic engine (spec §2):
 //
-//	/            → resources/views/pages/index.blade.php
-//	/about       → resources/views/pages/about.blade.php        (a flat file wins)
-//	             → else resources/views/pages/about/index.blade.php
-//	/blog        → resources/views/pages/blog/index.blade.php    (directory index)
-//	(no match)   → resources/views/pages/404.blade.php           if present
+//	/            → src/pages/index.blade.php
+//	/about       → src/pages/about.blade.php        (a flat file wins)
+//	             → else src/pages/about/index.blade.php
+//	/blog        → src/pages/blog/index.blade.php    (directory index)
+//	(no match)   → src/pages/404.blade.php           if present
 //
 // A page may equally be a Studio-syntax file: every row above also matches the
 // same path ending in .html. The flat-wins rule spans both syntaxes, and where
@@ -29,6 +30,7 @@ import (
 // is the engine-side companion to the oracle-checked routing-table fixture
 // (which pins the entry→output-name half the URL table can't express).
 func ResolveURL(fs vfs.FS, urlPath string) (string, bool) {
+	pages := site.Detect(fs).Pages
 	seg := strings.Trim(urlPath, "/")
 	if seg == "" {
 		seg = "index"
@@ -38,28 +40,28 @@ func ResolveURL(fs vfs.FS, urlPath string) (string, bool) {
 	// segment; if it still points at or above the parent, refuse to resolve a
 	// flat/nested page and fall through to the 404 page only.
 	if clean := path.Clean(seg); clean == ".." || strings.HasPrefix(clean, "../") || path.IsAbs(clean) {
-		return notFoundOr(fs)
+		return notFoundOr(fs, pages)
 	}
 
 	// A flat file wins over a directory index in either syntax; within one
 	// shape the Blade page wins (pageExts order).
 	for _, ext := range pageExts {
-		if flat := pagesPrefix + seg + ext; exists(fs, flat) {
+		if flat := pages + seg + ext; exists(fs, flat) {
 			return flat, true
 		}
 	}
 	for _, ext := range pageExts {
-		if nested := pagesPrefix + seg + "/index" + ext; exists(fs, nested) {
+		if nested := pages + seg + "/index" + ext; exists(fs, nested) {
 			return nested, true
 		}
 	}
-	return notFoundOr(fs)
+	return notFoundOr(fs, pages)
 }
 
 // notFoundOr returns the 404 page entry when present, else ("", false).
-func notFoundOr(fs vfs.FS) (string, bool) {
+func notFoundOr(fs vfs.FS, pages string) (string, bool) {
 	for _, ext := range pageExts {
-		if nf := pagesPrefix + "404" + ext; exists(fs, nf) {
+		if nf := pages + "404" + ext; exists(fs, nf) {
 			return nf, true
 		}
 	}
