@@ -1,0 +1,28 @@
+{
+  "name": "@devdojo/framework",
+  "version": "0.0.0-dev",
+  "description": "The devdojo command: start, serve and build a site written in HTML or Blade.",
+  "license": "MIT",
+  "homepage": "https://github.com/thedevdojo/framework",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thedevdojo/framework.git",
+    "directory": "npm/framework"
+  },
+  "bin": {
+    "devdojo": "bin/devdojo.js"
+  },
+  "files": [
+    "bin/devdojo.js"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "@devdojo/framework-darwin-arm64": "0.0.0-dev",
+    "@devdojo/framework-darwin-x64": "0.0.0-dev",
+    "@devdojo/framework-linux-arm64": "0.0.0-dev",
+    "@devdojo/framework-linux-x64": "0.0.0-dev",
+    "@devdojo/framework-win32-x64": "0.0.0-dev"
+  }
+}
