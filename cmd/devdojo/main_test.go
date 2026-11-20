@@ -710,7 +710,7 @@ func TestMigrateDryRun(t *testing.T) {
 func TestMigrateNothingToDo(t *testing.T) {
 	dir := tempSite(t, map[string]string{"src/pages/index.html": "<h1>Hi</h1>\n"})
 	stdout, _, code := runCLI(t, "", "migrate", dir)
-	if code != 0 || !strings.Contains(stdout, "Nothing to move") {
+	if code != 0 || !strings.Contains(stdout, "Nothing to do") {
 		t.Fatalf("exit %d, stdout %q", code, stdout)
 	}
 }
@@ -723,11 +723,39 @@ func TestMigrateRefusedTouchesNothing(t *testing.T) {
 	})
 	was := tree(t, dir)
 	stdout, _, code := runCLI(t, "", "migrate", dir)
-	if code != 1 || !strings.Contains(stdout, "would render differently") || !strings.Contains(stdout, "Nothing was moved") {
+	if code != 1 || !strings.Contains(stdout, "would render differently") || !strings.Contains(stdout, "Nothing was changed") {
 		t.Fatalf("exit %d, stdout %q", code, stdout)
 	}
 	if got := tree(t, dir); got != was {
 		t.Errorf("a refused move changed the site:\n%s", got)
+	}
+}
+
+// TestMigrateRewritesBracesInPlace: a flat src/ site written with {{ }} has its
+// .html views rewritten where they are, and prints the same page.
+func TestMigrateRewritesBracesInPlace(t *testing.T) {
+	dir := tempSite(t, map[string]string{
+		"src/pages/index.html": "<h1>{{ site.name }}</h1>\n<p>{site.name} prints the name.</p>\n",
+		"src/data/site.json":   `{"name": "Acme"}`,
+	})
+	before, _, _ := runCLI(t, compileRequest(t, dir), "compile")
+	stdout, stderr, code := runCLI(t, "", "migrate", dir)
+	if code != 0 {
+		t.Fatalf("exit %d (stdout: %s, stderr: %s)", code, stdout, stderr)
+	}
+	if want := "Wrote 1 value in single braces and escaped 1 brace that is text as \\{.\n"; stdout != want {
+		t.Errorf("stdout = %q, want %q", stdout, want)
+	}
+	page, _ := os.ReadFile(filepath.Join(dir, "src/pages/index.html"))
+	if string(page) != "<h1>{site.name}</h1>\n<p>\\{site.name} prints the name.</p>\n" {
+		t.Errorf("index.html = %q", page)
+	}
+	after, _, _ := runCLI(t, compileRequest(t, dir), "compile")
+	if pageOf(t, after) != "<h1>Acme</h1>\n<p>{site.name} prints the name.</p>\n" {
+		t.Errorf("after: %q (before, read today: %q)", pageOf(t, after), pageOf(t, before))
+	}
+	if stdout, _, code := runCLI(t, "", "migrate", dir); code != 0 || !strings.Contains(stdout, "Nothing to do") {
+		t.Errorf("second migrate: exit %d, stdout %q", code, stdout)
 	}
 }
 

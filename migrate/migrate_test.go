@@ -175,3 +175,84 @@ func TestAFolderThatIsNotReadIsLeftWhereItIs(t *testing.T) {
 		t.Fatalf("moves = %+v", res.Moves)
 	}
 }
+
+// bracesSite is a flat src/ site written before single braces: {{ }} for its
+// values, and a brace in its text that was text then.
+func bracesSite() vfs.Mem {
+	return vfs.Mem{
+		"src/pages/index.html":             "<Layout src=\"main.html\" title=\"{{ site.name }}\">\n<h1>{{ site.name }}</h1>\n<p>Write {site.name} to print it, or @{{ x }}.</p>\n<Card title=\"Hi {{ site.name }}\" />\n</Layout>\n",
+		"src/components/layouts/main.html": "<html><head><title>{{ title }}</title></head><body><Slot /><script>let a = {b: 1};</script></body></html>\n",
+		"src/components/card.html":         "<Props title=\"\" />\n<b x-text=\"{ a: 1 }\">{{ title }}</b>\n",
+		"src/components/old.blade.php":     "<i>{{ $x }} {y}</i>\n",
+		"src/data/site.json":               `{"name": "Acme"}`,
+	}
+}
+
+func TestDoubleBracesAreRewrittenAndThePagesStayTheSame(t *testing.T) {
+	before := bracesSite()
+	res := Site(before, render.Options{})
+	if len(res.Problems) > 0 {
+		t.Fatalf("problems: %+v", res.Problems)
+	}
+	if len(res.Moves) != 0 {
+		t.Fatalf("a flat src/ site has nothing to move: %+v", res.Moves)
+	}
+	after := res.Apply(before)
+	want := map[string]string{
+		"src/pages/index.html":             "<Layout src=\"main.html\" title=\"{site.name}\">\n<h1>{site.name}</h1>\n<p>Write \\{site.name} to print it, or \\{\\{ x }}.</p>\n<Card title=\"Hi {site.name}\" />\n</Layout>\n",
+		"src/components/layouts/main.html": "<html><head><title>{title}</title></head><body><Slot /><script>let a = {b: 1};</script></body></html>\n",
+		"src/components/card.html":         "<Props title=\"\" />\n<b x-text=\"{ a: 1 }\">{title}</b>\n",
+		"src/components/old.blade.php":     "<i>{{ $x }} {y}</i>\n",
+	}
+	for p, body := range want {
+		if after[p] != body {
+			t.Errorf("%s =\n%s\nwant\n%s", p, after[p], body)
+		}
+	}
+	if res.Braces.Values != 5 || res.Braces.Escapes != 1 || res.Braces.Braces != 3 {
+		t.Errorf("counts = %+v", res.Braces)
+	}
+
+	was := render.Compile(before, []string{"src/pages/index.html"}, render.Options{OldBraces: func(string) bool { return true }})
+	is := render.Compile(vfs.Mem(after), []string{"src/pages/index.html"}, render.Options{})
+	if was.Files["index.html"] == "" || was.Files["index.html"] != is.Files["index.html"] {
+		t.Fatalf("before %q\nafter  %q", was.Files["index.html"], is.Files["index.html"])
+	}
+	if len(is.Notices) > 0 || len(is.Diagnostics) > 0 {
+		t.Fatalf("after: notices %+v diagnostics %+v", is.Notices, is.Diagnostics)
+	}
+
+	// And once is enough: the rewritten site has nothing left to change.
+	if again := Site(vfs.Mem(after), render.Options{}); len(again.Moves)+len(again.Files)+len(again.Problems) != 0 {
+		t.Fatalf("a second migrate changed something: %+v", again)
+	}
+}
+
+func TestASiteWrittenWithSingleBracesIsLeftAlone(t *testing.T) {
+	res := Site(vfs.Mem{
+		"src/pages/index.html": "<h1>{site.name}</h1>\n<p>\\{x}</p>\n",
+		"src/data/site.json":   `{"name": "Acme"}`,
+	}, render.Options{})
+	if len(res.Moves)+len(res.Files)+len(res.Problems) != 0 {
+		t.Fatalf("got %+v", res)
+	}
+}
+
+func TestAnOldSiteMovesAndLosesItsDoubleBracesTogether(t *testing.T) {
+	before := vfs.Mem{
+		"resources/views/pages/index.html": "<h1>{{ site.name }}</h1>\n<p>{site.name}</p>\n",
+		"resources/data/site.json":         `{"name": "Acme"}`,
+	}
+	res := Site(before, render.Options{})
+	if len(res.Problems) > 0 {
+		t.Fatalf("problems: %+v", res.Problems)
+	}
+	after := res.Apply(before)
+	if got := after["src/pages/index.html"]; got != "<h1>{site.name}</h1>\n<p>\\{site.name}</p>\n" {
+		t.Fatalf("index.html = %q", got)
+	}
+	is := render.Compile(vfs.Mem(after), []string{"src/pages/index.html"}, render.Options{})
+	if got := is.Files["index.html"]; got != "<h1>Acme</h1>\n<p>{site.name}</p>\n" {
+		t.Fatalf("rendered %q", got)
+	}
+}

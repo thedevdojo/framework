@@ -73,9 +73,11 @@ Commands:
                  The site must render exactly as before or nothing is changed.
                  With no <dir>: the same over the JSON protocol on stdin/stdout
   migrate <dir> [--dry-run]
-                 Move a site kept in resources/ (or with a views/ folder) into
-                 src/, with pages in src/pages and components in src/components.
-                 The site must render exactly as before or nothing is moved.
+                 Bring a site up to date: move one kept in resources/ (or with
+                 a views/ folder) into src/, with pages in src/pages and
+                 components in src/components, and rewrite {{ x }} in its .html
+                 views as {x}, escaping a brace that is text as \{. The site
+                 must render exactly as before or nothing is changed.
                  With no <dir>: the same over the JSON protocol on stdin/stdout
   new <folder> [--template <name>]
                  Download a template from GitHub and write it into <folder>: the
@@ -196,12 +198,13 @@ func cmdLint(args []string) int {
 
 const migrateUsage = "usage: devdojo migrate <dir> [--dry-run]"
 
-// cmdMigrate moves a site in one of the older folder shapes into src/.
+// cmdMigrate brings a site up to date: one in an older folder shape moves into
+// src/, and .html views written before single braces are rewritten to them.
 //
 // With a directory it works on disk, in place. migrate.Site decides whether
-// anything happens at all: the site moves whole, rendering byte for byte as
-// before, or not a single file is touched and the reasons are printed (exit
-// 1). --dry-run prints every move and stops.
+// anything happens at all: the site is migrated whole, rendering byte for byte
+// as before, or not a single file is touched and the reasons are printed (exit
+// 1). --dry-run prints every move and rewrite and stops.
 //
 // With no arguments it speaks JSON on stdin/stdout (protocol.RunMigrate), for
 // a host that holds the site in memory.
@@ -246,18 +249,32 @@ func cmdMigrate(args []string) int {
 		for _, p := range res.Problems {
 			fmt.Printf("%s %s\n", p.File, p.Message)
 		}
-		fmt.Printf("\nNothing was moved: %s first.\n", plural(len(res.Problems), "thing needs", "things need")+" fixing")
+		fmt.Printf("\nNothing was changed: %s first.\n", plural(len(res.Problems), "thing needs", "things need")+" fixing")
 		return 1
 	}
-	if len(res.Moves) == 0 {
-		fmt.Println("Nothing to move: this site is already in src/, with pages in src/pages and components in src/components.")
+	moved := map[string]bool{}
+	for _, m := range res.Moves {
+		moved[m.To] = true
+	}
+	var inPlace []string // files rewritten where they are
+	for p := range res.Files {
+		if !moved[p] {
+			inPlace = append(inPlace, p)
+		}
+	}
+	sort.Strings(inPlace)
+	if len(res.Moves) == 0 && len(inPlace) == 0 {
+		fmt.Println("Nothing to do: this site is already in src/, with pages in src/pages and components in src/components, and its .html views use single braces.")
 		return 0
 	}
 	if dryRun {
 		for _, m := range res.Moves {
 			fmt.Printf("%s → %s\n", m.From, m.To)
 		}
-		fmt.Printf("\nWould move %s to src/. Nothing was changed.\n", plural(len(res.Moves), "file", "files"))
+		for _, p := range inPlace {
+			fmt.Printf("%s rewritten\n", p)
+		}
+		fmt.Printf("\nWould %s. Nothing was changed.\n", migrateSummary(res, len(inPlace), false))
 		return 0
 	}
 
@@ -265,10 +282,20 @@ func cmdMigrate(args []string) int {
 
 	// Put every file in its new place before taking any old one away. A file
 	// whose text changes is written new and its original kept until the end;
-	// every other file is renamed. If anything fails, what was done is undone
-	// and the site is exactly as it was.
+	// every other file is renamed. A file rewritten where it is keeps its old
+	// text in memory. If anything fails, what was done is undone and the site
+	// is exactly as it was.
 	var renamed, written []migrate.Move
+	type kept struct {
+		path string
+		body []byte
+		mode os.FileMode
+	}
+	var rewritten []kept
 	undo := func() {
+		for _, k := range rewritten {
+			os.WriteFile(on(k.path), k.body, k.mode)
+		}
 		for _, m := range written {
 			os.Remove(on(m.To))
 		}
@@ -276,12 +303,29 @@ func cmdMigrate(args []string) int {
 			os.Rename(on(m.To), on(m.From))
 		}
 	}
+	for _, p := range inPlace {
+		st, err := os.Stat(on(p))
+		var body []byte
+		if err == nil {
+			body, err = os.ReadFile(on(p))
+		}
+		if err == nil {
+			err = os.WriteFile(on(p), []byte(res.Files[p]), st.Mode().Perm())
+		}
+		if err != nil {
+			undo()
+			fmt.Fprintf(os.Stderr, "devdojo migrate: %v\nNothing was changed.\n", err)
+			return 1
+		}
+		rewritten = append(rewritten, kept{p, body, st.Mode().Perm()})
+	}
 	for _, m := range res.Moves {
 		if err := os.MkdirAll(filepath.Dir(on(m.To)), 0o755); err != nil {
 			undo()
-			fmt.Fprintf(os.Stderr, "devdojo migrate: %v\nNothing was moved.\n", err)
+			fmt.Fprintf(os.Stderr, "devdojo migrate: %v\nNothing was changed.\n", err)
 			return 1
 		}
+		var err error
 		if body, changed := res.Files[m.To]; changed {
 			mode := os.FileMode(0o644)
 			if st, err := os.Stat(on(m.From)); err == nil {
@@ -299,7 +343,7 @@ func cmdMigrate(args []string) int {
 		}
 		if err != nil {
 			undo()
-			fmt.Fprintf(os.Stderr, "devdojo migrate: %v\nNothing was moved.\n", err)
+			fmt.Fprintf(os.Stderr, "devdojo migrate: %v\nNothing was changed.\n", err)
 			return 1
 		}
 	}
@@ -326,8 +370,46 @@ func cmdMigrate(args []string) int {
 		os.Remove(d)
 	}
 
-	fmt.Printf("Moved %s to src/.\n", plural(len(res.Moves), "file", "files"))
+	done := migrateSummary(res, len(inPlace), true)
+	fmt.Printf("%s.\n", strings.ToUpper(done[:1])+done[1:])
 	return 0
+}
+
+// migrateSummary says what a migration does or did: "move 12 files to src/
+// and write 30 values in single braces", or with done "moved … and wrote …".
+func migrateSummary(res migrate.Result, inPlace int, done bool) string {
+	verb := func(now, then string) string {
+		if done {
+			return then
+		}
+		return now
+	}
+	var parts []string
+	if len(res.Moves) > 0 {
+		parts = append(parts, verb("move ", "moved ")+plural(len(res.Moves), "file", "files")+" to src/")
+	}
+	b := res.Braces
+	if b.Values > 0 {
+		parts = append(parts, verb("write ", "wrote ")+plural(b.Values, "value", "values")+" in single braces")
+	}
+	if b.Braces > 0 {
+		that := " that is text as \\{"
+		if b.Braces != 1 {
+			that = " that are text as \\{"
+		}
+		parts = append(parts, verb("escape ", "escaped ")+plural(b.Braces, "brace", "braces")+that)
+	}
+	if len(parts) == 0 {
+		parts = append(parts, verb("rewrite ", "rewrote ")+plural(inPlace, "file", "files"))
+	}
+	out := strings.Join(parts, ", ")
+	if i := strings.LastIndex(out, ", "); i >= 0 {
+		out = out[:i] + " and " + out[i+2:]
+	}
+	if b.Kept > 0 {
+		out += " (" + plural(b.Kept, "value stays", "values stay") + " in {{ }}, which a single brace cannot say there)"
+	}
+	return out
 }
 
 const convertUsage = "usage: devdojo convert <dir> --to html|blade [--dry-run]"

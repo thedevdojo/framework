@@ -1,10 +1,13 @@
-// Package migrate moves a site written in one of the older folder shapes into
-// the current one: src/, with pages in src/pages and components in
-// src/components (see package site).
+// Package migrate brings a site written for an older engine up to date: it
+// moves a site in one of the older folder shapes into the current one (src/,
+// with pages in src/pages and components in src/components, see package site),
+// and it rewrites the .html views of a site written before single braces, so
+// {{ post.title }} is {post.title} (see htmlscan.Migrate).
 //
-// Like a conversion between the two syntaxes, a move is exact or it does not
-// happen. The site is rendered before and after, every page must come out byte
-// for byte the same, and one difference leaves every file where it was.
+// Like a conversion between the two syntaxes, a migration is exact or it does
+// not happen. The site is rendered before (read the way the older engine read
+// it) and after, every page must come out byte for byte the same, and one
+// difference leaves every file where it was.
 package migrate
 
 import (
@@ -13,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/thedevdojo/framework/blade/htmlscan"
 	"github.com/thedevdojo/framework/blade/render"
 	"github.com/thedevdojo/framework/site"
 	"github.com/thedevdojo/framework/vfs"
@@ -24,20 +28,27 @@ type Move struct {
 	To   string `json:"to"`
 }
 
-// Result is a migration: the files that move and, for the few whose text names
-// an old path, their new contents. When Problems is not empty the site was not
-// moved and both are empty.
+// Result is a migration: the files that move and, for those whose text changes
+// (an .html view's braces, or text that names an old path), their new
+// contents. A file can change without moving. When Problems is not empty the
+// site was not migrated and Moves and Files are empty.
 type Result struct {
 	Moves    []Move              // sorted by From
 	Files    map[string]string   // new path → new contents, only where the text changed
-	Problems []render.Diagnostic // why the site could not be moved
+	Problems []render.Diagnostic // why the site could not be migrated
+	// Braces counts what was rewritten in the .html views.
+	Braces htmlscan.MigrateStats
 }
 
-// Site works out the move for the site in fs. opts carries the data the
+// Site works out the migration for the site in fs. opts carries the data the
 // before-and-after render check runs with: pass what the site is normally
 // rendered with, so the check exercises the same branches.
 //
-// A site already in the current shape returns an empty Result.
+// A site's .html views were written before single braces when the site still
+// has to move, or when any of them prints a value with {{ }} where {} would
+// do. Then every one is rewritten (htmlscan.Migrate). A site already in the
+// current shape whose views use single braces returns an empty Result, so
+// migrating twice is migrating once.
 func Site(fs vfs.FS, opts render.Options) Result {
 	res := Result{Files: map[string]string{}}
 	from, to := site.Detect(fs), site.Default()
@@ -52,15 +63,13 @@ func Site(fs vfs.FS, opts render.Options) Result {
 		return to.Root + p[len(from.Root):]
 	}
 
+	files := fs.List(from.Root)
 	moving := map[string]string{}
-	for _, p := range fs.List(from.Root) {
+	for _, p := range files {
 		if dest := target(p); dest != p {
 			moving[p] = dest
 			res.Moves = append(res.Moves, Move{From: p, To: dest})
 		}
-	}
-	if len(res.Moves) == 0 {
-		return res
 	}
 	sort.Slice(res.Moves, func(i, j int) bool { return res.Moves[i].From < res.Moves[j].From })
 
@@ -72,24 +81,58 @@ func Site(fs vfs.FS, opts render.Options) Result {
 		}
 	}
 
+	old := len(res.Moves) > 0
+	for _, p := range files {
+		if old {
+			break
+		}
+		if textKind(p, from) != htmlView {
+			continue
+		}
+		if src, ok := fs.Read(p); ok {
+			_, info := htmlscan.ScanWith(p, src, htmlscan.Options{})
+			old = len(info.DoubleBraces) > 0
+		}
+	}
+
 	rewrite := rewriter(from, to)
-	for _, m := range res.Moves {
-		kind := textKind(m.From, from)
+	for _, p := range files {
+		kind := textKind(p, from)
 		if kind == notText {
 			continue
 		}
-		src, ok := fs.Read(m.From)
+		src, ok := fs.Read(p)
 		if !ok {
 			continue
 		}
-		if out := rewrite(kind, string(src)); out != string(src) {
-			res.Files[m.To] = out
+		out := string(src)
+		if old && kind == htmlView {
+			body, stats, err := htmlscan.Migrate(p, src)
+			if err != nil {
+				res.Problems = append(res.Problems, problem(p, err.Error()))
+				continue
+			}
+			out = string(body)
+			res.Braces.Values += stats.Values
+			res.Braces.Escapes += stats.Escapes
+			res.Braces.Braces += stats.Braces
+			res.Braces.Kept += stats.Kept
 		}
+		if out = rewrite(kind, out); out != string(src) {
+			res.Files[target(p)] = out
+		}
+	}
+	if len(res.Moves) == 0 && len(res.Files) == 0 && len(res.Problems) == 0 {
+		return Result{Files: map[string]string{}}
 	}
 
 	if len(res.Problems) == 0 {
 		pages := pagesOf(fs, from.Pages)
-		before := render.Compile(fs, pages, opts)
+		was := opts
+		if old {
+			was.OldBraces = func(string) bool { return true }
+		}
+		before := render.Compile(fs, pages, was)
 		moved := make([]string, len(pages))
 		for i, p := range pages {
 			moved[i] = target(p)
@@ -99,18 +142,18 @@ func Site(fs vfs.FS, opts render.Options) Result {
 			name := site.OutputName(page)
 			if line, same := firstDifference(before.Files[name], after.Files[site.OutputName(moved[i])]); !same {
 				res.Problems = append(res.Problems, problem(page,
-					"would render differently after moving (output line "+strconv.Itoa(line)+"); nothing was changed"))
+					"would render differently after migrating (output line "+strconv.Itoa(line)+"); nothing was changed"))
 			}
 		}
 		if len(res.Problems) == 0 && len(after.Diagnostics) != len(before.Diagnostics) {
 			res.Problems = append(res.Problems, problem(from.Root,
-				"the site reports "+strconv.Itoa(len(after.Diagnostics))+" problems after moving and "+
+				"the site reports "+strconv.Itoa(len(after.Diagnostics))+" problems after migrating and "+
 					strconv.Itoa(len(before.Diagnostics))+" before; nothing was changed"))
 		}
 	}
 
 	if len(res.Problems) > 0 {
-		res.Moves, res.Files = nil, map[string]string{}
+		res.Moves, res.Files, res.Braces = nil, map[string]string{}, htmlscan.MigrateStats{}
 	}
 	return res
 }

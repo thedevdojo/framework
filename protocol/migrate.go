@@ -28,9 +28,11 @@ type MigrateInput struct {
 
 // MigrateOutput is the stdout document. Moves is every file that changes its
 // path, sorted by where it was. Files holds new contents, by NEW path, for the
-// few files whose text named an old path; a moved file not listed there moves
-// unchanged. When Diagnostics is not empty nothing is to be moved, and Moves
-// and Files are empty. All four keys are always present.
+// files whose text changes: an .html view written before single braces, or a
+// file whose text named an old path. A file can be in Files without moving;
+// a moved file not listed there moves unchanged. When Diagnostics is not empty
+// nothing is to be changed, and Moves and Files are empty. All four keys are
+// always present.
 type MigrateOutput struct {
 	Engine      string              `json:"engine"`
 	Moves       []migrate.Move      `json:"moves"`
