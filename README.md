@@ -1,4 +1,4 @@
-# DevDojo Framework 1468x465
+# DevDojo Framework
 
 <img src="https://cdn.devdojo.com/images/november2026/framework.png" style="height:auto; width:100%">
 
