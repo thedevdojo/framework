@@ -3,7 +3,7 @@
 # The old @devdojo/sites npm package downloads these on install, expecting
 # assets named `devdojo_<os>_<arch>.tar.gz` on the `v<version>` release
 # (see sites/src/engine/binary.js — keep the naming in sync). The release
-# workflow then publishes the same binaries to npm as @devdojo/framework
+# workflow then publishes the same binaries to npm as devdojo
 # (npm/scripts/packages.mjs, which finds them through dist/artifacts.json).
 #
 # Cut a release: git tag v0.1.0 && git push origin v0.1.0

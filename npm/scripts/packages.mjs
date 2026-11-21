@@ -10,13 +10,13 @@
 // try a package locally with a binary built on this machine.
 //
 // It writes one folder per package into --out:
-//   framework-darwin-arm64/ … framework-win32-x64/   one binary each, limited
-//                                                    to its os and cpu
-//   framework/                                       the `devdojo` command,
-//                                                    every platform package
-//                                                    an optionalDependency at
-//                                                    this same version
-// Publish the platform packages first, then framework/.
+//   devdojo-darwin-arm64/ … devdojo-win32-x64/   one binary each, limited
+//                                                to its os and cpu
+//   devdojo/                                     the `devdojo` command, every
+//                                                platform package an
+//                                                optionalDependency at this
+//                                                same version
+// Publish the platform packages first, then devdojo/.
 
 import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -92,17 +92,17 @@ function main() {
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
 
-  const main = JSON.parse(readFileSync(join(here, '..', 'framework', 'package.json'), 'utf8'));
+  const main = JSON.parse(readFileSync(join(here, '..', 'devdojo', 'package.json'), 'utf8'));
   main.version = args.version;
   main.optionalDependencies = {};
 
   for (const p of platforms) {
     const key = p.os + '-' + p.cpu;
-    const name = '@devdojo/framework-' + key;
+    const name = 'devdojo-' + key;
     main.optionalDependencies[name] = args.version;
     const binary = binaries[key];
     if (!binary) continue; // a local try with only some of them
-    const dir = join(out, 'framework-' + key);
+    const dir = join(out, 'devdojo-' + key);
     const file = p.os === 'win32' ? 'devdojo.exe' : 'devdojo';
     mkdirSync(join(dir, 'bin'), { recursive: true });
     copyFileSync(binary, join(dir, 'bin', file));
@@ -110,7 +110,7 @@ function main() {
     const pkg = {
       name,
       version: args.version,
-      description: 'The devdojo binary for ' + p.os + ' ' + p.cpu + '. Install @devdojo/framework, not this.',
+      description: 'The devdojo binary for ' + p.os + ' ' + p.cpu + '. Install devdojo, not this.',
       license: main.license,
       homepage: main.homepage,
       repository: main.repository,
@@ -123,8 +123,8 @@ function main() {
     copyFileSync(license, join(dir, 'LICENSE'));
   }
 
-  const dir = join(out, 'framework');
-  cpSync(join(here, '..', 'framework'), dir, { recursive: true });
+  const dir = join(out, 'devdojo');
+  cpSync(join(here, '..', 'devdojo'), dir, { recursive: true });
   writeFileSync(join(dir, 'package.json'), JSON.stringify(main, null, 2) + '\n');
   copyFileSync(license, join(dir, 'LICENSE'));
   process.stdout.write('Wrote the packages of ' + args.version + ' into ' + out + '\n');

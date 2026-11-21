@@ -6,19 +6,23 @@
 
 ## Install
 
-Build it from source with [Go](https://go.dev/dl/) (1.22 or newer):
+With [npm](https://nodejs.org) (Node 18 or newer):
 
 ```bash
-go install github.com/thedevdojo/framework/cmd/devdojo@latest
+npm install -g devdojo
 ```
 
-That puts `devdojo` in Go's bin folder, `$(go env GOPATH)/bin`. Make sure that folder is on your `PATH`, then check it worked:
+Then check it worked:
 
 ```bash
 devdojo version
 ```
 
-Once the first release is out, you'll also be able to install it with npm (`npm install -g @devdojo/framework`) or download a ready-made binary from [Releases](https://github.com/thedevdojo/framework/releases).
+npm downloads the one ready-made binary that fits your machine (macOS, Linux or Windows). You can also grab it yourself from [Releases](https://github.com/thedevdojo/framework/releases), or build it from source with [Go](https://go.dev/dl/) 1.22 or newer:
+
+```bash
+go install github.com/thedevdojo/framework/cmd/devdojo@latest
+```
 
 ## Start a site
 

@@ -21,6 +21,14 @@ jobs:
       - run: go test ./blade/parser -fuzz='^FuzzParseHTML$' -fuzztime=20s
       - run: go test ./blade/render -fuzz='^FuzzCompileHTML$' -fuzztime=20s
       - run: go test ./blade/convert -fuzz='^FuzzFile$' -fuzztime=20s
+  npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      # The devdojo npm package's own command, `devdojo verify <key>`.
+      - run: node --test 'npm/test/*.test.mjs'
   conformance:
     runs-on: ubuntu-latest
     steps:

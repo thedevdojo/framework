@@ -14,8 +14,8 @@ jobs:
   goreleaser:
     runs-on: ubuntu-latest
     env:
-      # A secret of this repository: an npm token that may publish to the
-      # @devdojo scope. Without it the binaries are released and npm is skipped.
+      # A secret of this repository: an npm token that may publish the
+      # devdojo package and the devdojo-<os>-<cpu> packages beside it. Without it the binaries are released and npm is skipped.
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +34,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # The npm packages, at the tag's version: one per platform holding the
-      # binary goreleaser just built, then @devdojo/framework, which installs
+      # binary goreleaser just built, then devdojo, which installs
       # the one that fits (npm/scripts/packages.mjs says how).
       - uses: actions/setup-node@v4
         if: env.NPM_TOKEN != ''
@@ -48,7 +48,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           node npm/scripts/packages.mjs --version "${GITHUB_REF_NAME#v}" --dist dist --out npm/out
-          for dir in npm/out/framework-*; do
+          for dir in npm/out/devdojo-*; do
             (cd "$dir" && npm publish --access public --provenance)
           done
-          (cd npm/out/framework && npm publish --access public --provenance)
+          (cd npm/out/devdojo && npm publish --access public --provenance)

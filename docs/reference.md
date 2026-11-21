@@ -226,7 +226,7 @@ The [`example/`](../example/) directory is the smallest useful site — a page, 
 | `migrate/` | Moves a site in an older shape into `src/`. |
 | `cmd/devdojo/` | The CLI: `new`, `serve`, `build`, `compile`, `lint`, `convert`, `migrate`, `version`. |
 | `starter/` | How `devdojo new` downloads a template from GitHub and writes it safely. The starter itself lives in [its own repository](https://github.com/devdojo-templates/starter), not in the binary. |
-| `npm/` | The npm package `@devdojo/framework`: the `devdojo` command for npm, and the script the release uses to make one package per platform. |
+| `npm/` | The npm package `devdojo` (`npm install -g devdojo`): the `devdojo` command for npm, its own `devdojo verify <key>` for devdojo.com accounts, and the script the release uses to make one package per platform. |
 | `composer.json` | Installs the Laravel package in `laravel/` from this repository (`composer require devdojo/framework`). |
 | `docs/` | The two syntax guides ([Blade](blade-syntax.md), [HTML](html-syntax.md)), this page, and the design specs in [`docs/specs/`](specs/). |
 

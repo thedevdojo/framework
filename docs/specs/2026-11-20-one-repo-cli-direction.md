@@ -129,6 +129,16 @@ left is the root `composer.json` and a pushed tag.
 
 ## 5. npm: `@devdojo/framework`
 
+> **Renamed the same day: the package is `devdojo`** (`npm install -g
+> devdojo`), Tony's own unscoped name, and the platform packages are
+> `devdojo-<os>-<cpu>`; the folder is `npm/devdojo`. Read the names below
+> that way. `devdojo` 1.0.11 was an older CLI whose only command,
+> `devdojo verify <key>`, devdojo.com's dashboard still tells new authors to
+> run, so the package answers that one command itself
+> (`npm/devdojo/lib/verify.js`, tested by `npm/test/`) and hands everything
+> else to the binary. Framework 1.1.0 is newer than 1.0.11, so it is a plain
+> upgrade for anyone who had the old one.
+
 In an `npm/` folder beside `laravel/`. The package has a `bin` named
 `devdojo` and no engine code of its own.
 
