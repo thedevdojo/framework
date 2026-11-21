@@ -1,4 +1,4 @@
-# framework by DevDojo
+# framework
 
 <img src="https://cdn.devdojo.com/images/november2026/framewrk.png" style="height:auto; width:100%">
 
