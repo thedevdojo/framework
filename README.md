@@ -1,6 +1,6 @@
 # framework
 
-<img src="https://cdn.devdojo.com/images/november2026/framewrk.png" style="height:auto; width:100%">
+<img src="https://cdn.devdojo.com/images/november2026/frmwrk" style="height:auto; width:100%">
 
 **DevDojo Framework turns plain HTML into a finished website.** You write pages in HTML with a few extra tags, and the `devdojo` command builds them into static files you can host anywhere. It's one small program written in Go: no PHP, no server, nothing running in production.
 
