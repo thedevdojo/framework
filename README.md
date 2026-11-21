@@ -1,6 +1,6 @@
-# DevDojo Framework
+# DevDojo Framework 1468x465
 
-<img src="https://cdn.devdojo.com/images/august2026/pocketknife-banner.jpg" style="height:auto; width:100%">
+<img src="https://cdn.devdojo.com/images/november2026/framework.png" style="height:auto; width:100%">
 
 **An HTML compiler.** DevDojo Framework takes templates and data and returns static HTML. It is a Go engine — no PHP, no `eval`, no runtime — so it is safe to run on templates you did not write.
 
